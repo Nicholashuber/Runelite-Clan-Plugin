@@ -14,6 +14,12 @@ Everything runs locally inside your own RuneLite client. The plugin makes **no n
   latest clan broadcast (drop, level, pet, ...) was about, for a short configurable window. Stats are
   stored in your RuneLite settings.
 
+## Commands
+
+Type `::cor` (or `::test`) in the chatbox to print a local CoR banner with the GZ King, the most gz'd
+members and your own counts. Double-colon commands are handled inside RuneLite and are never sent to
+the game server; only you see the output.
+
 ## Config
 
 | Section | Option | What it does |

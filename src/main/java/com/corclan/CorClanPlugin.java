@@ -25,7 +25,9 @@ import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
+import com.corclan.ui.FancyText;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -228,6 +230,79 @@ public class CorClanPlugin extends Plugin
 			return null;
 		}
 		return displayName(me.getName());
+	}
+
+	// ---------------------------------------------------------------- ::cor / ::test
+
+	/**
+	 * Double-colon commands are handled inside the client and never sent to the server. This one
+	 * prints a local CoR banner with the gz leaderboard. Only the player who typed it sees it.
+	 */
+	@Subscribe
+	public void onCommandExecuted(CommandExecuted event)
+	{
+		String cmd = event.getCommand().toLowerCase();
+		if (!cmd.equals("cor") && !cmd.equals("test"))
+		{
+			return;
+		}
+		String crown = orEmpty(iconService.tagFor(ClanIconService.KEY_FOUNDER));
+		String rhino = orEmpty(iconService.tagFor(ClanIconService.KEY_STAFF));
+		String gz = orEmpty(iconService.tagFor(ClanIconService.KEY_GZ_KING));
+		GzStats stats = tracker.getAllTime();
+
+		say(rhino + " " + FancyText.gradient("~ C o R ~ CLAN ~", FancyText.COR_RED, FancyText.WHITE, FancyText.COR_BLUE) + " " + rhino);
+
+		String king = stats.topGiver();
+		if (king != null)
+		{
+			say(gz + " " + FancyText.colored("GZ King: ", FancyText.GOLD)
+				+ FancyText.colored(king, FancyText.WHITE)
+				+ FancyText.colored(" with " + stats.getGiven().get(king) + " gz", FancyText.GOLD));
+		}
+		else
+		{
+			say(gz + " " + FancyText.colored("No GZ King yet. Say gz to claim the throne!", FancyText.GOLD));
+		}
+
+		List<Map.Entry<String, Integer>> top = GzStats.top(stats.getReceived(), 3);
+		if (!top.isEmpty())
+		{
+			StringBuilder sb = new StringBuilder(FancyText.colored("Most gz'd: ", FancyText.ICE));
+			int place = 1;
+			for (Map.Entry<String, Integer> e : top)
+			{
+				if (place > 1)
+				{
+					sb.append(FancyText.colored(", ", FancyText.ICE));
+				}
+				sb.append(FancyText.colored(place + ". " + e.getKey(), FancyText.WHITE))
+					.append(FancyText.colored(" (" + e.getValue() + ")", FancyText.ICE));
+				place++;
+			}
+			say(sb.toString());
+		}
+
+		String me = localPlayerName();
+		if (me != null)
+		{
+			say(crown + " " + FancyText.colored("You: ", FancyText.COR_BLUE)
+				+ FancyText.colored(stats.getGiven().getOrDefault(me, 0) + " gz given, "
+					+ stats.getReceived().getOrDefault(me, 0) + " received", FancyText.WHITE));
+		}
+
+		say(FancyText.gradient("The future of CoR: shared leaderboards, events, and the CoR lottery...",
+			FancyText.COR_BLUE, FancyText.ICE, FancyText.COR_RED));
+	}
+
+	private void say(String message)
+	{
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
+	}
+
+	private static String orEmpty(String s)
+	{
+		return s == null ? "" : s;
 	}
 
 	// ---------------------------------------------------------------- chat icons
