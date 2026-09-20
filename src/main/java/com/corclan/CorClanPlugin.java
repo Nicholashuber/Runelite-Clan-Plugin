@@ -181,9 +181,21 @@ public class CorClanPlugin extends Plugin
 			{
 				persistStats();
 				refreshPanel();
+				tagGzCount(event.getMessageNode(), sender);
 				announce(sender, tracker.getLastGzSubject());
 			}
 		}
+	}
+
+	/** Appends "[GZ count: N]" to the chat line on this client, N being the sender's all-time gz total. */
+	private void tagGzCount(MessageNode node, String sender)
+	{
+		if (!config.showGzCount() || node == null)
+		{
+			return;
+		}
+		int count = tracker.getAllTime().getGiven().getOrDefault(sender, 0);
+		node.setValue(node.getValue() + " <col=" + TITLE_COLOR + ">[GZ count: " + count + "]</col>");
 	}
 
 	/** Local-only game message; nothing is sent to the server or other players. */

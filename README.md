@@ -27,6 +27,7 @@ Everything runs locally inside your own RuneLite client. The plugin makes **no n
 | GZ tracker | One gz per person | Only the first gz per member per broadcast counts as "received" |
 | GZ tracker | Include guest clan chat | Also track the guest clan channel |
 | GZ tracker | Show gz overlay | On-screen box with your own counts, the open gz window with a countdown, and a "+1" flash when a gz is counted |
+| GZ tracker | Show [GZ count] on gz lines | Append `[GZ count: N]` to a member's chat line when they say gz, N being their all-time total on your client |
 | GZ tracker | Chat message when counted | Also print a local game message per counted gz (off by default) |
 | GZ tracker | Max gz message length | Longer messages are never treated as a gz |
 

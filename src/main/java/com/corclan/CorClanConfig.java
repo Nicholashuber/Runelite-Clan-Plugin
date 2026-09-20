@@ -156,10 +156,22 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "showGzCount",
+		name = "Show [GZ count] on gz lines",
+		description = "Append the sender's all-time gz total to their chat line when they say gz (only you see it)",
+		position = 5,
+		section = gzSection
+	)
+	default boolean showGzCount()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "announceGz",
 		name = "Chat message when counted",
 		description = "Also print a local game message each time a gz is counted (only you see it)",
-		position = 5,
+		position = 6,
 		section = gzSection
 	)
 	default boolean announceGz()
@@ -172,7 +184,7 @@ public interface CorClanConfig extends Config
 		keyName = "maxGzMessageLength",
 		name = "Max gz message length",
 		description = "Messages longer than this never count as a gz",
-		position = 6,
+		position = 7,
 		section = gzSection
 	)
 	default int maxGzMessageLength()
