@@ -8,8 +8,12 @@ import com.corclan.ui.CorClanPanel;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.inject.Provides;
+import com.corclan.ui.CorClanOverlay;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import net.runelite.api.Player;
+import net.runelite.client.ui.overlay.OverlayManager;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
@@ -44,6 +48,10 @@ public class CorClanPlugin extends Plugin
 	private static final String CHAT_BUILD_CALLBACK = "chatMessageBuilding";
 	private static final Pattern IMG_TAG = Pattern.compile("<img=\\d+>");
 
+	/** Icons that apply without any config. Lines in the "Member icons" config box override these. */
+	private static final Map<String, String> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
+		"lavasockz", ClanIconService.KEY_FOUNDER);
+
 	@Inject
 	private Client client;
 
@@ -64,6 +72,12 @@ public class CorClanPlugin extends Plugin
 
 	@Inject
 	private ClanIconService iconService;
+
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private CorClanOverlay overlay;
 
 	private final GzTracker tracker = new GzTracker();
 	private final Map<String, String> memberIcons = new HashMap<>();
@@ -86,6 +100,7 @@ public class CorClanPlugin extends Plugin
 			.panel(panel)
 			.build();
 		clientToolbar.addNavigation(navButton);
+		overlayManager.add(overlay);
 		refreshPanel();
 		log.info("CoR Clan started");
 	}
@@ -93,6 +108,7 @@ public class CorClanPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		overlayManager.remove(overlay);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
@@ -157,8 +173,39 @@ public class CorClanPlugin extends Plugin
 			{
 				persistStats();
 				refreshPanel();
+				announce(sender, tracker.getLastGzSubject());
 			}
 		}
+	}
+
+	/** Local-only game message; nothing is sent to the server or other players. */
+	private void announce(String giver, String subject)
+	{
+		if (!config.announceGz())
+		{
+			return;
+		}
+		String text = subject == null
+			? "CoR: gz from " + giver + " counted (no broadcast open)"
+			: "CoR: gz from " + giver + " counted for " + subject
+				+ " (" + tracker.getAllTime().getReceived().getOrDefault(subject, 0) + " total)";
+		clientThread.invokeLater(() -> client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", text, null));
+	}
+
+	public GzTracker getTracker()
+	{
+		return tracker;
+	}
+
+	/** Display name of the logged-in character, or null when not logged in. */
+	public String localPlayerName()
+	{
+		Player me = client.getLocalPlayer();
+		if (me == null || me.getName() == null)
+		{
+			return null;
+		}
+		return displayName(me.getName());
 	}
 
 	// ---------------------------------------------------------------- chat icons
@@ -267,6 +314,7 @@ public class CorClanPlugin extends Plugin
 	private void parseMemberIcons()
 	{
 		memberIcons.clear();
+		memberIcons.putAll(BUILTIN_MEMBER_ICONS);
 		String raw = config.memberIcons();
 		if (raw == null)
 		{
@@ -352,6 +400,7 @@ public class CorClanPlugin extends Plugin
 		}
 		GzStats allTime = tracker.getAllTime();
 		GzStats session = tracker.getSession();
-		SwingUtilities.invokeLater(() -> p.refresh(allTime, session));
+		String me = localPlayerName();
+		SwingUtilities.invokeLater(() -> p.refresh(allTime, session, me));
 	}
 }

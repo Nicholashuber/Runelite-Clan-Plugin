@@ -1,0 +1,114 @@
+{
+  "how_to_use": [
+    "Paste the 'style' block plus ONE asset's 'prompt' into ChatGPT per image. Ask for a PNG with a transparent background.",
+    "Generate everything at 1024x1024. Do not try to make tiny images; the build script shrinks them.",
+    "Save each result into assets/icons/src/ using the exact 'filename'. Then run: python assets/build_icons.py",
+    "Chat icons end up 11x11 px in game, so they must be one bold silhouette. Anything thin, detailed or with text turns to mud at that size."
+  ],
+  "style": {
+    "brand": "C o R clan mascot: a rhinoceros with an oversized single horn. Aggressive, heavy metal style. Horn is the hero element.",
+    "palette": {
+      "horn_red": "#D32F2F",
+      "blood_red_dark": "#7A0C0C",
+      "rhino_grey_light": "#D8D8D8",
+      "rhino_grey_dark": "#3A3A3A",
+      "gold": "#FFC107",
+      "black": "#0E0E0E"
+    },
+    "rules_for_all_icons": [
+      "Flat vector illustration, 2 to 4 solid colors, no gradients, no shading, no outlines thinner than 6% of the canvas width.",
+      "Single centered subject filling about 90% of the canvas. Transparent background. No text, no border, no drop shadow, no glow.",
+      "Must still be recognisable when shrunk to 11x11 pixels: think emoji or app icon, not illustration."
+    ],
+    "rules_for_logo": [
+      "Flat vector, can use a little shading. Transparent background outside the circle. No text."
+    ]
+  },
+  "assets": [
+    {
+      "filename": "logo.png",
+      "final_size": "128x128 panel header",
+      "prompt": "Emblem: front-facing rhinoceros head inside a solid black circle, oversized red single horn pointing up, red dripping blood-like paint running down from the horn base, angry glowing red eyes, grey and white face plates. Flat vector, bold shapes, transparent background outside the circle. No text."
+    },
+    {
+      "filename": "panel_icon.png",
+      "final_size": "16x16 RuneLite sidebar button",
+      "prompt": "Ultra-simplified rhino head icon: dark grey head silhouette with one huge bright red horn, two tiny red eye dots, on a solid black circle. 3 colors only, thick shapes, app-icon style, transparent background outside the circle. No text."
+    },
+    {
+      "filename": "rank_owner.png",
+      "final_size": "11x11 chat icon, clan owner",
+      "prompt": "Icon: a huge red rhino horn pointing up wearing a small solid gold crown on its tip. Flat, 3 colors (red, gold, black outline), thick shapes, transparent background."
+    },
+    {
+      "filename": "rank_deputy_owner.png",
+      "final_size": "11x11 chat icon, deputy owner",
+      "prompt": "Icon: a huge silver-white rhino horn pointing up wearing a small solid gold crown on its tip. Flat, 3 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "rank_administrator.png",
+      "final_size": "11x11 chat icon, administrators",
+      "prompt": "Icon: a huge red rhino horn pointing up in front of a solid black shield shape. Flat, 2 to 3 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "rank_high.png",
+      "final_size": "11x11 chat icon, senior members",
+      "prompt": "Icon: a single huge solid red rhino horn pointing up, black outline. Flat, 2 colors, transparent background."
+    },
+    {
+      "filename": "rank_medium.png",
+      "final_size": "11x11 chat icon, regular members",
+      "prompt": "Icon: a single huge solid orange rhino horn pointing up, black outline. Flat, 2 colors, transparent background."
+    },
+    {
+      "filename": "rank_low.png",
+      "final_size": "11x11 chat icon, new members",
+      "prompt": "Icon: a single huge solid light grey rhino horn pointing up, black outline. Flat, 2 colors, transparent background."
+    },
+    {
+      "filename": "rank_guest.png",
+      "final_size": "11x11 chat icon, guests",
+      "prompt": "Icon: outline only of a rhino horn pointing up, thick dark grey stroke, hollow inside. Flat, 1 color, transparent background."
+    },
+    {
+      "filename": "member_founder.png",
+      "final_size": "11x11 chat icon, reserved for Lavasockz",
+      "prompt": "Icon: a huge red rhino horn pointing up with bright orange lava dripping down its sides and a small orange flame at the tip. Flat, 3 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "member_gzking.png",
+      "final_size": "11x11 chat icon, auto-given to the top gz giver",
+      "prompt": "Icon: a solid gold crown with a small red rhino horn rising from the middle point. Flat, 2 colors plus black outline, thick shapes, transparent background."
+    },
+    {
+      "filename": "member_crown.png",
+      "final_size": "11x11 chat icon",
+      "prompt": "Icon: a solid gold three-point crown, black outline. Flat, 2 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "member_trophy.png",
+      "final_size": "11x11 chat icon",
+      "prompt": "Icon: a solid gold trophy cup with two handles, black outline. Flat, 2 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "member_star.png",
+      "final_size": "11x11 chat icon",
+      "prompt": "Icon: a solid gold five-point star, black outline. Flat, 2 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "member_skull.png",
+      "final_size": "11x11 chat icon",
+      "prompt": "Icon: a solid white skull with black eye sockets, front view, black outline. Flat, 2 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "member_gem.png",
+      "final_size": "11x11 chat icon",
+      "prompt": "Icon: a solid bright blue faceted gem, diamond shape, one white highlight facet, black outline. Flat, 3 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "member_fire.png",
+      "final_size": "11x11 chat icon",
+      "prompt": "Icon: a solid orange flame with a smaller yellow inner flame, black outline. Flat, 3 colors, thick shapes, transparent background."
+    }
+  ]
+}

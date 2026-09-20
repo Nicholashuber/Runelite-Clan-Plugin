@@ -11,6 +11,27 @@ public class GzTracker
 	private GzStats session = new GzStats();
 	private BroadcastRecord current;
 
+	// last counted gz, for the on-screen indicator
+	private long lastGzTime;
+	private String lastGzGiver;
+	private String lastGzSubject;
+
+	public long getLastGzTime()
+	{
+		return lastGzTime;
+	}
+
+	public String getLastGzGiver()
+	{
+		return lastGzGiver;
+	}
+
+	/** Who the last gz was credited to, or null if no broadcast window was open. */
+	public String getLastGzSubject()
+	{
+		return lastGzSubject;
+	}
+
 	public void load(GzStats stats)
 	{
 		allTime = stats != null ? stats : new GzStats();
@@ -73,6 +94,9 @@ public class GzTracker
 		}
 		allTime.addGiven(sender);
 		session.addGiven(sender);
+		lastGzTime = now;
+		lastGzGiver = sender;
+		lastGzSubject = null;
 
 		BroadcastRecord window = currentWindow(now, settings.windowMillis);
 		if (window != null
@@ -82,6 +106,7 @@ public class GzTracker
 			window.addGz(sender);
 			allTime.addReceived(window.getSubject());
 			session.addReceived(window.getSubject());
+			lastGzSubject = window.getSubject();
 		}
 		return true;
 	}

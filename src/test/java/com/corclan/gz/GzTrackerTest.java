@@ -91,6 +91,21 @@ public class GzTrackerTest
 	}
 
 	@Test
+	public void lastGzIsRecordedForIndicator()
+	{
+		GzTracker t = new GzTracker();
+		t.onClanChat("Nick", "gz", 5L, SETTINGS);
+		assertEquals(5L, t.getLastGzTime());
+		assertEquals("Nick", t.getLastGzGiver());
+		assertNull(t.getLastGzSubject());
+
+		t.onBroadcast("Zezima", "drop", 10L);
+		t.onClanChat("Bob", "grats", 11L, SETTINGS);
+		assertEquals("Bob", t.getLastGzGiver());
+		assertEquals("Zezima", t.getLastGzSubject());
+	}
+
+	@Test
 	public void topGiverAndReset()
 	{
 		GzTracker t = new GzTracker();

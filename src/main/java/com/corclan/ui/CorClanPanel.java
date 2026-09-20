@@ -167,11 +167,16 @@ public class CorClanPanel extends PluginPanel
 		return section(title, panel);
 	}
 
-	/** Must be called on the Swing thread. */
-	public void refresh(GzStats allTime, GzStats session)
+	/** Must be called on the Swing thread. {@code me} is the logged-in name, or null. */
+	public void refresh(GzStats allTime, GzStats session, String me)
 	{
-		summaryLabel.setText(String.format("<html>Session: %d given, %d received<br>All time: %d given, %d received</html>",
-			session.totalGiven(), session.totalReceived(), allTime.totalGiven(), allTime.totalReceived()));
+		String mine = me == null
+			? "Log in to see your own counts"
+			: String.format("You: gave %d (%d today), got %d (%d today)",
+				allTime.getGiven().getOrDefault(me, 0), session.getGiven().getOrDefault(me, 0),
+				allTime.getReceived().getOrDefault(me, 0), session.getReceived().getOrDefault(me, 0));
+		summaryLabel.setText(String.format("<html>%s<br>Clan session: %d given, %d received<br>Clan all time: %d given, %d received</html>",
+			mine, session.totalGiven(), session.totalReceived(), allTime.totalGiven(), allTime.totalReceived()));
 
 		fillLeaderboard(giversPanel, GzStats.top(allTime.getGiven(), LEADERBOARD_SIZE), "No gz's counted yet");
 		fillLeaderboard(receiversPanel, GzStats.top(allTime.getReceived(), LEADERBOARD_SIZE), "Nobody gz'd yet");

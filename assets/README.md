@@ -8,10 +8,11 @@ Nothing in this folder is packaged into the plugin. I copy the finished files in
 | What | Drop it in | Notes |
 |------|-----------|-------|
 | Concept art, mockups, anything big | `assets/concept/` | Git-ignored. Any format. |
-| Finished chat icons | `assets/icons/` | PNG with transparency, **11x11 px** (that is the size OSRS draws chat icons at). Use the filenames below. |
-| Panel icon | `assets/icons/panel_icon.png` | 16x16 PNG, shows in the RuneLite sidebar. |
-| Clan logo | `assets/icons/logo.png` | 128x128 PNG, shows at the top of the panel. |
+| Generated art from ChatGPT | `assets/icons/src/` | 1024x1024 PNG with transparent background, named exactly as in `image-prompts.json`. Run `python assets/build_icons.py` to shrink them into the plugin. |
+| Hand-made final icons | `assets/icons/` | Only if you already have them at final size: 11x11 chat icons, 16x16 panel icon, 128x128 logo. |
 | Real clan chat lines | `assets/chat-examples.md` | Paste raw lines from the clan chat and the system broadcasts. Used to tune the GZ detector and broadcast parser. |
+
+`image-prompts.json` has one ready-to-paste prompt per image, plus the shared style block.
 
 ## Chat icon filenames
 
@@ -36,6 +37,7 @@ member_star.png     key: star
 member_skull.png    key: skull
 member_gem.png      key: gem
 member_fire.png     key: fire
+member_founder.png  key: founder (built in: Lavasockz always gets this unless the config says otherwise)
 member_gzking.png   auto-assigned to the top GZ giver
 ```
 

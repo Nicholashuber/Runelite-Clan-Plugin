@@ -72,7 +72,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "memberIcons",
 		name = "Member icons",
-		description = "One per line: name=icon. Icons: crown, trophy, star, skull, gem, fire. Example: Zezima=crown",
+		description = "One per line: name=icon. Icons: crown, trophy, star, skull, gem, fire, founder. Example: Zezima=crown",
 		position = 1,
 		section = iconsSection
 	)
@@ -143,12 +143,36 @@ public interface CorClanConfig extends Config
 		return false;
 	}
 
+	@ConfigItem(
+		keyName = "showOverlay",
+		name = "Show gz overlay",
+		description = "On-screen box with your gz counts, the active gz window and a flash when a gz is counted",
+		position = 4,
+		section = gzSection
+	)
+	default boolean showOverlay()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "announceGz",
+		name = "Chat message when counted",
+		description = "Also print a local game message each time a gz is counted (only you see it)",
+		position = 5,
+		section = gzSection
+	)
+	default boolean announceGz()
+	{
+		return false;
+	}
+
 	@Range(min = 5, max = 200)
 	@ConfigItem(
 		keyName = "maxGzMessageLength",
 		name = "Max gz message length",
 		description = "Messages longer than this never count as a gz",
-		position = 4,
+		position = 6,
 		section = gzSection
 	)
 	default int maxGzMessageLength()

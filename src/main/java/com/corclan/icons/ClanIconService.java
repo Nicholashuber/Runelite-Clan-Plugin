@@ -37,9 +37,11 @@ public class ClanIconService
 	private static final List<String> RANK_KEYS = Arrays.asList(
 		KEY_OWNER, KEY_DEPUTY_OWNER, KEY_ADMINISTRATOR, KEY_HIGH, KEY_MEDIUM, KEY_LOW, KEY_GUEST);
 
+	public static final String KEY_FOUNDER = "founder";
+
 	/** Keys a clan admin can use in the "Member icons" config box. */
 	public static final List<String> MEMBER_KEYS = Collections.unmodifiableList(Arrays.asList(
-		"crown", "trophy", "star", "skull", "gem", "fire"));
+		"crown", "trophy", "star", "skull", "gem", "fire", KEY_FOUNDER));
 
 	private final ChatIconManager chatIconManager;
 	private final Map<String, Integer> iconIds = new HashMap<>();

@@ -20,12 +20,14 @@ Everything runs locally inside your own RuneLite client. The plugin makes **no n
 |---------|--------|--------------|
 | Links | Discord invite, Website | URLs opened by the panel buttons |
 | Chat icons | Custom rank icons | Replace the default clan rank icon with CoR icons |
-| Chat icons | Member icons | One per line, `name=icon`. Icons: `crown`, `trophy`, `star`, `skull`, `gem`, `fire` |
+| Chat icons | Member icons | One per line, `name=icon`. Icons: `crown`, `trophy`, `star`, `skull`, `gem`, `fire`, `founder` |
 | Chat icons | GZ King icon | Give the top all-time gz giver a special icon |
 | GZ tracker | Track gz's | Master switch |
 | GZ tracker | GZ window | Seconds after a broadcast during which gz's count for that member (default 90) |
 | GZ tracker | One gz per person | Only the first gz per member per broadcast counts as "received" |
 | GZ tracker | Include guest clan chat | Also track the guest clan channel |
+| GZ tracker | Show gz overlay | On-screen box with your own counts, the open gz window with a countdown, and a "+1" flash when a gz is counted |
+| GZ tracker | Chat message when counted | Also print a local game message per counted gz (off by default) |
 | GZ tracker | Max gz message length | Longer messages are never treated as a gz |
 
 ## Development
