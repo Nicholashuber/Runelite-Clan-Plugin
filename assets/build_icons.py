@@ -22,9 +22,27 @@ SIZES = {"logo.png": 128, "panel_icon.png": 16}
 CHAT_ICON = 11
 
 
+OUTLINE_THRESHOLD = 60  # pixels darker than this on every channel are treated as outline
+
+
+def strip_outline(img):
+    """Makes near-black outline pixels transparent. At 11x11 a thick outline eats a third of the
+    pixels and muddies the shape; the colored fill alone reads far better."""
+    img = img.copy()
+    px = img.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a > 0 and max(r, g, b) < OUTLINE_THRESHOLD:
+                px[x, y] = (0, 0, 0, 0)
+    return img
+
+
 def shrink(img, size, crop):
     img = img.convert("RGBA")
     if crop:
+        img = strip_outline(img)
         box = img.getchannel("A").getbbox()
         if box:
             img = img.crop(box)

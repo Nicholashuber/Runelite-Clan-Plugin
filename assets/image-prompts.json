@@ -18,7 +18,8 @@
     "rules_for_all_icons": [
       "Flat vector illustration, 2 to 4 solid colors, no gradients, no shading, no outlines thinner than 6% of the canvas width.",
       "Single centered subject filling about 90% of the canvas. Transparent background. No text, no border, no drop shadow, no glow.",
-      "Must still be recognisable when shrunk to 11x11 pixels: think emoji or app icon, not illustration."
+      "Must still be recognisable when shrunk to 11x11 pixels: think emoji or app icon, not illustration.",
+      "Black outlines are fine to include; the build script removes them before shrinking, so the colored fill is what has to carry the shape."
     ],
     "rules_for_logo": [
       "Flat vector, can use a little shading. Transparent background outside the circle. No text."
