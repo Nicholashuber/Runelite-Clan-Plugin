@@ -300,7 +300,7 @@ public class CorClanPlugin extends Plugin
 					+ stats.getReceived().getOrDefault(me, 0) + " received", FancyText.WHITE));
 		}
 
-		say(FancyText.gradient("The future of CoR: shared leaderboards, events, and the CoR lottery...",
+		say(FancyText.gradient("The future of CoR: clan-wide gz leaderboards, events and achievements...",
 			FancyText.COR_BLUE, FancyText.ICE, FancyText.COR_RED));
 	}
 
