@@ -42,7 +42,7 @@ public interface CorClanConfig extends Config
 	)
 	default String discordUrl()
 	{
-		return "https://discord.gg/";
+		return "https://discord.gg/hSx5H7DP4";
 	}
 
 	@ConfigItem(
