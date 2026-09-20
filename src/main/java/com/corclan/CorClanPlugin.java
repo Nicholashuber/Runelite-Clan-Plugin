@@ -56,8 +56,8 @@ public class CorClanPlugin extends Plugin
 	private static final Map<String, String> BUILTIN_MEMBER_TITLES = Collections.singletonMap(
 		"lavasockz", "Developer");
 
-	/** Chat color for titles (gold). The closing tag restores the normal name color. */
-	private static final String TITLE_COLOR = "e8b22c";
+	/** Chat color for titles: the same blue as the crown icon. The closing tag restores the name color. */
+	private static final String TITLE_COLOR = "1046fb";
 
 	@Inject
 	private Client client;
