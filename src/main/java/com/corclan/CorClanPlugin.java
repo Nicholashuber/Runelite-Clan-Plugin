@@ -25,8 +25,11 @@ import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
-import com.corclan.ui.FancyText;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.client.callback.ClientThread;
@@ -90,6 +93,9 @@ public class CorClanPlugin extends Plugin
 
 	@Inject
 	private OverlayManager overlayManager;
+
+	@Inject
+	private ChatMessageManager chatMessageManager;
 
 	@Inject
 	private CorClanOverlay overlay;
@@ -246,6 +252,7 @@ public class CorClanPlugin extends Plugin
 	/**
 	 * Double-colon commands are handled inside the client and never sent to the server. This one
 	 * prints a local CoR banner with the gz leaderboard. Only the player who typed it sees it.
+	 * Colours come from RuneLite's chat colour types so they adapt to the opaque / transparent chatbox.
 	 */
 	@Subscribe
 	public void onCommandExecuted(CommandExecuted event)
@@ -255,63 +262,78 @@ public class CorClanPlugin extends Plugin
 		{
 			return;
 		}
-		String crown = orEmpty(iconService.tagFor(ClanIconService.KEY_FOUNDER));
-		String rhino = orEmpty(iconService.tagFor(ClanIconService.KEY_STAFF));
-		String gz = orEmpty(iconService.tagFor(ClanIconService.KEY_GZ_KING));
 		GzStats stats = tracker.getAllTime();
+		int rhino = iconService.indexFor(ClanIconService.KEY_STAFF);
+		int gzIcon = iconService.indexFor(ClanIconService.KEY_GZ_KING);
+		int crown = iconService.indexFor(ClanIconService.KEY_FOUNDER);
 
-		say(rhino + " " + FancyText.gradient("~ C o R ~ CLAN ~", FancyText.COR_RED, FancyText.WHITE, FancyText.COR_BLUE) + " " + rhino);
+		ChatMessageBuilder banner = new ChatMessageBuilder();
+		icon(banner, rhino);
+		banner.append(ChatColorType.HIGHLIGHT).append("CoR Clan").append(ChatColorType.NORMAL)
+			.append(" - " + tracker.getAllTime().totalGiven() + " gz counted ");
+		icon(banner, rhino);
+		say(banner);
 
+		ChatMessageBuilder kingLine = new ChatMessageBuilder();
+		icon(kingLine, gzIcon);
 		String king = stats.topGiver();
 		if (king != null)
 		{
-			say(gz + " " + FancyText.colored("GZ King: ", FancyText.GOLD)
-				+ FancyText.colored(king, FancyText.WHITE)
-				+ FancyText.colored(" with " + stats.getGiven().get(king) + " gz", FancyText.GOLD));
+			kingLine.append(ChatColorType.NORMAL).append("GZ King: ")
+				.append(ChatColorType.HIGHLIGHT).append(king)
+				.append(ChatColorType.NORMAL).append(" with " + stats.getGiven().get(king) + " gz");
 		}
 		else
 		{
-			say(gz + " " + FancyText.colored("No GZ King yet. Say gz to claim the throne!", FancyText.GOLD));
+			kingLine.append(ChatColorType.NORMAL).append("No GZ King yet. Say ")
+				.append(ChatColorType.HIGHLIGHT).append("gz")
+				.append(ChatColorType.NORMAL).append(" to claim the throne!");
 		}
+		say(kingLine);
 
 		List<Map.Entry<String, Integer>> top = GzStats.top(stats.getReceived(), 3);
 		if (!top.isEmpty())
 		{
-			StringBuilder sb = new StringBuilder(FancyText.colored("Most gz'd: ", FancyText.ICE));
+			ChatMessageBuilder topLine = new ChatMessageBuilder().append(ChatColorType.NORMAL).append("Most gz'd: ");
 			int place = 1;
 			for (Map.Entry<String, Integer> e : top)
 			{
-				if (place > 1)
-				{
-					sb.append(FancyText.colored(", ", FancyText.ICE));
-				}
-				sb.append(FancyText.colored(place + ". " + e.getKey(), FancyText.WHITE))
-					.append(FancyText.colored(" (" + e.getValue() + ")", FancyText.ICE));
+				topLine.append(ChatColorType.NORMAL).append(place > 1 ? ", " : "")
+					.append(e.getKey() + " ")
+					.append(ChatColorType.HIGHLIGHT).append(String.valueOf(e.getValue()));
 				place++;
 			}
-			say(sb.toString());
+			say(topLine);
 		}
 
 		String me = localPlayerName();
 		if (me != null)
 		{
-			say(crown + " " + FancyText.colored("You: ", FancyText.COR_BLUE)
-				+ FancyText.colored(stats.getGiven().getOrDefault(me, 0) + " gz given, "
-					+ stats.getReceived().getOrDefault(me, 0) + " received", FancyText.WHITE));
+			ChatMessageBuilder meLine = new ChatMessageBuilder();
+			icon(meLine, crown);
+			meLine.append(ChatColorType.NORMAL).append("You: ")
+				.append(ChatColorType.HIGHLIGHT).append(String.valueOf(stats.getGiven().getOrDefault(me, 0)))
+				.append(ChatColorType.NORMAL).append(" gz given, ")
+				.append(ChatColorType.HIGHLIGHT).append(String.valueOf(stats.getReceived().getOrDefault(me, 0)))
+				.append(ChatColorType.NORMAL).append(" received");
+			say(meLine);
 		}
-
-		say(FancyText.gradient("The future of CoR: clan-wide gz leaderboards, events and achievements...",
-			FancyText.COR_BLUE, FancyText.ICE, FancyText.COR_RED));
 	}
 
-	private void say(String message)
+	private static void icon(ChatMessageBuilder builder, int index)
 	{
-		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
+		if (index >= 0)
+		{
+			builder.img(index).append(" ");
+		}
 	}
 
-	private static String orEmpty(String s)
+	private void say(ChatMessageBuilder message)
 	{
-		return s == null ? "" : s;
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.GAMEMESSAGE)
+			.runeLiteFormattedMessage(message.build())
+			.build());
 	}
 
 	// ---------------------------------------------------------------- chat icons

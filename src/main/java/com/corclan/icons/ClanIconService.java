@@ -70,11 +70,14 @@ public class ClanIconService
 		log.debug("Registered {} CoR chat icons", iconIds.size());
 	}
 
+	/** Absolute path: this class sits in com.corclan.icons but the PNGs live in com/corclan/. */
+	private static final String RESOURCE_DIR = "/com/corclan/";
+
 	private void register(String key, String resource)
 	{
 		try
 		{
-			BufferedImage img = ImageUtil.loadImageResource(ClanIconService.class, resource);
+			BufferedImage img = ImageUtil.loadImageResource(ClanIconService.class, RESOURCE_DIR + resource);
 			if (img.getHeight() != ICON_SIZE)
 			{
 				// keep width proportional: wordmark icons may be wider than they are tall
@@ -85,31 +88,33 @@ public class ClanIconService
 		}
 		catch (RuntimeException ex)
 		{
-			log.debug("Could not load CoR icon {}", resource, ex);
+			log.warn("Could not load CoR icon {}", resource, ex);
 		}
 	}
 
 	/**
-	 * @return the {@code <img=N>} tag for an icon key, or null if that icon is unknown or the
-	 * client has not finished loading its chat icons yet
+	 * @return the mod icon index for an icon key, or -1 if that icon is unknown or the client has
+	 * not finished loading its chat icons yet
 	 */
-	public String tagFor(String key)
+	public int indexFor(String key)
 	{
 		if (key == null)
 		{
-			return null;
+			return -1;
 		}
 		Integer id = iconIds.get(key);
 		if (id == null)
 		{
-			return null;
+			return -1;
 		}
-		int index = chatIconManager.chatIconIndex(id);
-		if (index < 0)
-		{
-			return null;
-		}
-		return "<img=" + index + ">";
+		return chatIconManager.chatIconIndex(id);
+	}
+
+	/** @return the {@code <img=N>} tag for an icon key, or null when {@link #indexFor} is -1 */
+	public String tagFor(String key)
+	{
+		int index = indexFor(key);
+		return index < 0 ? null : "<img=" + index + ">";
 	}
 
 	public boolean isMemberKey(String key)
