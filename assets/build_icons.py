@@ -39,7 +39,42 @@ def strip_outline(img):
     return img
 
 
-MAX_CHAT_ICON_WIDTH = 24  # chat icons must be 11 tall but may be wider (wordmarks like "GZ")
+MAX_CHAT_ICON_WIDTH = 22  # chat icons must be 11 tall but may be wider (wordmarks like "GZ")
+CHAT_ICON_CONTENT = 10    # art height inside the 11px canvas; the rest is the outline
+OUTLINE_COLOR = (33, 33, 33, 255)  # same near-black RuneLite outlines its own rank icons with
+ALPHA_THRESHOLD = 110
+
+
+def lighten_greys(img, floor=110, target=225):
+    """Pushes mid-grey fill up to light grey so grey art (the rhino face) does not vanish against
+    the grey opaque chatbox. Coloured pixels are untouched."""
+    img = img.copy()
+    px = img.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a and abs(r - g) < 20 and abs(g - b) < 20 and r > floor:
+                px[x, y] = (target, target, target, a)
+    return img
+
+
+def add_outline(img):
+    """1px dark outline around every opaque pixel, inside the existing canvas."""
+    w, h = img.size
+    src = img.load()
+    out = img.copy()
+    px = out.load()
+    for y in range(h):
+        for x in range(w):
+            if src[x, y][3]:
+                continue
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < w and 0 <= ny < h and src[nx, ny][3]:
+                    px[x, y] = OUTLINE_COLOR
+                    break
+    return out
 
 
 def shrink(img, size, crop):
@@ -47,25 +82,27 @@ def shrink(img, size, crop):
     if not crop:
         return img.resize((size, size), Image.LANCZOS)
 
-    img = strip_outline(img)
+    # chat icon: drop the source outline, lift greys, crop, scale to CONTENT tall, re-outline at pixel scale
+    img = lighten_greys(strip_outline(img))
     box = img.getchannel("A").getbbox()
     if box:
         img = img.crop(box)
     w, h = img.size
-    # keep the aspect ratio: height is fixed, width follows, tall art gets padded to square
-    width = max(size, min(MAX_CHAT_ICON_WIDTH, round(w * size / h)))
+    content_w = max(CHAT_ICON_CONTENT, min(MAX_CHAT_ICON_WIDTH - 2, round(w * CHAT_ICON_CONTENT / h)))
     if w < h:
         square = Image.new("RGBA", (h, h), (0, 0, 0, 0))
         square.paste(img, ((h - w) // 2, 0))
         img = square
-        width = size
-    img = img.resize((width, size), Image.LANCZOS)
+        content_w = CHAT_ICON_CONTENT
+    img = img.resize((content_w, CHAT_ICON_CONTENT), Image.LANCZOS)
     px = img.load()
-    for y in range(size):
-        for x in range(width):
+    for y in range(CHAT_ICON_CONTENT):
+        for x in range(content_w):
             r, g, b, a = px[x, y]
-            px[x, y] = (r, g, b, 255 if a >= 96 else 0)
-    return img
+            px[x, y] = (r, g, b, 255 if a >= ALPHA_THRESHOLD else 0)
+    canvas = Image.new("RGBA", (content_w + 2, size), (0, 0, 0, 0))
+    canvas.paste(img, (1, 1))
+    return add_outline(canvas)
 
 
 def main():
