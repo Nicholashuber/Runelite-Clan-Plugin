@@ -9,8 +9,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.inject.Provides;
 import com.corclan.ui.CorClanOverlay;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.runelite.api.Player;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -49,8 +51,8 @@ public class CorClanPlugin extends Plugin
 	private static final Pattern IMG_TAG = Pattern.compile("<img=\\d+>");
 
 	/** Icons that apply without any config. Lines in the "Member icons" config box override these. */
-	private static final Map<String, String> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
-		"lavasockz", ClanIconService.KEY_FOUNDER);
+	private static final Map<String, List<String>> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
+		"lavasockz", Collections.singletonList(ClanIconService.KEY_FOUNDER));
 
 	/** Titles shown between the icon and the name, e.g. "[Developer] Lavasockz". */
 	private static final Map<String, String> BUILTIN_MEMBER_TITLES = Collections.singletonMap(
@@ -87,7 +89,7 @@ public class CorClanPlugin extends Plugin
 	private CorClanOverlay overlay;
 
 	private final GzTracker tracker = new GzTracker();
-	private final Map<String, String> memberIcons = new HashMap<>();
+	private final Map<String, List<String>> memberIcons = new HashMap<>();
 	private final Map<String, String> memberTitles = new HashMap<>();
 
 	private CorClanPanel panel;
@@ -268,18 +270,15 @@ public class CorClanPlugin extends Plugin
 			return;
 		}
 		String name = (String) top;
-		String tag = iconTagFor(type, name);
-		String title = memberTitles.get(standardize(name));
-		if (tag == null && title == null)
+		String key = standardize(name);
+		String tags = iconTagsFor(type, key);
+		String title = memberTitles.get(key);
+		if (tags.isEmpty() && title == null)
 		{
 			return;
 		}
 		String base = config.replaceRankIcons() ? IMG_TAG.matcher(name).replaceAll("") : name;
-		StringBuilder sb = new StringBuilder();
-		if (tag != null)
-		{
-			sb.append(tag);
-		}
+		StringBuilder sb = new StringBuilder(tags);
 		if (title != null)
 		{
 			sb.append("<col=").append(TITLE_COLOR).append(">[").append(title).append("]</col> ");
@@ -287,18 +286,25 @@ public class CorClanPlugin extends Plugin
 		objectStack[objectSize - 1] = sb.append(base).toString();
 	}
 
-	private String iconTagFor(ChatMessageType type, String rawName)
+	/**
+	 * Icons stack, left to right: member icons from config / built-ins, the GZ King badge, then the
+	 * rank rhino. Returns "" when there is nothing to show.
+	 */
+	private String iconTagsFor(ChatMessageType type, String key)
 	{
-		String key = standardize(rawName);
 		if (key.isEmpty())
 		{
-			return null;
+			return "";
 		}
+		StringBuilder sb = new StringBuilder();
 
-		String override = memberIcons.get(key);
-		if (override != null)
+		List<String> icons = memberIcons.get(key);
+		if (icons != null)
 		{
-			return iconService.tagFor(override);
+			for (String icon : icons)
+			{
+				append(sb, iconService.tagFor(icon));
+			}
 		}
 
 		if (config.gzKingIcon())
@@ -306,25 +312,28 @@ public class CorClanPlugin extends Plugin
 			String king = tracker.getAllTime().topGiver();
 			if (king != null && key.equals(standardize(king)))
 			{
-				return iconService.tagFor(ClanIconService.KEY_GZ_KING);
+				append(sb, iconService.tagFor(ClanIconService.KEY_GZ_KING));
 			}
 		}
 
-		if (!config.replaceRankIcons())
+		if (config.replaceRankIcons())
 		{
-			return null;
+			ClanChannel channel = type == ChatMessageType.CLAN_CHAT ? client.getClanChannel() : client.getGuestClanChannel();
+			ClanChannelMember member = channel == null ? null : findMember(channel, key);
+			if (member != null)
+			{
+				append(sb, iconService.tagFor(ClanIconService.rankKey(member.getRank())));
+			}
 		}
-		ClanChannel channel = type == ChatMessageType.CLAN_CHAT ? client.getClanChannel() : client.getGuestClanChannel();
-		if (channel == null)
+		return sb.toString();
+	}
+
+	private static void append(StringBuilder sb, String tag)
+	{
+		if (tag != null)
 		{
-			return null;
+			sb.append(tag);
 		}
-		ClanChannelMember member = findMember(channel, key);
-		if (member == null)
-		{
-			return null;
-		}
-		return iconService.tagFor(ClanIconService.rankKey(member.getRank()));
 	}
 
 	private static ClanChannelMember findMember(ClanChannel channel, String standardizedName)
@@ -369,21 +378,29 @@ public class CorClanPlugin extends Plugin
 				continue;
 			}
 			String rest = line.substring(eq + 1);
-			String icon = rest;
+			String iconPart = rest;
 			String title = null;
 			int bar = rest.indexOf('|');
 			if (bar >= 0)
 			{
-				icon = rest.substring(0, bar);
+				iconPart = rest.substring(0, bar);
 				title = Text.removeTags(rest.substring(bar + 1)).trim();
 			}
-			icon = icon.trim().toLowerCase();
 
 			memberIcons.remove(name);
 			memberTitles.remove(name);
-			if (iconService.isMemberKey(icon))
+			List<String> icons = new ArrayList<>();
+			for (String icon : iconPart.split(","))
 			{
-				memberIcons.put(name, icon);
+				icon = icon.trim().toLowerCase();
+				if (iconService.isMemberKey(icon) && !icons.contains(icon))
+				{
+					icons.add(icon);
+				}
+			}
+			if (!icons.isEmpty())
+			{
+				memberIcons.put(name, icons);
 			}
 			if (title != null && !title.isEmpty() && title.length() <= 20)
 			{

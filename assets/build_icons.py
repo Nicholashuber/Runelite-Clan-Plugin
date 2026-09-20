@@ -39,26 +39,32 @@ def strip_outline(img):
     return img
 
 
+MAX_CHAT_ICON_WIDTH = 24  # chat icons must be 11 tall but may be wider (wordmarks like "GZ")
+
+
 def shrink(img, size, crop):
     img = img.convert("RGBA")
-    if crop:
-        img = strip_outline(img)
-        box = img.getchannel("A").getbbox()
-        if box:
-            img = img.crop(box)
-        # pad to square so the aspect ratio survives
-        w, h = img.size
-        side = max(w, h)
-        square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-        square.paste(img, ((side - w) // 2, (side - h) // 2))
+    if not crop:
+        return img.resize((size, size), Image.LANCZOS)
+
+    img = strip_outline(img)
+    box = img.getchannel("A").getbbox()
+    if box:
+        img = img.crop(box)
+    w, h = img.size
+    # keep the aspect ratio: height is fixed, width follows, tall art gets padded to square
+    width = max(size, min(MAX_CHAT_ICON_WIDTH, round(w * size / h)))
+    if w < h:
+        square = Image.new("RGBA", (h, h), (0, 0, 0, 0))
+        square.paste(img, ((h - w) // 2, 0))
         img = square
-    img = img.resize((size, size), Image.LANCZOS)
-    if crop:
-        px = img.load()
-        for y in range(size):
-            for x in range(size):
-                r, g, b, a = px[x, y]
-                px[x, y] = (r, g, b, 255 if a >= 96 else 0)
+        width = size
+    img = img.resize((width, size), Image.LANCZOS)
+    px = img.load()
+    for y in range(size):
+        for x in range(width):
+            r, g, b, a = px[x, y]
+            px[x, y] = (r, g, b, 255 if a >= 96 else 0)
     return img
 
 
@@ -74,7 +80,7 @@ def main():
         size = SIZES.get(name, CHAT_ICON)
         img = shrink(Image.open(src), size, crop=name not in SIZES)
         img.save(os.path.join(OUT, name))
-        print(f"{name}: -> {size}x{size}")
+        print(f"{name}: -> {img.size[0]}x{img.size[1]}")
         done += 1
     print(f"{done} icon(s) written to {OUT}")
     return 0

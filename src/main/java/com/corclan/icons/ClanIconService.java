@@ -75,9 +75,11 @@ public class ClanIconService
 		try
 		{
 			BufferedImage img = ImageUtil.loadImageResource(ClanIconService.class, resource);
-			if (img.getWidth() != ICON_SIZE || img.getHeight() != ICON_SIZE)
+			if (img.getHeight() != ICON_SIZE)
 			{
-				img = ImageUtil.resizeImage(img, ICON_SIZE, ICON_SIZE);
+				// keep width proportional: wordmark icons may be wider than they are tall
+				int width = Math.max(1, Math.round(img.getWidth() * (float) ICON_SIZE / img.getHeight()));
+				img = ImageUtil.resizeImage(img, width, ICON_SIZE);
 			}
 			iconIds.put(key, chatIconManager.registerChatIcon(img));
 		}
