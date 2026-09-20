@@ -45,9 +45,11 @@ OUTLINE_COLOR = (33, 33, 33, 255)  # same near-black RuneLite outlines its own r
 ALPHA_THRESHOLD = 110
 
 
-def lighten_greys(img, floor=110, target=225):
-    """Pushes mid-grey fill up to light grey so grey art (the rhino face) does not vanish against
-    the grey opaque chatbox. Coloured pixels are untouched."""
+GREY_TONE = 0.8  # grey fill is darkened slightly so the rhino head reads on the grey opaque chatbox
+
+
+def tone_greys(img, factor=GREY_TONE, floor=60):
+    """Scales grey-ish fill (the rhino head) by `factor`. Coloured pixels are untouched."""
     img = img.copy()
     px = img.load()
     w, h = img.size
@@ -55,7 +57,7 @@ def lighten_greys(img, floor=110, target=225):
         for x in range(w):
             r, g, b, a = px[x, y]
             if a and abs(r - g) < 20 and abs(g - b) < 20 and r > floor:
-                px[x, y] = (target, target, target, a)
+                px[x, y] = (int(r * factor), int(g * factor), int(b * factor), a)
     return img
 
 
@@ -82,8 +84,8 @@ def shrink(img, size, crop):
     if not crop:
         return img.resize((size, size), Image.LANCZOS)
 
-    # chat icon: drop the source outline, lift greys, crop, scale to CONTENT tall, re-outline at pixel scale
-    img = lighten_greys(strip_outline(img))
+    # chat icon: drop the source outline, tone greys, crop, scale to CONTENT tall, re-outline at pixel scale
+    img = tone_greys(strip_outline(img))
     box = img.getchannel("A").getbbox()
     if box:
         img = img.crop(box)
