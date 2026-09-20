@@ -50,6 +50,10 @@ public class CorClanPlugin extends Plugin
 {
 	static final String STATS_KEY = "gzStats";
 	private static final String CHAT_BUILD_CALLBACK = "chatMessageBuilding";
+	/** Position of the name string relative to the top of the object stack in that callback. */
+	private static final int NAME_STACK_OFFSET = 3;
+	/** Placeholder default from the first build; replaced by the real invite once seen. */
+	private static final String OLD_DISCORD_PLACEHOLDER = "https://discord.gg/";
 	private static final Pattern IMG_TAG = Pattern.compile("<img=\\d+>");
 
 	/** Icons that apply without any config. Lines in the "Member icons" config box override these. */
@@ -100,6 +104,11 @@ public class CorClanPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
+		// RuneLite saved the placeholder default from an earlier build; drop it so the real default applies
+		if (OLD_DISCORD_PLACEHOLDER.equals(configManager.getConfiguration(CorClanConfig.GROUP, "discordUrl")))
+		{
+			configManager.unsetConfiguration(CorClanConfig.GROUP, "discordUrl");
+		}
 		tracker.load(loadStats());
 		parseMemberIcons();
 		iconService.ensureRegistered();
@@ -308,9 +317,10 @@ public class CorClanPlugin extends Plugin
 	// ---------------------------------------------------------------- chat icons
 
 	/**
-	 * RuneLite fires this callback from the chatbox builder script with the message id on the int
-	 * stack and the name being rendered on top of the object stack. Rewriting that string only
-	 * changes how the line is drawn on this client.
+	 * RuneLite fires this callback from the chatbox builder script with the message id on top of
+	 * the int stack and the name being rendered three slots down the object stack (the same slots
+	 * RuneLite's own chat channel plugin uses for friends chat rank icons). Rewriting that string
+	 * only changes how the line is drawn on this client.
 	 */
 	@Subscribe
 	public void onScriptCallbackEvent(ScriptCallbackEvent event)
@@ -323,7 +333,7 @@ public class CorClanPlugin extends Plugin
 		int intSize = client.getIntStackSize();
 		Object[] objectStack = client.getObjectStack();
 		int objectSize = client.getObjectStackSize();
-		if (intSize < 1 || objectSize < 1)
+		if (intSize < 1 || objectSize < NAME_STACK_OFFSET)
 		{
 			return;
 		}
@@ -339,12 +349,13 @@ public class CorClanPlugin extends Plugin
 		{
 			return;
 		}
-		Object top = objectStack[objectSize - 1];
-		if (!(top instanceof String))
+		int nameSlot = objectSize - NAME_STACK_OFFSET;
+		Object slot = objectStack[nameSlot];
+		if (!(slot instanceof String))
 		{
 			return;
 		}
-		String name = (String) top;
+		String name = (String) slot;
 		String key = standardize(name);
 		String tags = iconTagsFor(type, key);
 		String title = memberTitles.get(key);
@@ -358,7 +369,7 @@ public class CorClanPlugin extends Plugin
 		{
 			sb.append("<col=").append(TITLE_COLOR).append(">[").append(title).append("]</col> ");
 		}
-		objectStack[objectSize - 1] = sb.append(base).toString();
+		objectStack[nameSlot] = sb.append(base).toString();
 	}
 
 	/**
