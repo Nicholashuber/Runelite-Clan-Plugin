@@ -1,0 +1,16 @@
+.gradle
+build
+.idea/
+.project
+.settings/
+.classpath
+.vscode/
+bin/
+nbactions.xml
+nb-configuration.xml
+nbproject/
+*.class
+
+# concept art dump - keep the submitted repo small
+assets/concept/*
+!assets/concept/.gitkeep

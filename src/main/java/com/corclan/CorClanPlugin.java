@@ -1,0 +1,357 @@
+package com.corclan;
+
+import com.corclan.gz.BroadcastParser;
+import com.corclan.gz.GzTracker;
+import com.corclan.gz.GzStats;
+import com.corclan.icons.ClanIconService;
+import com.corclan.ui.CorClanPanel;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.inject.Provides;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
+import javax.inject.Inject;
+import javax.swing.SwingUtilities;
+import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
+import net.runelite.api.Client;
+import net.runelite.api.MessageNode;
+import net.runelite.api.clan.ClanChannel;
+import net.runelite.api.clan.ClanChannelMember;
+import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.ScriptCallbackEvent;
+import net.runelite.client.callback.ClientThread;
+import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.Text;
+
+@Slf4j
+@PluginDescriptor(
+	name = "CoR Clan",
+	description = "Clan sidebar, custom clan chat icons and a gz tracker for the C o R clan. Fully local.",
+	tags = {"clan", "cor", "gz", "chat", "icons", "social"}
+)
+public class CorClanPlugin extends Plugin
+{
+	static final String STATS_KEY = "gzStats";
+	private static final String CHAT_BUILD_CALLBACK = "chatMessageBuilding";
+	private static final Pattern IMG_TAG = Pattern.compile("<img=\\d+>");
+
+	@Inject
+	private Client client;
+
+	@Inject
+	private ClientThread clientThread;
+
+	@Inject
+	private ClientToolbar clientToolbar;
+
+	@Inject
+	private ConfigManager configManager;
+
+	@Inject
+	private Gson gson;
+
+	@Inject
+	private CorClanConfig config;
+
+	@Inject
+	private ClanIconService iconService;
+
+	private final GzTracker tracker = new GzTracker();
+	private final Map<String, String> memberIcons = new HashMap<>();
+
+	private CorClanPanel panel;
+	private NavigationButton navButton;
+
+	@Override
+	protected void startUp()
+	{
+		tracker.load(loadStats());
+		parseMemberIcons();
+		iconService.ensureRegistered();
+
+		panel = new CorClanPanel(config, this::resetStats);
+		navButton = NavigationButton.builder()
+			.tooltip("CoR Clan")
+			.icon(ImageUtil.loadImageResource(CorClanPlugin.class, "panel_icon.png"))
+			.priority(7)
+			.panel(panel)
+			.build();
+		clientToolbar.addNavigation(navButton);
+		refreshPanel();
+		log.info("CoR Clan started");
+	}
+
+	@Override
+	protected void shutDown()
+	{
+		clientToolbar.removeNavigation(navButton);
+		navButton = null;
+		panel = null;
+		persistStats();
+		tracker.resetSession();
+		log.info("CoR Clan stopped");
+	}
+
+	@Provides
+	CorClanConfig provideConfig(ConfigManager configManager)
+	{
+		return configManager.getConfig(CorClanConfig.class);
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (!CorClanConfig.GROUP.equals(event.getGroup()))
+		{
+			return;
+		}
+		parseMemberIcons();
+		refreshPanel();
+	}
+
+	// ---------------------------------------------------------------- gz tracking
+
+	@Subscribe
+	public void onChatMessage(ChatMessage event)
+	{
+		if (!config.gzTrackingEnabled())
+		{
+			return;
+		}
+		ChatMessageType type = event.getType();
+		long now = System.currentTimeMillis();
+
+		if (type == ChatMessageType.CLAN_MESSAGE || (config.trackGuestClan() && type == ChatMessageType.CLAN_GUEST_MESSAGE))
+		{
+			String text = BroadcastParser.clean(Text.removeTags(event.getMessage()));
+			String subject = BroadcastParser.subjectOf(text);
+			if (subject == null)
+			{
+				return;
+			}
+			log.debug("Broadcast for {}: {}", subject, text);
+			tracker.onBroadcast(subject, text, now);
+			persistStats();
+			refreshPanel();
+			return;
+		}
+
+		if (type == ChatMessageType.CLAN_CHAT || (config.trackGuestClan() && type == ChatMessageType.CLAN_GUEST_CHAT))
+		{
+			String sender = displayName(event.getName());
+			String message = Text.removeTags(event.getMessage());
+			GzTracker.Settings settings = new GzTracker.Settings(
+				config.gzWindowSeconds() * 1000L,
+				config.oneGzPerPersonPerBroadcast(),
+				config.maxGzMessageLength());
+			if (tracker.onClanChat(sender, message, now, settings))
+			{
+				persistStats();
+				refreshPanel();
+			}
+		}
+	}
+
+	// ---------------------------------------------------------------- chat icons
+
+	/**
+	 * RuneLite fires this callback from the chatbox builder script with the message id on the int
+	 * stack and the name being rendered on top of the object stack. Rewriting that string only
+	 * changes how the line is drawn on this client.
+	 */
+	@Subscribe
+	public void onScriptCallbackEvent(ScriptCallbackEvent event)
+	{
+		if (!CHAT_BUILD_CALLBACK.equals(event.getEventName()))
+		{
+			return;
+		}
+		int[] intStack = client.getIntStack();
+		int intSize = client.getIntStackSize();
+		Object[] objectStack = client.getObjectStack();
+		int objectSize = client.getObjectStackSize();
+		if (intSize < 1 || objectSize < 1)
+		{
+			return;
+		}
+
+		int uid = intStack[intSize - 1];
+		MessageNode node = client.getMessages().get(uid);
+		if (node == null)
+		{
+			return;
+		}
+		ChatMessageType type = node.getType();
+		if (type != ChatMessageType.CLAN_CHAT && type != ChatMessageType.CLAN_GUEST_CHAT)
+		{
+			return;
+		}
+		Object top = objectStack[objectSize - 1];
+		if (!(top instanceof String))
+		{
+			return;
+		}
+		String name = (String) top;
+		String tag = iconTagFor(type, name);
+		if (tag == null)
+		{
+			return;
+		}
+		String base = config.replaceRankIcons() ? IMG_TAG.matcher(name).replaceAll("") : name;
+		objectStack[objectSize - 1] = tag + base;
+	}
+
+	private String iconTagFor(ChatMessageType type, String rawName)
+	{
+		String key = standardize(rawName);
+		if (key.isEmpty())
+		{
+			return null;
+		}
+
+		String override = memberIcons.get(key);
+		if (override != null)
+		{
+			return iconService.tagFor(override);
+		}
+
+		if (config.gzKingIcon())
+		{
+			String king = tracker.getAllTime().topGiver();
+			if (king != null && key.equals(standardize(king)))
+			{
+				return iconService.tagFor(ClanIconService.KEY_GZ_KING);
+			}
+		}
+
+		if (!config.replaceRankIcons())
+		{
+			return null;
+		}
+		ClanChannel channel = type == ChatMessageType.CLAN_CHAT ? client.getClanChannel() : client.getGuestClanChannel();
+		if (channel == null)
+		{
+			return null;
+		}
+		ClanChannelMember member = findMember(channel, key);
+		if (member == null)
+		{
+			return null;
+		}
+		return iconService.tagFor(ClanIconService.rankKey(member.getRank()));
+	}
+
+	private static ClanChannelMember findMember(ClanChannel channel, String standardizedName)
+	{
+		for (ClanChannelMember member : channel.getMembers())
+		{
+			if (standardizedName.equals(standardize(member.getName())))
+			{
+				return member;
+			}
+		}
+		return null;
+	}
+
+	// ---------------------------------------------------------------- helpers
+
+	private void parseMemberIcons()
+	{
+		memberIcons.clear();
+		String raw = config.memberIcons();
+		if (raw == null)
+		{
+			return;
+		}
+		for (String line : raw.split("\\r?\\n"))
+		{
+			int eq = line.indexOf('=');
+			if (eq <= 0)
+			{
+				continue;
+			}
+			String name = standardize(line.substring(0, eq));
+			String icon = line.substring(eq + 1).trim().toLowerCase();
+			if (!name.isEmpty() && iconService.isMemberKey(icon))
+			{
+				memberIcons.put(name, icon);
+			}
+		}
+	}
+
+	/** Lower-case name with tags stripped and nbsp/underscores as spaces; used as a map key. */
+	private static String standardize(String name)
+	{
+		if (name == null)
+		{
+			return "";
+		}
+		return Text.standardize(Text.removeTags(name));
+	}
+
+	/** Name as shown in game (tags stripped, regular spaces). */
+	private static String displayName(String name)
+	{
+		if (name == null)
+		{
+			return "";
+		}
+		return Text.removeTags(name).replace(' ', ' ').trim();
+	}
+
+	private GzStats loadStats()
+	{
+		String json = configManager.getConfiguration(CorClanConfig.GROUP, STATS_KEY);
+		if (json == null || json.isEmpty())
+		{
+			return new GzStats();
+		}
+		try
+		{
+			GzStats stats = gson.fromJson(json, GzStats.class);
+			return stats != null ? stats : new GzStats();
+		}
+		catch (JsonSyntaxException ex)
+		{
+			log.debug("Discarding unreadable gz stats", ex);
+			return new GzStats();
+		}
+	}
+
+	private void persistStats()
+	{
+		configManager.setConfiguration(CorClanConfig.GROUP, STATS_KEY, gson.toJson(tracker.getAllTime()));
+	}
+
+	private void resetStats()
+	{
+		clientThread.invokeLater(() ->
+		{
+			tracker.resetAllTime();
+			tracker.resetSession();
+			persistStats();
+			refreshPanel();
+		});
+	}
+
+	private void refreshPanel()
+	{
+		CorClanPanel p = panel;
+		if (p == null)
+		{
+			return;
+		}
+		GzStats allTime = tracker.getAllTime();
+		GzStats session = tracker.getSession();
+		SwingUtilities.invokeLater(() -> p.refresh(allTime, session));
+	}
+}
