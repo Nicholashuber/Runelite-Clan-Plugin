@@ -19,13 +19,8 @@ Nothing in this folder is packaged into the plugin. I copy the finished files in
 Rank icons (replace the default clan rank icon next to a member's name):
 
 ```
-rank_owner.png
-rank_deputy_owner.png
-rank_administrator.png
-rank_high.png          (any rank above "medium" that is not admin/owner)
-rank_medium.png
-rank_low.png           (recruit / lowest ranks)
-rank_guest.png
+rank_staff.png    red rhino: owner, deputy owner, administrators
+rank_member.png   blue rhino: everyone else, including guests
 ```
 
 Member icons (assigned to specific people in the plugin config, `rsn=key`):

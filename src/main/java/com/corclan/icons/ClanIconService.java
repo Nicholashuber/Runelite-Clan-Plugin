@@ -25,17 +25,13 @@ public class ClanIconService
 	/** Chat icons are drawn at this size by the game. */
 	private static final int ICON_SIZE = 11;
 
-	public static final String KEY_OWNER = "owner";
-	public static final String KEY_DEPUTY_OWNER = "deputy_owner";
-	public static final String KEY_ADMINISTRATOR = "administrator";
-	public static final String KEY_HIGH = "high";
-	public static final String KEY_MEDIUM = "medium";
-	public static final String KEY_LOW = "low";
-	public static final String KEY_GUEST = "guest";
+	/** Red rhino: owner, deputy owner and administrators. */
+	public static final String KEY_STAFF = "staff";
+	/** Blue rhino: every other member and guests. */
+	public static final String KEY_MEMBER = "member";
 	public static final String KEY_GZ_KING = "gzking";
 
-	private static final List<String> RANK_KEYS = Arrays.asList(
-		KEY_OWNER, KEY_DEPUTY_OWNER, KEY_ADMINISTRATOR, KEY_HIGH, KEY_MEDIUM, KEY_LOW, KEY_GUEST);
+	private static final List<String> RANK_KEYS = Arrays.asList(KEY_STAFF, KEY_MEMBER);
 
 	public static final String KEY_FOUNDER = "founder";
 
@@ -120,45 +116,16 @@ public class ClanIconService
 	}
 
 	/**
-	 * Maps a clan rank to one of the rank icon keys. Clan ranks are ints: guests are negative,
-	 * normal member ranks count up from 0, administrators are 100+, deputy owner 125, owner 126.
-	 * J-Mods (127) keep their own icon.
+	 * Maps a clan rank to a rank icon key. Clan ranks are ints: guests are negative, normal member
+	 * ranks count up from 0, administrators are 100+, deputy owner 125, owner 126. J-Mods (127)
+	 * keep their own icon.
 	 */
 	public static String rankKey(ClanRank rank)
 	{
-		if (rank == null)
+		if (rank == null || ClanRank.JMOD.equals(rank))
 		{
 			return null;
 		}
-		if (ClanRank.JMOD.equals(rank))
-		{
-			return null;
-		}
-		if (ClanRank.OWNER.equals(rank))
-		{
-			return KEY_OWNER;
-		}
-		if (ClanRank.DEPUTY_OWNER.equals(rank))
-		{
-			return KEY_DEPUTY_OWNER;
-		}
-		int r = rank.getRank();
-		if (r >= ClanRank.ADMINISTRATOR.getRank())
-		{
-			return KEY_ADMINISTRATOR;
-		}
-		if (r < 0)
-		{
-			return KEY_GUEST;
-		}
-		if (r >= 6)
-		{
-			return KEY_HIGH;
-		}
-		if (r >= 3)
-		{
-			return KEY_MEDIUM;
-		}
-		return KEY_LOW;
+		return rank.getRank() >= ClanRank.ADMINISTRATOR.getRank() ? KEY_STAFF : KEY_MEMBER;
 	}
 }

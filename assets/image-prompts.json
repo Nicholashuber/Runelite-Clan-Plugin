@@ -37,43 +37,18 @@
       "prompt": "Ultra-simplified rhino head icon: dark grey head silhouette with one huge bright red horn, two tiny red eye dots, on a solid black circle. 3 colors only, thick shapes, app-icon style, transparent background outside the circle. No text."
     },
     {
-      "filename": "rank_owner.png",
-      "final_size": "11x11 chat icon, clan owner",
-      "prompt": "Icon: a huge red rhino horn pointing up wearing a small solid gold crown on its tip. Flat, 3 colors (red, gold, black outline), thick shapes, transparent background."
+      "filename": "rank_staff.png",
+      "final_size": "11x11 chat icon, owner / deputy / admins (DONE: red horn rhino head)",
+      "prompt": "Icon: side-view grey rhinoceros head with one oversized bright red horn sweeping up. Flat, 3 colors, thick shapes, transparent background."
     },
     {
-      "filename": "rank_deputy_owner.png",
-      "final_size": "11x11 chat icon, deputy owner",
-      "prompt": "Icon: a huge silver-white rhino horn pointing up wearing a small solid gold crown on its tip. Flat, 3 colors, thick shapes, transparent background."
-    },
-    {
-      "filename": "rank_administrator.png",
-      "final_size": "11x11 chat icon, administrators",
-      "prompt": "Icon: a huge red rhino horn pointing up in front of a solid black shield shape. Flat, 2 to 3 colors, thick shapes, transparent background."
-    },
-    {
-      "filename": "rank_high.png",
-      "final_size": "11x11 chat icon, senior members",
-      "prompt": "Icon: a single huge solid red rhino horn pointing up, black outline. Flat, 2 colors, transparent background."
-    },
-    {
-      "filename": "rank_medium.png",
-      "final_size": "11x11 chat icon, regular members",
-      "prompt": "Icon: a single huge solid orange rhino horn pointing up, black outline. Flat, 2 colors, transparent background."
-    },
-    {
-      "filename": "rank_low.png",
-      "final_size": "11x11 chat icon, new members",
-      "prompt": "Icon: a single huge solid light grey rhino horn pointing up, black outline. Flat, 2 colors, transparent background."
-    },
-    {
-      "filename": "rank_guest.png",
-      "final_size": "11x11 chat icon, guests",
-      "prompt": "Icon: outline only of a rhino horn pointing up, thick dark grey stroke, hollow inside. Flat, 1 color, transparent background."
+      "filename": "rank_member.png",
+      "final_size": "11x11 chat icon, all other members (DONE: blue horn rhino head)",
+      "prompt": "Icon: side-view grey rhinoceros head with one oversized bright blue horn sweeping up. Flat, 3 colors, thick shapes, transparent background."
     },
     {
       "filename": "member_founder.png",
-      "final_size": "11x11 chat icon, reserved for Lavasockz",
+      "final_size": "11x11 chat icon, reserved for Lavasockz (DONE: blue crown with red horn)",
       "prompt": "Icon: a huge red rhino horn pointing up with bright orange lava dripping down its sides and a small orange flame at the tip. Flat, 3 colors, thick shapes, transparent background."
     },
     {
