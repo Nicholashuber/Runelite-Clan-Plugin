@@ -52,6 +52,13 @@ public class CorClanPlugin extends Plugin
 	private static final Map<String, String> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
 		"lavasockz", ClanIconService.KEY_FOUNDER);
 
+	/** Titles shown between the icon and the name, e.g. "[Developer] Lavasockz". */
+	private static final Map<String, String> BUILTIN_MEMBER_TITLES = Collections.singletonMap(
+		"lavasockz", "Developer");
+
+	/** Chat color for titles (gold). The closing tag restores the normal name color. */
+	private static final String TITLE_COLOR = "e8b22c";
+
 	@Inject
 	private Client client;
 
@@ -81,6 +88,7 @@ public class CorClanPlugin extends Plugin
 
 	private final GzTracker tracker = new GzTracker();
 	private final Map<String, String> memberIcons = new HashMap<>();
+	private final Map<String, String> memberTitles = new HashMap<>();
 
 	private CorClanPanel panel;
 	private NavigationButton navButton;
@@ -249,12 +257,22 @@ public class CorClanPlugin extends Plugin
 		}
 		String name = (String) top;
 		String tag = iconTagFor(type, name);
-		if (tag == null)
+		String title = memberTitles.get(standardize(name));
+		if (tag == null && title == null)
 		{
 			return;
 		}
 		String base = config.replaceRankIcons() ? IMG_TAG.matcher(name).replaceAll("") : name;
-		objectStack[objectSize - 1] = tag + base;
+		StringBuilder sb = new StringBuilder();
+		if (tag != null)
+		{
+			sb.append(tag);
+		}
+		if (title != null)
+		{
+			sb.append("<col=").append(TITLE_COLOR).append(">[").append(title).append("]</col> ");
+		}
+		objectStack[objectSize - 1] = sb.append(base).toString();
 	}
 
 	private String iconTagFor(ChatMessageType type, String rawName)
@@ -311,10 +329,16 @@ public class CorClanPlugin extends Plugin
 
 	// ---------------------------------------------------------------- helpers
 
+	/**
+	 * Config lines look like {@code name=icon} or {@code name=icon|Title}. A line for a built-in
+	 * member replaces both the built-in icon and title.
+	 */
 	private void parseMemberIcons()
 	{
 		memberIcons.clear();
+		memberTitles.clear();
 		memberIcons.putAll(BUILTIN_MEMBER_ICONS);
+		memberTitles.putAll(BUILTIN_MEMBER_TITLES);
 		String raw = config.memberIcons();
 		if (raw == null)
 		{
@@ -328,10 +352,30 @@ public class CorClanPlugin extends Plugin
 				continue;
 			}
 			String name = standardize(line.substring(0, eq));
-			String icon = line.substring(eq + 1).trim().toLowerCase();
-			if (!name.isEmpty() && iconService.isMemberKey(icon))
+			if (name.isEmpty())
+			{
+				continue;
+			}
+			String rest = line.substring(eq + 1);
+			String icon = rest;
+			String title = null;
+			int bar = rest.indexOf('|');
+			if (bar >= 0)
+			{
+				icon = rest.substring(0, bar);
+				title = Text.removeTags(rest.substring(bar + 1)).trim();
+			}
+			icon = icon.trim().toLowerCase();
+
+			memberIcons.remove(name);
+			memberTitles.remove(name);
+			if (iconService.isMemberKey(icon))
 			{
 				memberIcons.put(name, icon);
+			}
+			if (title != null && !title.isEmpty() && title.length() <= 20)
+			{
+				memberTitles.put(name, title);
 			}
 		}
 	}

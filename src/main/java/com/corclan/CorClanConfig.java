@@ -72,7 +72,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "memberIcons",
 		name = "Member icons",
-		description = "One per line: name=icon. Icons: crown, trophy, star, skull, gem, fire, founder. Example: Zezima=crown",
+		description = "One per line: name=icon or name=icon|Title. Icons: crown, trophy, star, skull, gem, fire, founder. Example: Zezima=crown|Event Host",
 		position = 1,
 		section = iconsSection
 	)

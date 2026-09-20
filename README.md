@@ -20,7 +20,7 @@ Everything runs locally inside your own RuneLite client. The plugin makes **no n
 |---------|--------|--------------|
 | Links | Discord invite, Website | URLs opened by the panel buttons |
 | Chat icons | Custom rank icons | Replace the default clan rank icon with CoR icons |
-| Chat icons | Member icons | One per line, `name=icon`. Icons: `crown`, `trophy`, `star`, `skull`, `gem`, `fire`, `founder` |
+| Chat icons | Member icons | One per line, `name=icon` or `name=icon|Title`. Icons: `crown`, `trophy`, `star`, `skull`, `gem`, `fire`, `founder`. A title shows as `[Title]` before the name |
 | Chat icons | GZ King icon | Give the top all-time gz giver a special icon |
 | GZ tracker | Track gz's | Master switch |
 | GZ tracker | GZ window | Seconds after a broadcast during which gz's count for that member (default 90) |
