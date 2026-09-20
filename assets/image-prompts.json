@@ -3,7 +3,8 @@
     "Paste the 'style' block plus ONE asset's 'prompt' into ChatGPT per image. Ask for a PNG with a transparent background.",
     "Generate everything at 1024x1024. Do not try to make tiny images; the build script shrinks them.",
     "Save each result into assets/icons/src/ using the exact 'filename'. Then run: python assets/build_icons.py",
-    "Chat icons end up 11x11 px in game, so they must be one bold silhouette. Anything thin, detailed or with text turns to mud at that size."
+    "Chat icons end up 11x11 px in game, so they must be one bold silhouette. Anything thin, detailed or with text turns to mud at that size.",
+    "Side-view heads lose their face at 11px. If you want the rhinos sharper, try the 'pixel style' prompts marked OPTIONAL: they ask for a chunky emoji-like head that survives shrinking."
   ],
   "style": {
     "brand": "C o R clan mascot: a rhinoceros with an oversized single horn. Aggressive, heavy metal style. Horn is the hero element.",
@@ -50,6 +51,21 @@
       "filename": "member_founder.png",
       "final_size": "11x11 chat icon, reserved for Lavasockz (DONE: blue crown with red horn)",
       "prompt": "Icon: a huge red rhino horn pointing up with bright orange lava dripping down its sides and a small orange flame at the tip. Flat, 3 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "member_dev.png",
+      "final_size": "11x11 chat icon (DONE: blue DEV wordmark)",
+      "prompt": "Wordmark icon: the letters DEV in heavy rounded bold type, solid bright blue, with a small blue rhino horn curling up from the end. Flat, 2 colors plus black outline, transparent background."
+    },
+    {
+      "filename": "rank_staff.png (OPTIONAL sharper version)",
+      "final_size": "11x11 chat icon",
+      "prompt": "Pixel-style emoji of a rhinoceros head facing right: chunky rounded light grey head shape filling the canvas, one big bright red horn taking a third of the width, single large black eye dot, tiny ear bump. No neck, no body, no fine lines. Flat, 3 colors, thick shapes, transparent background."
+    },
+    {
+      "filename": "rank_member.png (OPTIONAL sharper version)",
+      "final_size": "11x11 chat icon",
+      "prompt": "Pixel-style emoji of a rhinoceros head facing right: chunky rounded light grey head shape filling the canvas, one big bright blue horn taking a third of the width, single large black eye dot, tiny ear bump. No neck, no body, no fine lines. Flat, 3 colors, thick shapes, transparent background."
     },
     {
       "filename": "member_gzking.png",

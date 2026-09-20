@@ -10,6 +10,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.inject.Provides;
 import com.corclan.ui.CorClanOverlay;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -61,7 +62,7 @@ public class CorClanPlugin extends Plugin
 
 	/** Icons that apply without any config. Lines in the "Member icons" config box override these. */
 	private static final Map<String, List<String>> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
-		"lavasockz", Collections.singletonList(ClanIconService.KEY_FOUNDER));
+		"lavasockz", Collections.unmodifiableList(Arrays.asList(ClanIconService.KEY_FOUNDER, ClanIconService.KEY_DEV)));
 
 	/** Titles shown between the icon and the name, e.g. "[Developer] Lavasockz". */
 	private static final Map<String, String> BUILTIN_MEMBER_TITLES = Collections.singletonMap(

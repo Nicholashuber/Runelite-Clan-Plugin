@@ -32,7 +32,8 @@ member_star.png     key: star
 member_skull.png    key: skull
 member_gem.png      key: gem
 member_fire.png     key: fire
-member_founder.png  key: founder (built in: Lavasockz always gets this unless the config says otherwise)
+member_founder.png  key: founder (built in for Lavasockz: the blue crown)
+member_dev.png      key: dev (built in for Lavasockz: the DEV wordmark)
 member_gzking.png   auto-assigned to the top GZ giver
 ```
 
