@@ -130,7 +130,7 @@ public class CorClanPlugin extends Plugin
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(overlay);
 		refreshPanel();
-		log.info("CoR Clan started");
+		log.debug("CoR Clan started");
 	}
 
 	@Override
@@ -142,7 +142,7 @@ public class CorClanPlugin extends Plugin
 		panel = null;
 		persistStats();
 		tracker.resetSession();
-		log.info("CoR Clan stopped");
+		log.debug("CoR Clan stopped");
 	}
 
 	@Provides

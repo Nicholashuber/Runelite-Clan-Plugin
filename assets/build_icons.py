@@ -21,6 +21,49 @@ OUT = os.path.join(ROOT, "src", "main", "resources", "com", "corclan")
 SIZES = {"logo.png": 128, "panel_icon.png": 16}
 CHAT_ICON = 11
 
+# Brand images derived from one source when no dedicated file exists in assets/icons/src/.
+BRAND_SOURCE = "rank_staff.png"
+BRAND_OUTPUTS = {
+    "logo.png": (128, OUT),       # panel header
+    "panel_icon.png": (16, OUT),  # RuneLite sidebar button
+    "icon.png": (48, ROOT),       # Plugin Hub listing icon (max 48x72, repo root)
+}
+
+
+def pixel_square(img, size):
+    """Crisp small square icon: same treatment as chat icons (toned greys, hard alpha, 1px outline)."""
+    img = tone_greys(strip_outline(img.convert("RGBA")))
+    box = img.getchannel("A").getbbox()
+    if box:
+        img = img.crop(box)
+    w, h = img.size
+    side = max(w, h)
+    square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    square.paste(img, ((side - w) // 2, (side - h) // 2))
+    inner = size - 2
+    img = square.resize((inner, inner), Image.LANCZOS)
+    px = img.load()
+    for y in range(inner):
+        for x in range(inner):
+            r, g, b, a = px[x, y]
+            px[x, y] = (r, g, b, 255 if a >= ALPHA_THRESHOLD else 0)
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas.paste(img, (1, 1))
+    return add_outline(canvas)
+
+
+def brand(img, size):
+    """Crops to the art, pads to square and scales. Keeps the source outline (it reads fine above 11px)."""
+    img = img.convert("RGBA")
+    box = img.getchannel("A").getbbox()
+    if box:
+        img = img.crop(box)
+    w, h = img.size
+    side = max(w, h)
+    square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    square.paste(img, ((side - w) // 2, (side - h) // 2))
+    return square.resize((size, size), Image.LANCZOS)
+
 
 OUTLINE_THRESHOLD = 60  # pixels darker than this on every channel are treated as outline
 
@@ -121,7 +164,17 @@ def main():
         img.save(os.path.join(OUT, name))
         print(f"{name}: -> {img.size[0]}x{img.size[1]}")
         done += 1
-    print(f"{done} icon(s) written to {OUT}")
+
+    brand_src = os.path.join(SRC, BRAND_SOURCE)
+    if os.path.exists(brand_src):
+        for name, (size, out_dir) in BRAND_OUTPUTS.items():
+            if os.path.exists(os.path.join(SRC, name)):
+                continue  # a dedicated source was supplied and already processed above
+            make = pixel_square if size <= 16 else brand
+            make(Image.open(brand_src), size).save(os.path.join(out_dir, name))
+            print(f"{name}: -> {size}x{size} (from {BRAND_SOURCE}) in {os.path.relpath(out_dir, ROOT)}")
+            done += 1
+    print(f"{done} image(s) written")
     return 0
 
 
