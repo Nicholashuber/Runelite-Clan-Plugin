@@ -4,6 +4,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import org.junit.Test;
 
 public class GzTrackerTest
@@ -115,5 +118,66 @@ public class GzTrackerTest
 		assertEquals("Nick", t.getAllTime().topGiver());
 		t.resetAllTime();
 		assertEquals(0, t.getAllTime().totalGiven());
+	}
+
+	private static long utc(String iso)
+	{
+		return Instant.parse(iso).toEpochMilli();
+	}
+
+	@Test
+	public void weekStartsOnSundayMidnight()
+	{
+		long sunday = utc("2026-09-27T00:00:00Z");
+		assertEquals(sunday, GzTracker.weekStartOf(sunday, ZoneOffset.UTC));
+		assertEquals(sunday, GzTracker.weekStartOf(utc("2026-09-29T15:00:00Z"), ZoneOffset.UTC));
+		assertEquals(sunday, GzTracker.weekStartOf(utc("2026-10-03T23:59:59Z"), ZoneOffset.UTC));
+		assertEquals(utc("2026-10-04T00:00:00Z"), GzTracker.weekStartOf(utc("2026-10-04T00:00:00Z"), ZoneOffset.UTC));
+		// local zone decides: Sunday 01:00 in New York is still the week that started the previous Sunday there
+		assertEquals(utc("2026-09-27T04:00:00Z"),
+			GzTracker.weekStartOf(utc("2026-10-04T03:00:00Z"), ZoneId.of("America/New_York")));
+	}
+
+	@Test
+	public void weeklyCountsResetOnSunday()
+	{
+		GzTracker t = new GzTracker(ZoneOffset.UTC);
+		t.onBroadcast("Zezima", "drop", utc("2026-10-03T23:58:00Z"));
+		t.onClanChat("Nick", "gz", utc("2026-10-03T23:59:00Z"), SETTINGS);
+		assertEquals(1, t.getWeekly().totalGiven());
+		assertEquals(1, t.getWeekly().totalReceived());
+		assertEquals(utc("2026-09-27T00:00:00Z"), t.getWeekStart());
+
+		// first gz after Sunday midnight starts a fresh week; all-time keeps everything
+		t.onClanChat("Bob", "gz", utc("2026-10-04T00:00:30Z"), SETTINGS);
+		assertEquals(utc("2026-10-04T00:00:00Z"), t.getWeekStart());
+		assertEquals(1, t.getWeekly().totalGiven());
+		assertEquals(Integer.valueOf(1), t.getWeekly().getGiven().get("Bob"));
+		assertNull(t.getWeekly().getGiven().get("Nick"));
+		assertEquals(2, t.getAllTime().totalGiven());
+	}
+
+	@Test
+	public void savedWeekSurvivesRestartUntilItEnds()
+	{
+		GzTracker t = new GzTracker(ZoneOffset.UTC);
+		GzStats saved = new GzStats();
+		saved.addGiven("Nick");
+		t.loadWeekly(saved, utc("2026-09-27T00:00:00Z"));
+
+		assertFalse(t.rollWeek(utc("2026-09-30T12:00:00Z")));
+		assertEquals(1, t.getWeekly().totalGiven());
+
+		assertTrue(t.rollWeek(utc("2026-10-05T12:00:00Z")));
+		assertEquals(0, t.getWeekly().totalGiven());
+	}
+
+	@Test
+	public void resetAllTimeClearsWeekly()
+	{
+		GzTracker t = new GzTracker(ZoneOffset.UTC);
+		t.onClanChat("Nick", "gz", utc("2026-09-29T12:00:00Z"), SETTINGS);
+		t.resetAllTime();
+		assertEquals(0, t.getWeekly().totalGiven());
 	}
 }

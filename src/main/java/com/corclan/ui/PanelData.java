@@ -1,6 +1,7 @@
 package com.corclan.ui;
 
 import com.corclan.gz.BroadcastRecord;
+import com.corclan.gz.Streaks;
 import java.util.List;
 import java.util.Map;
 
@@ -14,9 +15,16 @@ public final class PanelData
 	final List<Map.Entry<String, Integer>> givers;
 	final List<Map.Entry<String, Integer>> receivers;
 	final List<BroadcastRecord> recent;
+	/** this client's gz givers since {@link #weekStart} (Sunday 00:00 local time) */
+	final List<Map.Entry<String, Integer>> weeklyGivers;
+	final long weekStart;
+	/** consecutive weekly #1 runs; null when there are none */
+	final Streaks.Streak longestStreak;
+	final Streaks.Streak currentStreak;
 
 	public PanelData(String mine, String summary, String syncStatus, boolean clanWide,
-		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent)
+		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
+		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak)
 	{
 		this.mine = mine;
 		this.summary = summary;
@@ -25,5 +33,9 @@ public final class PanelData
 		this.givers = givers;
 		this.receivers = receivers;
 		this.recent = recent;
+		this.weeklyGivers = weeklyGivers;
+		this.weekStart = weekStart;
+		this.longestStreak = longestStreak;
+		this.currentStreak = currentStreak;
 	}
 }
