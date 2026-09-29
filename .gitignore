@@ -18,3 +18,10 @@ assets/concept/*
 # python bytecode from assets/build_icons.py
 __pycache__/
 *.pyc
+
+# never commit RuneLite / Jagex login material (session tokens = account access)
+credentials.properties
+jagex_cl_*.dat
+random.dat
+.env
+.env.*
