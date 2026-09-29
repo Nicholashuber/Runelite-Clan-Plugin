@@ -4,7 +4,7 @@ A RuneLite plugin for members of the **C o R** clan.
 
 Everything runs locally inside your own RuneLite client. The plugin makes **no network requests** and
 **no data leaves your computer**.
-
+##UIMFQ
 ## Features
 
 - **Clan sidebar** with the clan logo, Discord and website buttons, and gz leaderboards.
