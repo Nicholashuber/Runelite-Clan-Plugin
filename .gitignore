@@ -14,3 +14,7 @@ nbproject/
 # concept art dump - keep the submitted repo small
 assets/concept/*
 !assets/concept/.gitkeep
+
+# python bytecode from assets/build_icons.py
+__pycache__/
+*.pyc
