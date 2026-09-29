@@ -2,8 +2,9 @@
 
 A RuneLite plugin for members of the **C o R** clan.
 
-Everything runs locally inside your own RuneLite client. The plugin makes **no network requests** and
-**no data leaves your computer**.
+By default everything runs locally inside your own RuneLite client, and **no data leaves your computer**.
+The optional **Clan sync** setting (off by default) is the only feature that talks to a server; see
+[Clan sync and your data](#clan-sync-and-your-data).
 ##UIMFQ
 ## Features
 
@@ -13,6 +14,30 @@ Everything runs locally inside your own RuneLite client. The plugin makes **no n
 - **GZ tracker**: counts gz / grats / congrats messages in clan chat and attributes them to whoever the
   latest clan broadcast (drop, level, pet, ...) was about, for a short configurable window. Stats are
   stored in your RuneLite settings.
+- **Clan sync** (optional, off by default): clan-wide gz leaderboards, plus member icons and titles managed
+  by clan admins, shared through the CoR clan server.
+
+## Clan sync and your data
+
+Clan sync is **off by default**. Turning it on shows RuneLite's warning that it submits your IP address to a
+3rd-party server not controlled or verified by RuneLite developers.
+
+When it is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
+
+- clan broadcasts you see in your clan's chat (for example "Zezima has received a drop: ..."),
+- clan chat messages that are a gz (gz / grats / congrats), with the name of who said them,
+- your character name, your clan's name and your RuneLite account hash, so reports from different
+  clan members can be merged.
+
+Nothing else from chat is sent: no other messages, no private chat, no public chat. Events are sent in
+small batches about every 30 seconds.
+
+It downloads the clan-wide gz leaderboard and the member icons and titles set by clan admins, about every
+2 minutes. If the server is unreachable the plugin keeps working locally. Turning sync off stops all
+network traffic immediately.
+
+The server stores player names, when gz's and broadcasts happened, and short hashes used to match
+duplicate reports. It does not store the text of chat messages.
 
 ## Commands
 
@@ -36,6 +61,7 @@ the game server; only you see the output.
 | GZ tracker | Show [GZ count] on gz lines | Append `[GZ count: N]` to a member's chat line when they say gz, N being their all-time total on your client |
 | GZ tracker | Chat message when counted | Also print a local game message per counted gz (off by default) |
 | GZ tracker | Max gz message length | Longer messages are never treated as a gz |
+| Clan sync | Sync with clan server | Off by default. Shares gz sightings with the CoR clan server and loads the clan-wide leaderboard and member icons. See [Clan sync and your data](#clan-sync-and-your-data) |
 
 ## Development
 

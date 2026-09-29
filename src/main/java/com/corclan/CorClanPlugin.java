@@ -1,22 +1,29 @@
 package com.corclan;
 
 import com.corclan.gz.BroadcastParser;
-import com.corclan.gz.GzTracker;
+import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.GzStats;
+import com.corclan.gz.GzTracker;
 import com.corclan.icons.ClanIconService;
+import com.corclan.icons.MemberCosmetics;
+import com.corclan.sync.ClanApi;
+import com.corclan.sync.SyncModels;
+import com.corclan.sync.SyncQueue;
+import com.corclan.ui.CorClanOverlay;
 import com.corclan.ui.CorClanPanel;
+import com.corclan.ui.PanelData;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.inject.Provides;
-import com.corclan.ui.CorClanOverlay;
+import java.text.SimpleDateFormat;
+import java.time.temporal.ChronoUnit;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import net.runelite.api.Player;
-import net.runelite.client.ui.overlay.OverlayManager;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
@@ -24,30 +31,33 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
+import net.runelite.api.Player;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.CommandExecuted;
+import net.runelite.api.events.ScriptCallbackEvent;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
-import net.runelite.api.events.CommandExecuted;
-import net.runelite.api.events.ScriptCallbackEvent;
-import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.task.Schedule;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 
 @Slf4j
 @PluginDescriptor(
 	name = "CoR Clan",
-	description = "Clan sidebar, custom clan chat icons and a gz tracker for the C o R clan. Fully local.",
+	description = "Clan sidebar, custom clan chat icons and a gz tracker for the C o R clan, with optional clan-wide sync.",
 	tags = {"clan", "cor", "gz", "chat", "icons", "social"}
 )
 public class CorClanPlugin extends Plugin
@@ -59,12 +69,11 @@ public class CorClanPlugin extends Plugin
 	/** Placeholder default from the first build; replaced by the real invite once seen. */
 	private static final String OLD_DISCORD_PLACEHOLDER = "https://discord.gg/";
 	private static final Pattern IMG_TAG = Pattern.compile("<img=\\d+>");
+	private static final int PANEL_LEADERBOARD_SIZE = 5;
 
-	/** Icons that apply without any config. Lines in the "Member icons" config box override these. */
+	/** Defaults that apply without any config. The clan server and the "Member icons" config box override these. */
 	private static final Map<String, List<String>> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
 		"lavasockz", Collections.unmodifiableList(Arrays.asList(ClanIconService.KEY_FOUNDER, ClanIconService.KEY_DEV)));
-
-	/** Titles shown between the icon and the name, e.g. "[Developer] Lavasockz". */
 	private static final Map<String, String> BUILTIN_MEMBER_TITLES = Collections.singletonMap(
 		"lavasockz", "Developer");
 
@@ -101,9 +110,20 @@ public class CorClanPlugin extends Plugin
 	@Inject
 	private CorClanOverlay overlay;
 
+	@Inject
+	private ClanApi clanApi;
+
 	private final GzTracker tracker = new GzTracker();
-	private final Map<String, List<String>> memberIcons = new HashMap<>();
-	private final Map<String, String> memberTitles = new HashMap<>();
+	private final SyncQueue syncQueue = new SyncQueue();
+
+	/** Rebuilt whenever config or server data changes; read by chat rendering on the client thread. */
+	private volatile MemberCosmetics cosmetics = MemberCosmetics.EMPTY;
+
+	// clan sync state, written from the client thread and OkHttp threads
+	private volatile SyncModels.Reporter reporter;
+	private volatile SyncModels.Leaderboard serverLeaderboard;
+	private volatile List<SyncModels.Cosmetic> serverCosmetics = Collections.emptyList();
+	private volatile long lastServerUpdate;
 
 	private CorClanPanel panel;
 	private NavigationButton navButton;
@@ -117,7 +137,7 @@ public class CorClanPlugin extends Plugin
 			configManager.unsetConfiguration(CorClanConfig.GROUP, "discordUrl");
 		}
 		tracker.load(loadStats());
-		parseMemberIcons();
+		rebuildCosmetics();
 		iconService.ensureRegistered();
 
 		panel = new CorClanPanel(config, this::resetStats);
@@ -129,6 +149,10 @@ public class CorClanPlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(overlay);
+		if (config.syncEnabled())
+		{
+			pullFromServer();
+		}
 		refreshPanel();
 		log.debug("CoR Clan started");
 	}
@@ -136,12 +160,18 @@ public class CorClanPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		if (config.syncEnabled())
+		{
+			// last chance to send what is queued; the server merges any duplicates
+			flushSync();
+		}
 		overlayManager.remove(overlay);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
 		persistStats();
 		tracker.resetSession();
+		clearServerState();
 		log.debug("CoR Clan stopped");
 	}
 
@@ -154,11 +184,22 @@ public class CorClanPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (!CorClanConfig.GROUP.equals(event.getGroup()))
+		if (!CorClanConfig.GROUP.equals(event.getGroup()) || STATS_KEY.equals(event.getKey()))
 		{
 			return;
 		}
-		parseMemberIcons();
+		if ("syncEnabled".equals(event.getKey()))
+		{
+			if (config.syncEnabled())
+			{
+				pullFromServer();
+			}
+			else
+			{
+				clearServerState();
+			}
+		}
+		rebuildCosmetics();
 		refreshPanel();
 	}
 
@@ -186,6 +227,10 @@ public class CorClanPlugin extends Plugin
 			tracker.onBroadcast(subject, text, now);
 			persistStats();
 			refreshPanel();
+			if (type == ChatMessageType.CLAN_MESSAGE)
+			{
+				queueSync(SyncModels.Event.broadcast(subject, text, now));
+			}
 			return;
 		}
 
@@ -203,6 +248,10 @@ public class CorClanPlugin extends Plugin
 				refreshPanel();
 				tagGzCount(event.getMessageNode(), sender);
 				announce(sender, tracker.getLastGzSubject());
+				if (type == ChatMessageType.CLAN_CHAT)
+				{
+					queueSync(SyncModels.Event.gz(sender, message, now));
+				}
 			}
 		}
 	}
@@ -218,7 +267,7 @@ public class CorClanPlugin extends Plugin
 		node.setValue(node.getValue() + " <col=" + TITLE_COLOR + ">[GZ count: " + count + "]</col>");
 	}
 
-	/** Local-only game message; nothing is sent to the server or other players. */
+	/** Local-only game message; nothing is sent to the game server or other players. */
 	private void announce(String giver, String subject)
 	{
 		if (!config.announceGz())
@@ -237,7 +286,7 @@ public class CorClanPlugin extends Plugin
 		return tracker;
 	}
 
-	/** Display name of the logged-in character, or null when not logged in. */
+	/** Display name of the logged-in character, or null when not logged in. Client thread only. */
 	public String localPlayerName()
 	{
 		Player me = client.getLocalPlayer();
@@ -248,10 +297,108 @@ public class CorClanPlugin extends Plugin
 		return displayName(me.getName());
 	}
 
+	/** The top gz giver: clan-wide when synced, otherwise as counted on this client. */
+	private String gzKing()
+	{
+		SyncModels.Leaderboard lb = serverLeaderboard;
+		if (lb != null && !lb.getGivers().isEmpty())
+		{
+			return lb.getGivers().get(0).getRsn();
+		}
+		return tracker.getAllTime().topGiver();
+	}
+
+	// ---------------------------------------------------------------- clan sync (opt-in)
+
+	/** Client thread: remembers who is reporting and queues the event for the next batch. */
+	private void queueSync(SyncModels.Event event)
+	{
+		if (!config.syncEnabled())
+		{
+			return;
+		}
+		long hash = client.getAccountHash();
+		String me = localPlayerName();
+		ClanChannel channel = client.getClanChannel();
+		if (hash == -1 || me == null || channel == null || channel.getName() == null)
+		{
+			return;
+		}
+		reporter = new SyncModels.Reporter(Long.toString(hash), me, channel.getName());
+		syncQueue.add(event);
+	}
+
+	/** Sends queued sightings to the clan server in one batch. Runs off the client thread. */
+	@Schedule(period = 30, unit = ChronoUnit.SECONDS, asynchronous = true)
+	public void flushSync()
+	{
+		SyncModels.Reporter r = reporter;
+		if (!config.syncEnabled() || r == null)
+		{
+			return;
+		}
+		List<SyncModels.Event> batch = syncQueue.drain(SyncQueue.MAX_BATCH);
+		if (batch.isEmpty())
+		{
+			return;
+		}
+		clanApi.sendReport(new SyncModels.ReportPayload(r, System.currentTimeMillis(), batch), handled ->
+		{
+			if (!handled)
+			{
+				syncQueue.requeue(batch);
+			}
+		});
+	}
+
+	/** Refreshes the clan leaderboard and member icons from the clan server. */
+	@Schedule(period = 2, unit = ChronoUnit.MINUTES, asynchronous = true)
+	public void scheduledPull()
+	{
+		if (config.syncEnabled())
+		{
+			pullFromServer();
+		}
+	}
+
+	private void pullFromServer()
+	{
+		clanApi.fetchLeaderboard(lb ->
+		{
+			if (!config.syncEnabled())
+			{
+				return;
+			}
+			serverLeaderboard = lb;
+			lastServerUpdate = System.currentTimeMillis();
+			refreshPanel();
+		});
+		clanApi.fetchCosmetics(response ->
+		{
+			if (!config.syncEnabled())
+			{
+				return;
+			}
+			serverCosmetics = response.getPlayers();
+			lastServerUpdate = System.currentTimeMillis();
+			rebuildCosmetics();
+			clientThread.invokeLater(client::refreshChat);
+		});
+	}
+
+	private void clearServerState()
+	{
+		syncQueue.clear();
+		reporter = null;
+		serverLeaderboard = null;
+		serverCosmetics = Collections.emptyList();
+		lastServerUpdate = 0;
+	}
+
 	// ---------------------------------------------------------------- ::cor / ::test
 
 	/**
-	 * Double-colon commands are handled inside the client and never sent to the server. This one
+	 * Double-colon commands are handled inside the client and never sent to the game server. This one
 	 * prints a local CoR banner with the gz leaderboard. Only the player who typed it sees it.
 	 * Colours come from RuneLite's chat colour types so they adapt to the opaque / transparent chatbox.
 	 */
@@ -264,6 +411,7 @@ public class CorClanPlugin extends Plugin
 			return;
 		}
 		GzStats stats = tracker.getAllTime();
+		SyncModels.Leaderboard lb = serverLeaderboard;
 		int rhino = iconService.indexFor(ClanIconService.KEY_STAFF);
 		int gzIcon = iconService.indexFor(ClanIconService.KEY_GZ_KING);
 		int crown = iconService.indexFor(ClanIconService.KEY_FOUNDER);
@@ -271,18 +419,18 @@ public class CorClanPlugin extends Plugin
 		ChatMessageBuilder banner = new ChatMessageBuilder();
 		icon(banner, rhino);
 		banner.append(ChatColorType.HIGHLIGHT).append("CoR Clan").append(ChatColorType.NORMAL)
-			.append(" - " + tracker.getAllTime().totalGiven() + " gz counted ");
+			.append(lb != null ? " - clan-wide gz leaderboard " : " - " + stats.totalGiven() + " gz counted ");
 		icon(banner, rhino);
 		say(banner);
 
+		List<Map.Entry<String, Integer>> givers = lb != null ? entries(lb.getGivers()) : GzStats.top(stats.getGiven(), 1);
 		ChatMessageBuilder kingLine = new ChatMessageBuilder();
 		icon(kingLine, gzIcon);
-		String king = stats.topGiver();
-		if (king != null)
+		if (!givers.isEmpty())
 		{
 			kingLine.append(ChatColorType.NORMAL).append("GZ King: ")
-				.append(ChatColorType.HIGHLIGHT).append(king)
-				.append(ChatColorType.NORMAL).append(" with " + stats.getGiven().get(king) + " gz");
+				.append(ChatColorType.HIGHLIGHT).append(givers.get(0).getKey())
+				.append(ChatColorType.NORMAL).append(" with " + givers.get(0).getValue() + " gz");
 		}
 		else
 		{
@@ -292,12 +440,12 @@ public class CorClanPlugin extends Plugin
 		}
 		say(kingLine);
 
-		List<Map.Entry<String, Integer>> top = GzStats.top(stats.getReceived(), 3);
+		List<Map.Entry<String, Integer>> top = lb != null ? entries(lb.getReceivers()) : GzStats.top(stats.getReceived(), 3);
 		if (!top.isEmpty())
 		{
 			ChatMessageBuilder topLine = new ChatMessageBuilder().append(ChatColorType.NORMAL).append("Most gz'd: ");
 			int place = 1;
-			for (Map.Entry<String, Integer> e : top)
+			for (Map.Entry<String, Integer> e : top.subList(0, Math.min(3, top.size())))
 			{
 				topLine.append(ChatColorType.NORMAL).append(place > 1 ? ", " : "")
 					.append(e.getKey() + " ")
@@ -316,7 +464,7 @@ public class CorClanPlugin extends Plugin
 				.append(ChatColorType.HIGHLIGHT).append(String.valueOf(stats.getGiven().getOrDefault(me, 0)))
 				.append(ChatColorType.NORMAL).append(" gz given, ")
 				.append(ChatColorType.HIGHLIGHT).append(String.valueOf(stats.getReceived().getOrDefault(me, 0)))
-				.append(ChatColorType.NORMAL).append(" received");
+				.append(ChatColorType.NORMAL).append(" received on this client");
 			say(meLine);
 		}
 	}
@@ -379,9 +527,10 @@ public class CorClanPlugin extends Plugin
 			return;
 		}
 		String name = (String) slot;
-		String key = standardize(name);
-		String tags = iconTagsFor(type, key);
-		String title = memberTitles.get(key);
+		String key = MemberCosmetics.key(name);
+		MemberCosmetics current = cosmetics;
+		String tags = iconTagsFor(type, key, current);
+		String title = current.titleFor(key);
 		if (tags.isEmpty() && title == null)
 		{
 			return;
@@ -396,10 +545,10 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
-	 * Icons stack, left to right: member icons from config / built-ins, the GZ King badge, then the
-	 * rank rhino. Returns "" when there is nothing to show.
+	 * Icons stack, left to right: member icons (built-in, clan server, config), the GZ King badge, then
+	 * the rank rhino. Returns "" when there is nothing to show.
 	 */
-	private String iconTagsFor(ChatMessageType type, String key)
+	private String iconTagsFor(ChatMessageType type, String key, MemberCosmetics current)
 	{
 		if (key.isEmpty())
 		{
@@ -407,19 +556,15 @@ public class CorClanPlugin extends Plugin
 		}
 		StringBuilder sb = new StringBuilder();
 
-		List<String> icons = memberIcons.get(key);
-		if (icons != null)
+		for (String icon : current.iconsFor(key))
 		{
-			for (String icon : icons)
-			{
-				append(sb, iconService.tagFor(icon));
-			}
+			append(sb, iconService.tagFor(icon));
 		}
 
 		if (config.gzKingIcon())
 		{
-			String king = tracker.getAllTime().topGiver();
-			if (king != null && key.equals(standardize(king)))
+			String king = gzKing();
+			if (king != null && key.equals(MemberCosmetics.key(king)))
 			{
 				append(sb, iconService.tagFor(ClanIconService.KEY_GZ_KING));
 			}
@@ -445,11 +590,11 @@ public class CorClanPlugin extends Plugin
 		}
 	}
 
-	private static ClanChannelMember findMember(ClanChannel channel, String standardizedName)
+	private static ClanChannelMember findMember(ClanChannel channel, String key)
 	{
 		for (ClanChannelMember member : channel.getMembers())
 		{
-			if (standardizedName.equals(standardize(member.getName())))
+			if (key.equals(MemberCosmetics.key(member.getName())))
 			{
 				return member;
 			}
@@ -459,73 +604,15 @@ public class CorClanPlugin extends Plugin
 
 	// ---------------------------------------------------------------- helpers
 
-	/**
-	 * Config lines look like {@code name=icon} or {@code name=icon|Title}. A line for a built-in
-	 * member replaces both the built-in icon and title.
-	 */
-	private void parseMemberIcons()
+	/** Safe from any thread: builds a new immutable snapshot and swaps it in. */
+	private void rebuildCosmetics()
 	{
-		memberIcons.clear();
-		memberTitles.clear();
-		memberIcons.putAll(BUILTIN_MEMBER_ICONS);
-		memberTitles.putAll(BUILTIN_MEMBER_TITLES);
-		String raw = config.memberIcons();
-		if (raw == null)
-		{
-			return;
-		}
-		for (String line : raw.split("\\r?\\n"))
-		{
-			int eq = line.indexOf('=');
-			if (eq <= 0)
-			{
-				continue;
-			}
-			String name = standardize(line.substring(0, eq));
-			if (name.isEmpty())
-			{
-				continue;
-			}
-			String rest = line.substring(eq + 1);
-			String iconPart = rest;
-			String title = null;
-			int bar = rest.indexOf('|');
-			if (bar >= 0)
-			{
-				iconPart = rest.substring(0, bar);
-				title = Text.removeTags(rest.substring(bar + 1)).trim();
-			}
-
-			memberIcons.remove(name);
-			memberTitles.remove(name);
-			List<String> icons = new ArrayList<>();
-			for (String icon : iconPart.split(","))
-			{
-				icon = icon.trim().toLowerCase();
-				if (iconService.isMemberKey(icon) && !icons.contains(icon))
-				{
-					icons.add(icon);
-				}
-			}
-			if (!icons.isEmpty())
-			{
-				memberIcons.put(name, icons);
-			}
-			if (title != null && !title.isEmpty() && title.length() <= 20)
-			{
-				memberTitles.put(name, title);
-			}
-		}
-	}
-
-	/** Lower-case name with tags stripped and nbsp/underscores as spaces; used as a map key. */
-	private static String standardize(String name)
-	{
-		if (name == null)
-		{
-			return "";
-		}
-		return Text.standardize(Text.removeTags(name));
+		cosmetics = MemberCosmetics.build(
+			BUILTIN_MEMBER_ICONS,
+			BUILTIN_MEMBER_TITLES,
+			config.syncEnabled() ? serverCosmetics : Collections.emptyList(),
+			config.memberIcons(),
+			iconService::isMemberKey);
 	}
 
 	/** Name as shown in game (tags stripped, regular spaces). */
@@ -536,6 +623,16 @@ public class CorClanPlugin extends Plugin
 			return "";
 		}
 		return Text.removeTags(name).replace(' ', ' ').trim();
+	}
+
+	private static List<Map.Entry<String, Integer>> entries(List<SyncModels.Entry> list)
+	{
+		List<Map.Entry<String, Integer>> out = new ArrayList<>(list.size());
+		for (SyncModels.Entry e : list)
+		{
+			out.add(new AbstractMap.SimpleImmutableEntry<>(e.getRsn(), e.getCount()));
+		}
+		return out;
 	}
 
 	private GzStats loadStats()
@@ -573,16 +670,58 @@ public class CorClanPlugin extends Plugin
 		});
 	}
 
+	/** Builds a snapshot on the client thread (where the stats change) and hands it to Swing. */
 	private void refreshPanel()
 	{
-		CorClanPanel p = panel;
-		if (p == null)
+		clientThread.invokeLater(() ->
 		{
-			return;
-		}
+			CorClanPanel p = panel;
+			if (p == null)
+			{
+				return;
+			}
+			PanelData data = panelData();
+			SwingUtilities.invokeLater(() -> p.refresh(data));
+		});
+	}
+
+	private PanelData panelData()
+	{
 		GzStats allTime = tracker.getAllTime();
 		GzStats session = tracker.getSession();
 		String me = localPlayerName();
-		SwingUtilities.invokeLater(() -> p.refresh(allTime, session, me));
+
+		String mine = me == null
+			? "Log in to see your own counts"
+			: String.format("You: gave %d (%d today), got %d (%d today)",
+				allTime.getGiven().getOrDefault(me, 0), session.getGiven().getOrDefault(me, 0),
+				allTime.getReceived().getOrDefault(me, 0), session.getReceived().getOrDefault(me, 0));
+		String summary = String.format("This client: %d given, %d received all time",
+			allTime.totalGiven(), allTime.totalReceived());
+
+		SyncModels.Leaderboard lb = config.syncEnabled() ? serverLeaderboard : null;
+		String syncStatus;
+		if (!config.syncEnabled())
+		{
+			syncStatus = "Clan sync: off (turn on in settings)";
+		}
+		else if (lb == null)
+		{
+			syncStatus = "Clan sync: on, waiting for the clan server";
+		}
+		else
+		{
+			syncStatus = "Clan sync: on, updated " + new SimpleDateFormat("HH:mm").format(new Date(lastServerUpdate));
+		}
+
+		List<Map.Entry<String, Integer>> givers = lb != null
+			? entries(lb.getGivers())
+			: GzStats.top(allTime.getGiven(), PANEL_LEADERBOARD_SIZE);
+		List<Map.Entry<String, Integer>> receivers = lb != null
+			? entries(lb.getReceivers())
+			: GzStats.top(allTime.getReceived(), PANEL_LEADERBOARD_SIZE);
+		List<BroadcastRecord> recent = new ArrayList<>(allTime.getRecent());
+
+		return new PanelData(mine, summary, syncStatus, lb != null, givers, receivers, recent);
 	}
 }

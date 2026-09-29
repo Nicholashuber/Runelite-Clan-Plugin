@@ -2,7 +2,6 @@ package com.corclan.ui;
 
 import com.corclan.CorClanConfig;
 import com.corclan.gz.BroadcastRecord;
-import com.corclan.gz.GzStats;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -29,7 +28,8 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
 /**
- * The CoR sidebar. All content is local: gz leaderboards counted on this client and links from config.
+ * The CoR sidebar: links, gz leaderboards (clan-wide when sync is on, otherwise this client's own
+ * counts) and recent clan broadcasts.
  */
 public class CorClanPanel extends PluginPanel
 {
@@ -40,6 +40,8 @@ public class CorClanPanel extends PluginPanel
 	private final Runnable onReset;
 
 	private final JLabel summaryLabel = new JLabel();
+	private final JLabel giversTitle = new JLabel("Top gz givers");
+	private final JLabel receiversTitle = new JLabel("Most gz'd");
 	private final JPanel giversPanel = new JPanel();
 	private final JPanel receiversPanel = new JPanel();
 	private final JPanel broadcastsPanel = new JPanel();
@@ -68,9 +70,9 @@ public class CorClanPanel extends PluginPanel
 		content.add(section("GZ tracker", summaryLabel));
 		content.add(Box.createVerticalStrut(8));
 
-		content.add(section("Top gz givers", giversPanel));
+		content.add(section(giversTitle, giversPanel));
 		content.add(Box.createVerticalStrut(8));
-		content.add(section("Most gz'd", receiversPanel));
+		content.add(section(receiversTitle, receiversPanel));
 		content.add(Box.createVerticalStrut(8));
 		content.add(section("Recent broadcasts", broadcastsPanel));
 		content.add(Box.createVerticalStrut(12));
@@ -145,10 +147,14 @@ public class CorClanPanel extends PluginPanel
 
 	private static JPanel section(String title, JPanel body)
 	{
+		return section(new JLabel(title), body);
+	}
+
+	private static JPanel section(JLabel label, JPanel body)
+	{
 		JPanel wrapper = new JPanel(new BorderLayout(0, 4));
 		wrapper.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-		JLabel label = new JLabel(title);
 		label.setFont(FontManager.getRunescapeBoldFont());
 		label.setForeground(Color.WHITE);
 		wrapper.add(label, BorderLayout.NORTH);
@@ -167,23 +173,26 @@ public class CorClanPanel extends PluginPanel
 		return section(title, panel);
 	}
 
-	/** Must be called on the Swing thread. {@code me} is the logged-in name, or null. */
-	public void refresh(GzStats allTime, GzStats session, String me)
+	/** Must be called on the Swing thread with a snapshot built on the client thread. */
+	public void refresh(PanelData data)
 	{
-		String mine = me == null
-			? "Log in to see your own counts"
-			: String.format("You: gave %d (%d today), got %d (%d today)",
-				allTime.getGiven().getOrDefault(me, 0), session.getGiven().getOrDefault(me, 0),
-				allTime.getReceived().getOrDefault(me, 0), session.getReceived().getOrDefault(me, 0));
-		summaryLabel.setText(String.format("<html>%s<br>Clan session: %d given, %d received<br>Clan all time: %d given, %d received</html>",
-			mine, session.totalGiven(), session.totalReceived(), allTime.totalGiven(), allTime.totalReceived()));
+		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.syncStatus) + "</html>");
 
-		fillLeaderboard(giversPanel, GzStats.top(allTime.getGiven(), LEADERBOARD_SIZE), "No gz's counted yet");
-		fillLeaderboard(receiversPanel, GzStats.top(allTime.getReceived(), LEADERBOARD_SIZE), "Nobody gz'd yet");
-		fillBroadcasts(allTime.getRecent());
+		String scope = data.clanWide ? " (clan)" : " (this client)";
+		giversTitle.setText("Top gz givers" + scope);
+		receiversTitle.setText("Most gz'd" + scope);
+		fillLeaderboard(giversPanel, data.givers.subList(0, Math.min(LEADERBOARD_SIZE, data.givers.size())), "No gz's counted yet");
+		fillLeaderboard(receiversPanel, data.receivers.subList(0, Math.min(LEADERBOARD_SIZE, data.receivers.size())), "Nobody gz'd yet");
+		fillBroadcasts(data.recent);
 
 		revalidate();
 		repaint();
+	}
+
+	/** Player names go into an HTML label; never let them inject markup. */
+	private static String escape(String s)
+	{
+		return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 
 	private static void fillLeaderboard(JPanel panel, List<Map.Entry<String, Integer>> rows, String emptyText)
