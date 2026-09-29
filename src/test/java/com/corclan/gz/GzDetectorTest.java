@@ -32,6 +32,29 @@ public class GzDetectorTest
 	}
 
 	@Test
+	public void runTogetherSpam()
+	{
+		assertTrue(GzDetector.isGz("gzgzgzg", MAX));
+		assertTrue(GzDetector.isGz("gzgz", MAX));
+		assertTrue(GzDetector.isGz("GZGZGZGZ!!", MAX));
+		assertTrue(GzDetector.isGz("gzzgzzgzz", MAX));
+		assertTrue(GzDetector.isGz("gzgzgzg mate", MAX));
+		assertTrue(GzDetector.isGz("gratzgz", MAX));
+		assertTrue(GzDetector.isGz("gzgrats", MAX));
+		assertTrue(GzDetector.isGz("gzsgzs", MAX));
+	}
+
+	@Test
+	public void runTogetherLookalikesDoNotCount()
+	{
+		assertFalse(GzDetector.isGz("gzgzu", MAX));
+		assertFalse(GzDetector.isGz("gzgzeg", MAX));
+		assertFalse(GzDetector.isGz("gg", MAX));
+		assertFalse(GzDetector.isGz("ggwp", MAX));
+		assertFalse(GzDetector.isGz("zgzg", MAX));
+	}
+
+	@Test
 	public void withinShortSentences()
 	{
 		assertTrue(GzDetector.isGz("big gz mate", MAX));
