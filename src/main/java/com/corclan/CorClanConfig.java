@@ -40,6 +40,43 @@ public interface CorClanConfig extends Config
 	)
 	String syncSection = "sync";
 
+	@ConfigSection(
+		name = "Clan map",
+		description = "Optional: see clanmates who share their position on the world map, and share yours",
+		position = 4
+	)
+	String mapSection = "map";
+
+	@ConfigItem(
+		keyName = "shareLocation",
+		name = "Share my location",
+		description = "Sends your world and map position to the CoR clan server every 3 seconds and shows clanmates who "
+			+ "share theirs on the world map. Only people who share can see others. Paused inside the Wilderness unless "
+			+ "'Share in Wilderness' is on, and always paused inside instances.",
+		warning = "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers. "
+			+ "While on, it sends your character name, RuneLite account hash, world and map position to the CoR clan server "
+			+ "every 3 seconds. Turn it on?",
+		position = 0,
+		section = mapSection
+	)
+	default boolean shareLocation()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "shareInWilderness",
+		name = "Share in Wilderness",
+		description = "Keep sharing your position inside the Wilderness, for clan PK trips. Off means you disappear from the "
+			+ "clan map as soon as you enter the Wilderness and can't see others until you leave.",
+		position = 1,
+		section = mapSection
+	)
+	default boolean shareInWilderness()
+	{
+		return false;
+	}
+
 	@ConfigItem(
 		keyName = "syncEnabled",
 		name = "Sync with clan server",

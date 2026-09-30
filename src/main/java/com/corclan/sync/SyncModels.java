@@ -28,6 +28,11 @@ public final class SyncModels
 		{
 			return accountHash;
 		}
+
+		public String getRsn()
+		{
+			return rsn;
+		}
 	}
 
 	/** A clan broadcast or a gz line seen in clan chat. Only one of subject / giver is set. */
@@ -258,6 +263,110 @@ public final class SyncModels
 		{
 			this.reporter = reporter;
 			this.ranks = ranks;
+		}
+	}
+
+	/** Your own position for the clan map: world and map tile. Sent every ~3s while sharing. */
+	public static final class LocationPayload
+	{
+		private final Reporter reporter;
+		private final int world;
+		private final int x;
+		private final int y;
+		private final int plane;
+		/** inside the Wilderness while "Share in Wilderness" is on */
+		private final boolean wilderness;
+
+		public LocationPayload(Reporter reporter, int world, int x, int y, int plane, boolean wilderness)
+		{
+			this.reporter = reporter;
+			this.world = world;
+			this.x = x;
+			this.y = y;
+			this.plane = plane;
+			this.wilderness = wilderness;
+		}
+	}
+
+	/** Tells the server to forget your position right away. */
+	public static final class LocationStopPayload
+	{
+		private final Reporter reporter;
+
+		public LocationStopPayload(Reporter reporter)
+		{
+			this.reporter = reporter;
+		}
+	}
+
+	/** A clanmate who is sharing their position. */
+	public static final class PlayerLocation
+	{
+		private String rsn;
+		private int world;
+		private int x;
+		private int y;
+		private int plane;
+		private boolean wilderness;
+		private int secondsAgo;
+
+		public PlayerLocation()
+		{
+		}
+
+		public PlayerLocation(String rsn, int world, int x, int y, int plane, boolean wilderness)
+		{
+			this.rsn = rsn;
+			this.world = world;
+			this.x = x;
+			this.y = y;
+			this.plane = plane;
+			this.wilderness = wilderness;
+		}
+
+		public String getRsn()
+		{
+			return rsn;
+		}
+
+		public int getWorld()
+		{
+			return world;
+		}
+
+		public int getX()
+		{
+			return x;
+		}
+
+		public int getY()
+		{
+			return y;
+		}
+
+		public int getPlane()
+		{
+			return plane;
+		}
+
+		public boolean isWilderness()
+		{
+			return wilderness;
+		}
+
+		public int getSecondsAgo()
+		{
+			return secondsAgo;
+		}
+	}
+
+	public static final class LocationsResponse
+	{
+		private List<PlayerLocation> players;
+
+		public List<PlayerLocation> getPlayers()
+		{
+			return players == null ? Collections.emptyList() : players;
 		}
 	}
 

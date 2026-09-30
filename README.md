@@ -16,6 +16,8 @@ The optional **Clan sync** setting (off by default) is the only feature that tal
   stored in your RuneLite settings.
 - **Clan sync** (optional, off by default): clan-wide gz leaderboards, plus chat icons, member icons and
   titles managed by clan admins, shared through the CoR clan server.
+- **Clan map** (optional, off by default): clanmates who share their position appear on the in-game world map
+  with a rhino marker, their name and world. Only people who share can see others.
 
 ## Clan sync and your data
 
@@ -41,6 +43,24 @@ network traffic immediately.
 The server stores player names, when gz's and broadcasts happened, and short hashes used to match
 duplicate reports. It does not store the text of chat messages.
 
+## Clan map and your data
+
+**Share my location** is **off by default** and shows RuneLite's IP-address warning when turned on. While it is on,
+the plugin sends your character name, RuneLite account hash, world and map tile to the CoR clan server every
+3 seconds. The reply lists clanmates who are sharing, and they appear on the world map with a rhino marker;
+hovering shows their name and world, and clicking jumps the map to them. Your own marker, labelled "You", appears
+once the server has accepted your position, so you can see sharing is working even when nobody else is on the
+map. Only people who share can see others.
+
+- Inside the **Wilderness** your position is not sent unless **Share in Wilderness** is also on (meant for clan
+  PK trips). With it off you vanish from the clan map as soon as you enter the Wilderness and can't see others
+  until you leave.
+- Positions are never sent from inside instances (raids and some bosses), where coordinates are not map tiles.
+- Turning sharing off, logging out or disabling the plugin removes you from the server right away. The server
+  keeps positions in memory only, for at most one minute after the last report, and never stores them.
+- Positions are as private as the clan-name check: the server only accepts and shows positions to clients
+  that report being in C o R. It does not verify that claim.
+
 ## Commands
 
 Type `::cor` (or `::test`) in the chatbox to print a local CoR banner with the GZ King, the most gz'd
@@ -63,6 +83,8 @@ the game server; only you see the output.
 | GZ tracker | Show [GZ count] on gz lines | Append `[GZ count: N]` to a member's chat line when they say gz, N being their all-time total on your client |
 | GZ tracker | Chat message when counted | Also print a local game message per counted gz (off by default) |
 | GZ tracker | Max gz message length | Longer messages are never treated as a gz |
+| Clan map | Share my location | Off by default. Sends your world and map tile every 3 seconds and shows clanmates who share on the world map. See [Clan map and your data](#clan-map-and-your-data) |
+| Clan map | Share in Wilderness | Keep sharing inside the Wilderness. Off means you vanish from the clan map there |
 | Clan sync | Sync with clan server | Off by default. Shares gz sightings with the CoR clan server and loads the clan-wide leaderboard and member icons. See [Clan sync and your data](#clan-sync-and-your-data) |
 
 ## Development

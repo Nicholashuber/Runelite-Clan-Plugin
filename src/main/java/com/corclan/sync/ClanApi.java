@@ -110,6 +110,69 @@ public class ClanApi
 		});
 	}
 
+	/** Clan map: sends your own position; the reply lists everyone else sharing. */
+	public void sendLocation(SyncModels.LocationPayload payload, Consumer<SyncModels.LocationsResponse> onSuccess)
+	{
+		Request request = new Request.Builder()
+			.url(BASE_URL.resolve("v1/locations"))
+			.post(RequestBody.create(JSON, gson.toJson(payload)))
+			.build();
+		http.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.debug("CoR map: sending location failed", e);
+			}
+
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				try (Response r = response)
+				{
+					ResponseBody body = r.body();
+					if (!r.isSuccessful() || body == null)
+					{
+						log.debug("CoR map: location refused with {}", r.code());
+						return;
+					}
+					SyncModels.LocationsResponse result = gson.fromJson(body.charStream(), SyncModels.LocationsResponse.class);
+					if (result != null)
+					{
+						onSuccess.accept(result);
+					}
+				}
+				catch (JsonParseException e)
+				{
+					log.debug("CoR map: unreadable locations response", e);
+				}
+			}
+		});
+	}
+
+	/** Clan map: removes your position from the server right away. */
+	public void sendLocationStop(SyncModels.LocationStopPayload payload)
+	{
+		Request request = new Request.Builder()
+			.url(BASE_URL.resolve("v1/locations/stop"))
+			.post(RequestBody.create(JSON, gson.toJson(payload)))
+			.build();
+		http.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.debug("CoR map: stop failed (the server forgets positions after a minute anyway)", e);
+			}
+
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				response.close();
+			}
+		});
+	}
+
 	public void fetchLeaderboard(Consumer<SyncModels.Leaderboard> onSuccess)
 	{
 		get("v1/leaderboard?limit=5", SyncModels.Leaderboard.class, onSuccess);
