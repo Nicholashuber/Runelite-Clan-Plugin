@@ -180,4 +180,67 @@ public class GzTrackerTest
 		t.resetAllTime();
 		assertEquals(0, t.getWeekly().totalGiven());
 	}
+
+	// counts every gz (no one-per-broadcast rule) so only the hourly cap limits them
+	private static final GzTracker.Settings UNLIMITED = new GzTracker.Settings(90_000L, false, 40);
+
+	@Test
+	public void hourlyCapStopsCountingAt100()
+	{
+		GzTracker t = new GzTracker(ZoneOffset.UTC);
+		long start = utc("2026-09-29T12:00:00Z");
+		for (int i = 0; i < GzTracker.MAX_GZ_PER_HOUR; i++)
+		{
+			assertTrue(t.onClanChat("Spammer", "gz", start + i * 1_000L, UNLIMITED));
+		}
+		assertFalse(t.onClanChat("Spammer", "gz", start + 200_000L, UNLIMITED));
+		assertEquals(100, (int) t.getAllTime().getGiven().get("Spammer"));
+		assertEquals(100, (int) t.getWeekly().getGiven().get("Spammer"));
+		assertEquals(100, (int) t.getSession().getGiven().get("Spammer"));
+	}
+
+	@Test
+	public void hourlyCapIsRollingNotPerClockHour()
+	{
+		GzTracker t = new GzTracker(ZoneOffset.UTC);
+		long start = utc("2026-09-29T12:59:00Z");
+		for (int i = 0; i < GzTracker.MAX_GZ_PER_HOUR; i++)
+		{
+			t.onClanChat("Spammer", "gz", start + i * 100L, UNLIMITED);
+		}
+		// a new clock hour doesn't reset it...
+		assertFalse(t.onClanChat("Spammer", "gz", utc("2026-09-29T13:00:30Z"), UNLIMITED));
+		// ...but an hour after the first counted gz, one slot frees up
+		assertTrue(t.onClanChat("Spammer", "gz", start + GzTracker.HOUR_MILLIS, UNLIMITED));
+		assertFalse(t.onClanChat("Spammer", "gz", start + GzTracker.HOUR_MILLIS + 50L, UNLIMITED));
+		assertEquals(101, (int) t.getAllTime().getGiven().get("Spammer"));
+	}
+
+	@Test
+	public void hourlyCapIsPerPlayerAndIgnoresNameCase()
+	{
+		GzTracker t = new GzTracker(ZoneOffset.UTC);
+		long start = utc("2026-09-29T12:00:00Z");
+		for (int i = 0; i < GzTracker.MAX_GZ_PER_HOUR; i++)
+		{
+			t.onClanChat(i % 2 == 0 ? "Spammer" : "spammer", "gz", start + i, UNLIMITED);
+		}
+		assertFalse(t.onClanChat("SPAMMER", "gz", start + 500L, UNLIMITED));
+		// someone else is unaffected
+		assertTrue(t.onClanChat("Honest", "gz", start + 500L, UNLIMITED));
+	}
+
+	@Test
+	public void cappedGzIsNotCreditedToTheBroadcast()
+	{
+		GzTracker t = new GzTracker(ZoneOffset.UTC);
+		long start = utc("2026-09-29T12:00:00Z");
+		for (int i = 0; i < GzTracker.MAX_GZ_PER_HOUR; i++)
+		{
+			t.onClanChat("Spammer", "gz", start + i, UNLIMITED);
+		}
+		t.onBroadcast("Zezima", "Zezima has reached 99 Slayer.", start + 1_000L);
+		assertFalse(t.onClanChat("Spammer", "gz", start + 2_000L, UNLIMITED));
+		assertNull(t.getAllTime().getReceived().get("Zezima"));
+	}
 }

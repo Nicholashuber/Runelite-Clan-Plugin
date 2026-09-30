@@ -1,6 +1,8 @@
 package com.corclan.ui;
 
 import com.corclan.CorClanConfig;
+import com.corclan.clan.ClanRoster;
+import com.corclan.clan.OrgChart;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.Streaks;
 import java.awt.BorderLayout;
@@ -14,9 +16,11 @@ import java.awt.image.BufferedImage;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -72,6 +76,12 @@ public class CorClanPanel extends PluginPanel
 	private final IconTextField allGiversSearch = new IconTextField();
 	private final JPanel allGiversList = new JPanel();
 	private List<Map.Entry<String, Integer>> allGivers = Collections.emptyList();
+	// clan members by in-game rank; collapsible like All gz givers
+	private final JLabel clanHeader = new JLabel();
+	private final JPanel clanPanel = new JPanel();
+	private List<ClanRoster.RankGroup> clanRoster;
+	private Map<Integer, String> clanRankTitles = Collections.emptyMap();
+	private Map<String, Integer> clanGzCounts = Collections.emptyMap();
 
 	private final JLabel summaryLabel = new JLabel();
 	private final JLabel giversTitle = new JLabel("Top gz givers");
@@ -134,8 +144,10 @@ public class CorClanPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(section("Streak", streakPanel));
 		content.add(Box.createVerticalStrut(8));
-		content.add(collapsible(allGiversHeader, allGiversPanel));
+		content.add(collapsible(allGiversHeader, allGiversPanel, this::updateAllGiversHeader));
 		buildAllGiversSearch();
+		content.add(Box.createVerticalStrut(8));
+		content.add(collapsible(clanHeader, clanPanel, this::updateClanHeader));
 
 		add(content, BorderLayout.NORTH);
 	}
@@ -212,8 +224,11 @@ public class CorClanPanel extends PluginPanel
 		return wrapper;
 	}
 
-	/** A section whose body is hidden until the header is clicked. Starts collapsed. */
-	private JPanel collapsible(JLabel header, JPanel body)
+	/**
+	 * A section whose body is hidden until the header is clicked. Starts collapsed.
+	 * @param updateHeader redraws the header text (with its [+]/[-] marker) after a toggle
+	 */
+	private JPanel collapsible(JLabel header, JPanel body, Runnable updateHeader)
 	{
 		JPanel wrapper = section(header, body);
 		body.setVisible(false);
@@ -225,7 +240,7 @@ public class CorClanPanel extends PluginPanel
 			public void mouseClicked(MouseEvent e)
 			{
 				body.setVisible(!body.isVisible());
-				updateAllGiversHeader();
+				updateHeader.run();
 				revalidate();
 				repaint();
 			}
@@ -233,11 +248,204 @@ public class CorClanPanel extends PluginPanel
 		return wrapper;
 	}
 
+	/** plain ASCII: the RuneScape font has no arrow glyphs */
+	private static String marker(JPanel body)
+	{
+		return body.isVisible() ? "[-] " : "[+] ";
+	}
+
 	private void updateAllGiversHeader()
 	{
-		// plain ASCII: the RuneScape font has no arrow glyphs
-		String marker = allGiversPanel.isVisible() ? "[-] " : "[+] ";
-		allGiversHeader.setText(marker + "All gz givers (this client, " + allGivers.size() + ")");
+		allGiversHeader.setText(marker(allGiversPanel) + "All gz givers (this client, " + allGivers.size() + ")");
+	}
+
+	private void updateClanHeader()
+	{
+		String counts = clanRoster == null
+			? ""
+			: " (" + ClanRoster.total(clanRoster) + ", " + ClanRoster.online(clanRoster) + " online)";
+		clanHeader.setText(marker(clanPanel) + "Clan members" + counts);
+	}
+
+	/**
+	 * Rebuilds the chart only when something it shows changed; a big clan is hundreds of rows.
+	 * @param gzGiven all-time gz's given per player on this client, shown in the competitive trees
+	 */
+	private void fillClanRoster(List<ClanRoster.RankGroup> roster, Map<Integer, String> rankTitles, Map<String, Integer> gzGiven)
+	{
+		// only the counts of players in the chart matter; ignore gz's from people outside the clan
+		Map<String, Integer> counts = new HashMap<>();
+		if (roster != null)
+		{
+			for (ClanRoster.RankGroup g : roster)
+			{
+				for (ClanRoster.Member m : g.members)
+				{
+					counts.put(m.name, gzGiven.getOrDefault(m.name, 0));
+				}
+			}
+		}
+		if (Objects.equals(roster, clanRoster) && rankTitles.equals(clanRankTitles) && counts.equals(clanGzCounts)
+			&& clanPanel.getComponentCount() > 0)
+		{
+			return;
+		}
+		clanRoster = roster;
+		clanRankTitles = rankTitles;
+		clanGzCounts = counts;
+		clanPanel.removeAll();
+		if (roster == null)
+		{
+			clanPanel.add(muted("Log in and join a clan to see its members"));
+		}
+		else
+		{
+			OrgChart.Chart chart = OrgChart.build(roster, rankTitles);
+			addChain(chart.staff, null);
+			clanPanel.add(Box.createVerticalStrut(12));
+			addChain(chart.competitive, counts);
+			if (!chart.others.isEmpty())
+			{
+				clanPanel.add(Box.createVerticalStrut(12));
+				JPanel box = tierBox("Other ranks");
+				for (ClanRoster.RankGroup group : chart.others)
+				{
+					addRank(box, null, group.title, group.members, group.onlineCount(), null);
+				}
+				clanPanel.add(box);
+			}
+		}
+		clanPanel.revalidate();
+		clanPanel.repaint();
+	}
+
+	private static Map<String, Integer> toMap(List<Map.Entry<String, Integer>> entries)
+	{
+		Map<String, Integer> map = new HashMap<>();
+		for (Map.Entry<String, Integer> e : entries)
+		{
+			map.put(e.getKey(), e.getValue());
+		}
+		return map;
+	}
+
+	/**
+	 * Tier boxes joined by connector lines.
+	 * @param gzCounts shown next to each member when non-null (the competitive trees)
+	 */
+	private void addChain(List<OrgChart.Tier> tiers, Map<String, Integer> gzCounts)
+	{
+		for (int i = 0; i < tiers.size(); i++)
+		{
+			if (i > 0)
+			{
+				clanPanel.add(connector());
+			}
+			OrgChart.Tier tier = tiers.get(i);
+			JPanel box = tierBox(tier.name);
+			for (OrgChart.Slot slot : tier.slots)
+			{
+				addRank(box, slot.grade, slot.title, slot.members, slot.onlineCount(), gzCounts);
+			}
+			clanPanel.add(box);
+		}
+	}
+
+	/** A bordered box for one tier of the org chart, labelled at the top. */
+	private static JPanel tierBox(String name)
+	{
+		JPanel box = new JPanel();
+		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
+		box.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		box.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR),
+			new EmptyBorder(3, 5, 4, 5)));
+		// wrapped in a row like everything else in the box, so BoxLayout aligns them all the same way
+		JPanel label = new JPanel(new BorderLayout());
+		label.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		label.add(muted(name), BorderLayout.CENTER);
+		box.add(label);
+		return box;
+	}
+
+	/** The short vertical line joining one tier's box to the next. */
+	private static JPanel connector()
+	{
+		JPanel line = new JPanel();
+		line.setBackground(ColorScheme.MEDIUM_GRAY_COLOR);
+		line.setPreferredSize(new Dimension(2, 10));
+		line.setMaximumSize(new Dimension(2, 10));
+		line.setAlignmentX(CENTER_ALIGNMENT);
+		JPanel holder = new JPanel();
+		holder.setLayout(new BoxLayout(holder, BoxLayout.Y_AXIS));
+		holder.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		holder.add(line);
+		return holder;
+	}
+
+	/**
+	 * A rank heading followed by its members, or "vacant" when nobody holds it.
+	 * @param grade    letter grade shown before the title (competitive tiers), or null
+	 * @param gzCounts when non-null, each member's gz count replaces the "online" label
+	 */
+	private static void addRank(JPanel box, String grade, String title, List<ClanRoster.Member> members, int online,
+		Map<String, Integer> gzCounts)
+	{
+		box.add(Box.createVerticalStrut(3));
+		box.add(rankRow(grade == null ? title : grade + "  " + title, members.size(), online));
+		if (members.isEmpty())
+		{
+			JLabel vacant = muted("vacant");
+			vacant.setBorder(new EmptyBorder(0, 10, 0, 0));
+			JPanel row = new JPanel(new BorderLayout());
+			row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+			row.add(vacant, BorderLayout.CENTER);
+			box.add(row);
+		}
+		for (ClanRoster.Member member : members)
+		{
+			box.add(memberRow(member, gzCounts == null ? null : gzCounts.getOrDefault(member.name, 0)));
+		}
+	}
+
+	/** Rank title in bold, member count (and how many are online) on the right. */
+	private static JPanel rankRow(String rankTitle, int size, int online)
+	{
+		JPanel row = new JPanel(new BorderLayout());
+		row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		JLabel title = new JLabel(rankTitle);
+		title.setFont(FontManager.getRunescapeBoldFont());
+		title.setForeground(ColorScheme.BRAND_ORANGE);
+		JLabel count = new JLabel(size == 0 ? "" : size + (online > 0 ? " (" + online + " online)" : ""), SwingConstants.RIGHT);
+		count.setFont(FontManager.getRunescapeSmallFont());
+		count.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		row.add(title, BorderLayout.CENTER);
+		row.add(count, BorderLayout.EAST);
+		return row;
+	}
+
+	/**
+	 * Indented name, green when online. On the right: their gz count when {@code gz} is given
+	 * (competitive trees), otherwise "online" for online members.
+	 */
+	private static JPanel memberRow(ClanRoster.Member member, Integer gz)
+	{
+		JPanel row = new JPanel(new BorderLayout());
+		row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		row.setBorder(new EmptyBorder(0, 10, 0, 0));
+		JLabel name = new JLabel(member.name);
+		name.setFont(FontManager.getRunescapeSmallFont());
+		name.setForeground(member.online ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.LIGHT_GRAY_COLOR);
+		row.add(name, BorderLayout.CENTER);
+		String right = gz != null ? gz + " gz" : member.online ? "online" : null;
+		if (right != null)
+		{
+			JLabel status = new JLabel(right, SwingConstants.RIGHT);
+			status.setFont(FontManager.getRunescapeSmallFont());
+			status.setForeground(gz != null ? ColorScheme.BRAND_ORANGE : ColorScheme.PROGRESS_COMPLETE_COLOR);
+			row.add(status, BorderLayout.EAST);
+		}
+		return row;
 	}
 
 	private void buildAllGiversSearch()
@@ -334,6 +542,8 @@ public class CorClanPanel extends PluginPanel
 		allGivers = data.allGivers;
 		updateAllGiversHeader();
 		fillAllGivers();
+		fillClanRoster(data.clanRoster, data.clanRankTitles, toMap(data.allGivers));
+		updateClanHeader();
 
 		revalidate();
 		repaint();
