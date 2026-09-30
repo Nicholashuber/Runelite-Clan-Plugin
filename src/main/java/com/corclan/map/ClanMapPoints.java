@@ -23,7 +23,8 @@ public class ClanMapPoints
 	ClanMapPoints(WorldMapPointManager worldMapPointManager)
 	{
 		this.worldMapPointManager = worldMapPointManager;
-		this.icon = ImageUtil.loadImageResource(ClanMapPoints.class, "/com/corclan/panel_icon.png");
+		// the same red rhino shown for CoR Clan in the Plugin Hub
+		this.icon = ImageUtil.loadImageResource(ClanMapPoints.class, "/com/corclan/map_marker.png");
 	}
 
 	/**
