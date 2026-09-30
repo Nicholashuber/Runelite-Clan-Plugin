@@ -4,6 +4,8 @@ import com.corclan.gz.BroadcastParser;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.GzStats;
 import com.corclan.gz.GzTracker;
+import com.corclan.gz.Streaks;
+import com.corclan.gz.WeekResult;
 import com.corclan.icons.ClanIconService;
 import com.corclan.icons.MemberCosmetics;
 import com.corclan.sync.ClanApi;
@@ -14,7 +16,9 @@ import com.corclan.ui.CorClanPanel;
 import com.corclan.ui.PanelData;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
+import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
@@ -45,6 +49,7 @@ import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.task.Schedule;
@@ -63,6 +68,12 @@ import net.runelite.client.util.Text;
 public class CorClanPlugin extends Plugin
 {
 	static final String STATS_KEY = "gzStats";
+	static final String WEEKLY_KEY = "gzWeekly";
+	static final String WEEK_START_KEY = "gzWeekStart";
+	static final String WEEK_RESULTS_KEY = "gzWeekResults";
+	private static final Type WEEK_RESULTS_TYPE = new TypeToken<List<WeekResult>>(){}.getType();
+	/** Saved stats, not settings: changing them must not trigger a config refresh. */
+	private static final List<String> STATS_KEYS = Arrays.asList(STATS_KEY, WEEKLY_KEY, WEEK_START_KEY, WEEK_RESULTS_KEY);
 	private static final String CHAT_BUILD_CALLBACK = "chatMessageBuilding";
 	/** Position of the name string relative to the top of the object stack in that callback. */
 	private static final int NAME_STACK_OFFSET = 3;
@@ -70,6 +81,7 @@ public class CorClanPlugin extends Plugin
 	private static final String OLD_DISCORD_PLACEHOLDER = "https://discord.gg/";
 	private static final Pattern IMG_TAG = Pattern.compile("<img=\\d+>");
 	private static final int PANEL_LEADERBOARD_SIZE = 5;
+	private static final int PANEL_GIVERS_SIZE = 10;
 
 	/** Defaults that apply without any config. The clan server and the "Member icons" config box override these. */
 	private static final Map<String, List<String>> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
@@ -113,6 +125,9 @@ public class CorClanPlugin extends Plugin
 	@Inject
 	private ClanApi clanApi;
 
+	@Inject
+	private ItemManager itemManager;
+
 	private final GzTracker tracker = new GzTracker();
 	private final SyncQueue syncQueue = new SyncQueue();
 
@@ -136,11 +151,17 @@ public class CorClanPlugin extends Plugin
 		{
 			configManager.unsetConfiguration(CorClanConfig.GROUP, "discordUrl");
 		}
-		tracker.load(loadStats());
+		tracker.load(loadStats(STATS_KEY));
+		tracker.loadWeekly(loadStats(WEEKLY_KEY), loadWeekStart());
+		tracker.loadWeekResults(loadWeekResults());
+		if (tracker.rollWeek(System.currentTimeMillis()))
+		{
+			persistStats();
+		}
 		rebuildCosmetics();
 		iconService.ensureRegistered();
 
-		panel = new CorClanPanel(config, this::resetStats);
+		panel = new CorClanPanel(config, itemManager, this::resetStats);
 		navButton = NavigationButton.builder()
 			.tooltip("CoR Clan")
 			.icon(ImageUtil.loadImageResource(CorClanPlugin.class, "panel_icon.png"))
@@ -184,7 +205,7 @@ public class CorClanPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (!CorClanConfig.GROUP.equals(event.getGroup()) || STATS_KEY.equals(event.getKey()))
+		if (!CorClanConfig.GROUP.equals(event.getGroup()) || STATS_KEYS.contains(event.getKey()))
 		{
 			return;
 		}
@@ -635,9 +656,9 @@ public class CorClanPlugin extends Plugin
 		return out;
 	}
 
-	private GzStats loadStats()
+	private GzStats loadStats(String key)
 	{
-		String json = configManager.getConfiguration(CorClanConfig.GROUP, STATS_KEY);
+		String json = configManager.getConfiguration(CorClanConfig.GROUP, key);
 		if (json == null || json.isEmpty())
 		{
 			return new GzStats();
@@ -654,9 +675,45 @@ public class CorClanPlugin extends Plugin
 		}
 	}
 
+	/** Start of the saved weekly stats' week, or 0 (forcing a fresh week) if missing or unreadable. */
+	private long loadWeekStart()
+	{
+		String raw = configManager.getConfiguration(CorClanConfig.GROUP, WEEK_START_KEY);
+		try
+		{
+			return raw == null ? 0L : Long.parseLong(raw);
+		}
+		catch (NumberFormatException ex)
+		{
+			return 0L;
+		}
+	}
+
+	private List<WeekResult> loadWeekResults()
+	{
+		String json = configManager.getConfiguration(CorClanConfig.GROUP, WEEK_RESULTS_KEY);
+		if (json == null || json.isEmpty())
+		{
+			return new ArrayList<>();
+		}
+		try
+		{
+			List<WeekResult> results = gson.fromJson(json, WEEK_RESULTS_TYPE);
+			return results != null ? results : new ArrayList<>();
+		}
+		catch (JsonSyntaxException ex)
+		{
+			log.debug("Discarding unreadable weekly results", ex);
+			return new ArrayList<>();
+		}
+	}
+
 	private void persistStats()
 	{
 		configManager.setConfiguration(CorClanConfig.GROUP, STATS_KEY, gson.toJson(tracker.getAllTime()));
+		configManager.setConfiguration(CorClanConfig.GROUP, WEEKLY_KEY, gson.toJson(tracker.getWeekly()));
+		configManager.setConfiguration(CorClanConfig.GROUP, WEEK_START_KEY, String.valueOf(tracker.getWeekStart()));
+		configManager.setConfiguration(CorClanConfig.GROUP, WEEK_RESULTS_KEY, gson.toJson(tracker.getWeekResults(), WEEK_RESULTS_TYPE));
 	}
 
 	private void resetStats()
@@ -687,6 +744,11 @@ public class CorClanPlugin extends Plugin
 
 	private PanelData panelData()
 	{
+		// a quiet week still has to roll over on screen, not just on the next gz
+		if (tracker.rollWeek(System.currentTimeMillis()))
+		{
+			persistStats();
+		}
 		GzStats allTime = tracker.getAllTime();
 		GzStats session = tracker.getSession();
 		String me = localPlayerName();
@@ -716,12 +778,19 @@ public class CorClanPlugin extends Plugin
 
 		List<Map.Entry<String, Integer>> givers = lb != null
 			? entries(lb.getGivers())
-			: GzStats.top(allTime.getGiven(), PANEL_LEADERBOARD_SIZE);
+			: GzStats.top(allTime.getGiven(), PANEL_GIVERS_SIZE);
 		List<Map.Entry<String, Integer>> receivers = lb != null
 			? entries(lb.getReceivers())
 			: GzStats.top(allTime.getReceived(), PANEL_LEADERBOARD_SIZE);
 		List<BroadcastRecord> recent = new ArrayList<>(allTime.getRecent());
 
-		return new PanelData(mine, summary, syncStatus, lb != null, givers, receivers, recent);
+		// weekly and streaks are always this client's own counts; the clan server has no weekly data
+		List<Map.Entry<String, Integer>> weeklyGivers = GzStats.top(tracker.getWeekly().getGiven(), PANEL_LEADERBOARD_SIZE);
+
+		// every giver this client has counted; the clan server only sends its top few
+		List<Map.Entry<String, Integer>> allGivers = GzStats.top(allTime.getGiven(), Integer.MAX_VALUE);
+
+		return new PanelData(mine, summary, syncStatus, lb != null, givers, receivers, recent,
+			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers);
 	}
 }

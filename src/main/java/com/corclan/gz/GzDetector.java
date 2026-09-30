@@ -2,9 +2,12 @@ package com.corclan.gz;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Pure text logic that decides whether a clan chat line is a "gz" (congratulations).
@@ -17,6 +20,14 @@ public final class GzDetector
 		"grats", "gratz", "grtz", "gratulations", "gratulation",
 		"congrats", "congratz", "congratulations", "congratulation"
 	)));
+
+	/**
+	 * Spam written as one word: gz words run together ("gzgzgz", "gratzgz"), optionally ending in a
+	 * cut-off "g" ("gzgzgzg"). Longest alternatives first so "gzs" isn't read as "gz" + "s".
+	 */
+	private static final Pattern GZ_RUN = Pattern.compile("(?:" + GZ_TOKENS.stream()
+		.sorted(Comparator.comparingInt(String::length).reversed())
+		.collect(Collectors.joining("|")) + ")+g?");
 
 	private GzDetector()
 	{
@@ -45,7 +56,7 @@ public final class GzDetector
 		}
 		for (String token : normalized.split(" "))
 		{
-			if (GZ_TOKENS.contains(token))
+			if (GZ_TOKENS.contains(token) || GZ_RUN.matcher(token).matches())
 			{
 				return true;
 			}

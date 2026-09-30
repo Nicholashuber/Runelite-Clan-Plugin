@@ -2,14 +2,20 @@ package com.corclan.ui;
 
 import com.corclan.CorClanConfig;
 import com.corclan.gz.BroadcastRecord;
+import com.corclan.gz.Streaks;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -21,23 +27,51 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import net.runelite.api.gameval.ItemID;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.ui.components.IconTextField;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
 /**
  * The CoR sidebar: links, gz leaderboards (clan-wide when sync is on, otherwise this client's own
- * counts) and recent clan broadcasts.
+ * counts), recent clan broadcasts, the gz podiums and weekly #1 streaks.
  */
 public class CorClanPanel extends PluginPanel
 {
 	private static final int LEADERBOARD_SIZE = 5;
+	private static final int GIVERS_SIZE = 10;
 	private static final SimpleDateFormat TIME = new SimpleDateFormat("HH:mm");
+	private static final SimpleDateFormat WEEK_DAY = new SimpleDateFormat("EEE d MMM");
+
+	/** In-game item shown next to 1st, 2nd and 3rd place gz givers. Change here to use other items. */
+	private static final int[] PODIUM_ITEMS = {
+		ItemID.TWISTED_DRAGON_TROPHY,
+		ItemID.TWISTED_RUNE_TROPHY,
+		ItemID.TWISTED_ADAMANT_TROPHY,
+	};
 
 	private final CorClanConfig config;
 	private final Runnable onReset;
+
+	// each podium needs its own icon labels: a Swing component can only sit in one place
+	private final JLabel[] podiumIcons;
+	private final JLabel podiumTitle = new JLabel("GZ podium");
+	private final JPanel podiumPanel = new JPanel();
+	private final JLabel[] weeklyIcons;
+	private final JPanel weeklyPanel = new JPanel();
+	private final JPanel streakPanel = new JPanel();
+	private final JLabel allGiversHeader = new JLabel();
+	// collapsible body: search box on top, (filtered) list below
+	private final JPanel allGiversPanel = new JPanel();
+	private final IconTextField allGiversSearch = new IconTextField();
+	private final JPanel allGiversList = new JPanel();
+	private List<Map.Entry<String, Integer>> allGivers = Collections.emptyList();
 
 	private final JLabel summaryLabel = new JLabel();
 	private final JLabel giversTitle = new JLabel("Top gz givers");
@@ -46,11 +80,13 @@ public class CorClanPanel extends PluginPanel
 	private final JPanel receiversPanel = new JPanel();
 	private final JPanel broadcastsPanel = new JPanel();
 
-	public CorClanPanel(CorClanConfig config, Runnable onReset)
+	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset)
 	{
 		super();
 		this.config = config;
 		this.onReset = onReset;
+		podiumIcons = podiumIcons(itemManager);
+		weeklyIcons = podiumIcons(itemManager);
 
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -90,6 +126,16 @@ public class CorClanPanel extends PluginPanel
 			}
 		});
 		content.add(reset);
+		content.add(Box.createVerticalStrut(12));
+
+		content.add(section(podiumTitle, podiumPanel));
+		content.add(Box.createVerticalStrut(8));
+		content.add(section("Weekly GZ podium", weeklyPanel));
+		content.add(Box.createVerticalStrut(8));
+		content.add(section("Streak", streakPanel));
+		content.add(Box.createVerticalStrut(8));
+		content.add(collapsible(allGiversHeader, allGiversPanel));
+		buildAllGiversSearch();
 
 		add(content, BorderLayout.NORTH);
 	}
@@ -166,6 +212,101 @@ public class CorClanPanel extends PluginPanel
 		return wrapper;
 	}
 
+	/** A section whose body is hidden until the header is clicked. Starts collapsed. */
+	private JPanel collapsible(JLabel header, JPanel body)
+	{
+		JPanel wrapper = section(header, body);
+		body.setVisible(false);
+		header.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		header.setToolTipText("Click to show or hide");
+		header.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				body.setVisible(!body.isVisible());
+				updateAllGiversHeader();
+				revalidate();
+				repaint();
+			}
+		});
+		return wrapper;
+	}
+
+	private void updateAllGiversHeader()
+	{
+		// plain ASCII: the RuneScape font has no arrow glyphs
+		String marker = allGiversPanel.isVisible() ? "[-] " : "[+] ";
+		allGiversHeader.setText(marker + "All gz givers (this client, " + allGivers.size() + ")");
+	}
+
+	private void buildAllGiversSearch()
+	{
+		allGiversSearch.setIcon(IconTextField.Icon.SEARCH);
+		allGiversSearch.setPreferredSize(new Dimension(PluginPanel.PANEL_WIDTH - 20, 30));
+		allGiversSearch.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+		allGiversSearch.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		allGiversSearch.setHoverBackgroundColor(ColorScheme.DARK_GRAY_HOVER_COLOR);
+		allGiversSearch.setToolTipText("Search by name");
+		allGiversSearch.getDocument().addDocumentListener(new DocumentListener()
+		{
+			@Override
+			public void insertUpdate(DocumentEvent e)
+			{
+				fillAllGivers();
+			}
+
+			@Override
+			public void removeUpdate(DocumentEvent e)
+			{
+				fillAllGivers();
+			}
+
+			@Override
+			public void changedUpdate(DocumentEvent e)
+			{
+				fillAllGivers();
+			}
+		});
+
+		allGiversList.setLayout(new BoxLayout(allGiversList, BoxLayout.Y_AXIS));
+		allGiversList.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		allGiversPanel.add(allGiversSearch);
+		allGiversPanel.add(Box.createVerticalStrut(4));
+		allGiversPanel.add(allGiversList);
+	}
+
+	/** Every giver matching the search box (case-insensitive, any part of the name), keeping their real rank. */
+	private void fillAllGivers()
+	{
+		allGiversList.removeAll();
+		String query = allGiversSearch.getText().trim().toLowerCase(Locale.ROOT);
+		if (allGivers.isEmpty())
+		{
+			allGiversList.add(muted("No gz's counted yet"));
+		}
+		else
+		{
+			int shown = 0;
+			for (int i = 0; i < allGivers.size(); i++)
+			{
+				Map.Entry<String, Integer> entry = allGivers.get(i);
+				if (query.isEmpty() || entry.getKey().toLowerCase(Locale.ROOT).contains(query))
+				{
+					allGiversList.add(line((i + 1) + ". " + entry.getKey(), String.valueOf(entry.getValue())));
+					shown++;
+				}
+			}
+			if (shown == 0)
+			{
+				// don't echo the query: Swing would render typed "<html>..." as markup
+				allGiversList.add(muted("No one matches your search"));
+			}
+		}
+		allGiversList.revalidate();
+		allGiversList.repaint();
+	}
+
 	private static JPanel section(String title, JLabel body)
 	{
 		JPanel panel = new JPanel();
@@ -181,9 +322,18 @@ public class CorClanPanel extends PluginPanel
 		String scope = data.clanWide ? " (clan)" : " (this client)";
 		giversTitle.setText("Top gz givers" + scope);
 		receiversTitle.setText("Most gz'd" + scope);
-		fillLeaderboard(giversPanel, data.givers.subList(0, Math.min(LEADERBOARD_SIZE, data.givers.size())), "No gz's counted yet");
+		fillLeaderboard(giversPanel, data.givers.subList(0, Math.min(GIVERS_SIZE, data.givers.size())), "No gz's counted yet");
 		fillLeaderboard(receiversPanel, data.receivers.subList(0, Math.min(LEADERBOARD_SIZE, data.receivers.size())), "Nobody gz'd yet");
 		fillBroadcasts(data.recent);
+
+		podiumTitle.setText("GZ podium" + scope);
+		fillPodium(podiumPanel, podiumIcons, data.givers);
+		fillPodium(weeklyPanel, weeklyIcons, data.weeklyGivers);
+		weeklyPanel.add(muted("Since " + WEEK_DAY.format(new Date(data.weekStart)) + ", resets Sunday"), 0);
+		fillStreaks(data.longestStreak, data.currentStreak);
+		allGivers = data.allGivers;
+		updateAllGiversHeader();
+		fillAllGivers();
 
 		revalidate();
 		repaint();
@@ -209,6 +359,56 @@ public class CorClanPanel extends PluginPanel
 			panel.add(line(place + ". " + row.getKey(), String.valueOf(row.getValue())));
 			place++;
 		}
+	}
+
+	private static JLabel[] podiumIcons(ItemManager itemManager)
+	{
+		JLabel[] icons = new JLabel[PODIUM_ITEMS.length];
+		for (int i = 0; i < icons.length; i++)
+		{
+			icons[i] = new JLabel();
+			icons[i].setPreferredSize(new Dimension(36, 32));
+			// sprites load from the game cache once the client is ready; addTo sets the icon when they arrive
+			itemManager.getImage(PODIUM_ITEMS[i]).addTo(icons[i]);
+		}
+		return icons;
+	}
+
+	/** Top {@code icons.length} of an already sorted leaderboard. */
+	private static void fillPodium(JPanel panel, JLabel[] icons, List<Map.Entry<String, Integer>> ranked)
+	{
+		panel.removeAll();
+		if (ranked.isEmpty())
+		{
+			panel.add(muted("No gz's counted yet"));
+			return;
+		}
+		for (int i = 0; i < Math.min(icons.length, ranked.size()); i++)
+		{
+			Map.Entry<String, Integer> entry = ranked.get(i);
+			JPanel row = line((i + 1) + ". " + entry.getKey(), entry.getValue() + " gz");
+			row.add(icons[i], BorderLayout.WEST);
+			panel.add(row);
+		}
+	}
+
+	private void fillStreaks(Streaks.Streak longest, Streaks.Streak current)
+	{
+		streakPanel.removeAll();
+		if (longest == null)
+		{
+			streakPanel.add(muted("<html>Weeks in a row as weekly #1 gz giver.<br>The first winner is recorded when this week ends.</html>"));
+			return;
+		}
+		streakPanel.add(line("Record: " + String.join(", ", longest.players), weeks(longest.weeks)));
+		streakPanel.add(current == null
+			? muted("Current: nobody, last week had no #1")
+			: line("Current: " + String.join(", ", current.players), weeks(current.weeks)));
+	}
+
+	private static String weeks(int n)
+	{
+		return n == 1 ? "1 week" : n + " weeks";
 	}
 
 	private void fillBroadcasts(List<BroadcastRecord> recent)
