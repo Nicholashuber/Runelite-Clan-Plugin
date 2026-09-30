@@ -1,6 +1,8 @@
 package com.corclan;
 
 import com.corclan.clan.ClanRoster;
+import com.corclan.glow.HolyAura;
+import com.corclan.glow.RankGlowOverlay;
 import com.corclan.gz.BroadcastParser;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.GzStats;
@@ -48,6 +50,7 @@ import net.runelite.api.clan.ClanTitle;
 import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.ClanMemberJoined;
 import net.runelite.api.events.ClanMemberLeft;
+import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ChatMessage;
@@ -135,6 +138,12 @@ public class CorClanPlugin extends Plugin
 	private CorClanOverlay overlay;
 
 	@Inject
+	private RankGlowOverlay rankGlowOverlay;
+
+	@Inject
+	private HolyAura holyAura;
+
+	@Inject
 	private ClanApi clanApi;
 
 	@Inject
@@ -186,6 +195,7 @@ public class CorClanPlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(overlay);
+		overlayManager.add(rankGlowOverlay);
 		if (config.syncEnabled())
 		{
 			pullFromServer();
@@ -203,6 +213,8 @@ public class CorClanPlugin extends Plugin
 			flushSync();
 		}
 		overlayManager.remove(overlay);
+		overlayManager.remove(rankGlowOverlay);
+		clientThread.invoke(holyAura::clear);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
@@ -235,6 +247,10 @@ public class CorClanPlugin extends Plugin
 			{
 				clearServerState();
 			}
+		}
+		if ("rankGlow".equals(event.getKey()) && !config.rankGlow())
+		{
+			clientThread.invoke(holyAura::clear);
 		}
 		rebuildCosmetics();
 		refreshPanel();
@@ -374,6 +390,12 @@ public class CorClanPlugin extends Plugin
 		}
 	}
 
+	@Subscribe
+	public void onClientTick(ClientTick event)
+	{
+		holyAura.onClientTick();
+	}
+
 	/**
 	 * Once per login (with sync on) sends the clan's rank numbers and their titles, e.g. 126 "Owner",
 	 * 5 "Captain", so admins can pick an icon per rank. No player names are sent.
@@ -381,6 +403,7 @@ public class CorClanPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
+		holyAura.onGameTick();
 		if (ranksReported || !config.syncEnabled())
 		{
 			return;
@@ -515,7 +538,30 @@ public class CorClanPlugin extends Plugin
 		});
 	}
 
-	// ---------------------------------------------------------------- ::cor / ::test
+	// ---------------------------------------------------------------- ::cor / ::test / Owner storm effects
+
+	/**
+	 * ::glowzap, ::glowshock and ::glowstrike &lt;id&gt; play a game graphic (spot anim
+	 * id) on your own character and use it for that layer of the Owner's storm this session, to try
+	 * out effects. Local only, like every :: command.
+	 */
+	private void previewGlowFx(HolyAura.Effect effect, String[] args)
+	{
+		int id;
+		try
+		{
+			id = Integer.parseInt(args.length > 0 ? args[0] : "");
+		}
+		catch (NumberFormatException e)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+				"Usage: ::" + effect.command + " <spot anim id>, e.g. ::" + effect.command + " " + effect.defaultSpotAnimId, null);
+			return;
+		}
+		holyAura.preview(effect, id);
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+			"CoR: Owner " + effect.label + " set to " + id + " for this session", null);
+	}
 
 	/**
 	 * Double-colon commands are handled inside the client and never sent to the game server. This one
@@ -526,6 +572,12 @@ public class CorClanPlugin extends Plugin
 	public void onCommandExecuted(CommandExecuted event)
 	{
 		String cmd = event.getCommand().toLowerCase();
+		HolyAura.Effect effect = holyAura.forCommand(cmd);
+		if (effect != null)
+		{
+			previewGlowFx(effect, event.getArguments());
+			return;
+		}
 		if (!cmd.equals("cor") && !cmd.equals("test"))
 		{
 			return;

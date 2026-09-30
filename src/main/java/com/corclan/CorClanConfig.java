@@ -40,6 +40,25 @@ public interface CorClanConfig extends Config
 	)
 	String syncSection = "sync";
 
+	@ConfigSection(
+		name = "Rank glow",
+		description = "Outlines clan members in the game world by rank. Only you see it",
+		position = 4
+	)
+	String glowSection = "glow";
+
+	@ConfigItem(
+		keyName = "rankGlow",
+		name = "Glow clan ranks",
+		description = "Outline clan members by rank (for now: a golden glow and a lightning storm on the clan Owner). Only visible on your client",
+		position = 0,
+		section = glowSection
+	)
+	default boolean rankGlow()
+	{
+		return true;
+	}
+
 	@ConfigItem(
 		keyName = "syncEnabled",
 		name = "Sync with clan server",
