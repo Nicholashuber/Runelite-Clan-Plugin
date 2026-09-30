@@ -1,6 +1,8 @@
 package com.corclan;
 
 import com.corclan.clan.ClanRoster;
+import com.corclan.glow.HolyAura;
+import com.corclan.glow.RankGlowOverlay;
 import com.corclan.gz.BroadcastParser;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.GzStats;
@@ -55,6 +57,7 @@ import net.runelite.api.clan.ClanTitle;
 import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.ClanMemberJoined;
 import net.runelite.api.events.ClanMemberLeft;
+import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.GameTick;
@@ -166,6 +169,12 @@ public class CorClanPlugin extends Plugin
 	private CorClanOverlay overlay;
 
 	@Inject
+	private RankGlowOverlay rankGlowOverlay;
+
+	@Inject
+	private HolyAura holyAura;
+
+	@Inject
 	private ItemManager itemManager;
 
 	@Inject
@@ -248,6 +257,7 @@ public class CorClanPlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(overlay);
+		overlayManager.add(rankGlowOverlay);
 		// if they are already in another party (a raid, say), joining is left to them
 		if (config.partyEnabled() && !partyService.isInParty())
 		{
@@ -270,6 +280,8 @@ public class CorClanPlugin extends Plugin
 		wsClient.unregisterMessage(CorStaffSettings.class);
 		clearPartyLocations();
 		overlayManager.remove(overlay);
+		overlayManager.remove(rankGlowOverlay);
+		clientThread.invoke(holyAura::clear);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
@@ -323,6 +335,10 @@ public class CorClanPlugin extends Plugin
 			{
 				clientThread.invokeLater(this::onStaffEdit);
 			}
+		}
+		if ("rankGlow".equals(event.getKey()) && !config.rankGlow())
+		{
+			clientThread.invoke(holyAura::clear);
 		}
 		rebuildCosmetics();
 		clientThread.invokeLater(client::refreshChat);
@@ -425,7 +441,30 @@ public class CorClanPlugin extends Plugin
 		return gzKing;
 	}
 
-	// ---------------------------------------------------------------- ::cor / ::test
+	// ---------------------------------------------------------------- ::cor / ::test / Owner storm effects
+
+	/**
+	 * ::glowzap, ::glowshock and ::glowstrike &lt;id&gt; play a game graphic (spot anim
+	 * id) on your own character and use it for that layer of the Owner's storm this session, to try
+	 * out effects. Local only, like every :: command.
+	 */
+	private void previewGlowFx(HolyAura.Effect effect, String[] args)
+	{
+		int id;
+		try
+		{
+			id = Integer.parseInt(args.length > 0 ? args[0] : "");
+		}
+		catch (NumberFormatException e)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+				"Usage: ::" + effect.command + " <spot anim id>, e.g. ::" + effect.command + " " + effect.defaultSpotAnimId, null);
+			return;
+		}
+		holyAura.preview(effect, id);
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+			"CoR: Owner " + effect.label + " set to " + id + " for this session", null);
+	}
 
 	/**
 	 * Double-colon commands are handled inside the client and never sent to the game server. This one
@@ -436,6 +475,12 @@ public class CorClanPlugin extends Plugin
 	public void onCommandExecuted(CommandExecuted event)
 	{
 		String cmd = event.getCommand().toLowerCase();
+		HolyAura.Effect effect = holyAura.forCommand(cmd);
+		if (effect != null)
+		{
+			previewGlowFx(effect, event.getArguments());
+			return;
+		}
 		if (!cmd.equals("cor") && !cmd.equals("test"))
 		{
 			return;
@@ -1246,7 +1291,20 @@ public class CorClanPlugin extends Plugin
 	// ---------------------------------------------------------------- clan map (through the CoR party)
 
 	@Subscribe
+	public void onClientTick(ClientTick event)
+	{
+		holyAura.onClientTick();
+	}
+
+	@Subscribe
 	public void onGameTick(GameTick event)
+	{
+		holyAura.onGameTick();
+		tickLocation();
+	}
+
+	/** Client thread, every game tick: shares our position with the CoR party while "Share my location" is on. */
+	private void tickLocation()
 	{
 		if (!partyActive() || !config.shareLocation())
 		{

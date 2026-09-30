@@ -36,20 +36,39 @@ public interface CorClanConfig extends Config
 	@ConfigSection(
 		name = "CoR party",
 		description = "Optional: join the clan's RuneLite party to share gz counts, staff icon settings and (if you choose) your map position",
-		position = 3
+		position = 4
 	)
 	String partySection = "party";
 
 	@ConfigSection(
 		name = "Staff",
 		description = "Clan icon settings managed by staff and shared through the CoR party",
-		position = 4,
+		position = 5,
 		closedByDefault = true
 	)
 	String staffSection = "staff";
 
 	/** Used when the passphrase setting is empty. */
 	String DEFAULT_PARTY_PASSPHRASE = "cor-clan-rhinos";
+
+	@ConfigSection(
+		name = "Rank glow",
+		description = "Outlines clan members in the game world by rank. Only you see it",
+		position = 3
+	)
+	String glowSection = "glow";
+
+	@ConfigItem(
+		keyName = "rankGlow",
+		name = "Glow clan ranks",
+		description = "Outline clan members by rank (for now: a golden glow and a lightning storm on the clan Owner). Only visible on your client",
+		position = 0,
+		section = glowSection
+	)
+	default boolean rankGlow()
+	{
+		return true;
+	}
 
 	@ConfigItem(
 		keyName = "partyEnabled",

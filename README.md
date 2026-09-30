@@ -14,6 +14,8 @@ Everything runs locally inside your own RuneLite client. The only exception is t
 - **GZ tracker**: counts gz / grats / congrats messages in clan chat and attributes them to whoever the
   latest clan broadcast (drop, level, pet, ...) was about, for a short configurable window. Stats are
   stored in your RuneLite settings.
+- **Rank glow** (only on your client): the clan Owner gets a golden outline and a lightning storm overhead.
+  `::glowzap`, `::glowshock` and `::glowstrike <id>` preview the storm effects on your own character.
 - **CoR party** (optional, off by default): joins the clan's RuneLite party, so members share gz counts
   (matching leaderboards, GZ King and weekly trophies for everyone online), get icon settings from clan staff,
   and can choose to show each other on the world map.
@@ -75,6 +77,7 @@ the game server; only you see the output.
 | GZ tracker | Show [GZ count] on gz lines | Append `[GZ count: N]` to a member's chat line when they say gz, N being their all-time total on your client |
 | GZ tracker | Chat message when counted | Also print a local game message per counted gz (off by default) |
 | GZ tracker | Max gz message length | Longer messages are never treated as a gz |
+| Rank glow | Glow clan ranks | Golden outline and lightning storm on the clan Owner, only on your client |
 | CoR party | Join the CoR party | Off by default. Joins the clan's RuneLite party (leaves any other). See [CoR party and your data](#cor-party-and-your-data) |
 | CoR party | Party passphrase | Empty uses the default. Everyone in CoR must use the same one |
 | CoR party | Share my location | Off by default. Show your world and tile to party members on the world map, and see theirs |
