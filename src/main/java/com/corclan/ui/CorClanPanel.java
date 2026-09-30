@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TimeZone;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -43,8 +44,8 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
 /**
- * The CoR sidebar: links, gz leaderboards (this client's own counts), recent clan broadcasts, the gz
- * podiums and weekly #1 streaks.
+ * The CoR sidebar: links, gz leaderboards (this client's counts, or the CoR party's), recent clan broadcasts,
+ * the gz podiums and weekly #1 streaks.
  */
 public class CorClanPanel extends PluginPanel
 {
@@ -52,6 +53,12 @@ public class CorClanPanel extends PluginPanel
 	private static final int GIVERS_SIZE = 10;
 	private static final SimpleDateFormat TIME = new SimpleDateFormat("HH:mm");
 	private static final SimpleDateFormat WEEK_DAY = new SimpleDateFormat("EEE d MMM");
+
+	static
+	{
+		// weeks start Sunday 00:00 UTC; show that day, not the local day before it
+		WEEK_DAY.setTimeZone(TimeZone.getTimeZone("UTC"));
+	}
 
 	/** In-game item shown next to 1st, 2nd and 3rd place gz givers. Change here to use other items. */
 	private static final int[] PODIUM_ITEMS = {
@@ -525,9 +532,9 @@ public class CorClanPanel extends PluginPanel
 	/** Must be called on the Swing thread with a snapshot built on the client thread. */
 	public void refresh(PanelData data)
 	{
-		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "</html>");
+		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.partyStatus) + "</html>");
 
-		String scope = " (this client)";
+		String scope = data.scope;
 		giversTitle.setText("Top gz givers" + scope);
 		receiversTitle.setText("Most gz'd" + scope);
 		fillLeaderboard(giversPanel, data.givers.subList(0, Math.min(GIVERS_SIZE, data.givers.size())), "No gz's counted yet");
@@ -537,7 +544,7 @@ public class CorClanPanel extends PluginPanel
 		podiumTitle.setText("GZ podium" + scope);
 		fillPodium(podiumPanel, podiumIcons, data.givers);
 		fillPodium(weeklyPanel, weeklyIcons, data.weeklyGivers);
-		weeklyPanel.add(muted("Since " + WEEK_DAY.format(new Date(data.weekStart)) + ", resets Sunday"), 0);
+		weeklyPanel.add(muted("Since " + WEEK_DAY.format(new Date(data.weekStart)) + ", resets Sunday 00:00 UTC"), 0);
 		fillStreaks(data.longestStreak, data.currentStreak);
 		allGivers = data.allGivers;
 		updateAllGiversHeader();

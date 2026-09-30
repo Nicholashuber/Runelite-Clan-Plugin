@@ -40,9 +40,12 @@ public class GzTracker
 	private String lastGzGiver;
 	private String lastGzSubject;
 
+	/** Weeks start Sunday 00:00 UTC, so every CoR member's week lines up and party counts can be merged. */
+	public static final ZoneId WEEK_ZONE = ZoneId.of("UTC");
+
 	public GzTracker()
 	{
-		this(ZoneId.systemDefault());
+		this(WEEK_ZONE);
 	}
 
 	/** @param zone time zone whose Sunday midnight starts a new week */

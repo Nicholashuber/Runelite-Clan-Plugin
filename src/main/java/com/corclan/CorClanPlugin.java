@@ -10,6 +10,12 @@ import com.corclan.gz.WeekResult;
 import com.corclan.icons.ClanIconService;
 import com.corclan.icons.MemberCosmetics;
 import com.corclan.icons.WeeklyTrophies;
+import com.corclan.map.ClanMapPoints;
+import com.corclan.map.LocationRules;
+import com.corclan.party.CorGzCounts;
+import com.corclan.party.CorLocation;
+import com.corclan.party.CorStaffSettings;
+import com.corclan.party.PartyGzBook;
 import com.corclan.ui.CorClanOverlay;
 import com.corclan.ui.CorClanPanel;
 import com.corclan.ui.PanelData;
@@ -18,20 +24,28 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 import java.lang.reflect.Type;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.MessageNode;
 import net.runelite.api.Player;
 import java.util.TreeMap;
+import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
 import net.runelite.api.clan.ClanMember;
@@ -43,6 +57,7 @@ import net.runelite.api.events.ClanMemberJoined;
 import net.runelite.api.events.ClanMemberLeft;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.CommandExecuted;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatColorType;
@@ -52,9 +67,16 @@ import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.PartyChanged;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.party.PartyMember;
+import net.runelite.client.party.PartyService;
+import net.runelite.client.party.WSClient;
+import net.runelite.client.party.events.UserJoin;
+import net.runelite.client.party.events.UserPart;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.task.Schedule;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -64,8 +86,8 @@ import net.runelite.client.util.Text;
 @Slf4j
 @PluginDescriptor(
 	name = "CoR Clan",
-	description = "Clan sidebar, custom clan chat icons and a gz tracker for the C o R clan.",
-	tags = {"clan", "cor", "gz", "chat", "icons", "social"}
+	description = "Clan sidebar, custom clan chat icons, a gz tracker and an opt-in clan party with a clan map for the C o R clan.",
+	tags = {"clan", "cor", "gz", "chat", "icons", "social", "party", "map"}
 )
 public class CorClanPlugin extends Plugin
 {
@@ -73,9 +95,12 @@ public class CorClanPlugin extends Plugin
 	static final String WEEKLY_KEY = "gzWeekly";
 	static final String WEEK_START_KEY = "gzWeekStart";
 	static final String WEEK_RESULTS_KEY = "gzWeekResults";
+	static final String PARTY_GZ_KEY = "partyGz";
+	static final String STAFF_UPDATED_KEY = "clanSettingsUpdatedAt";
 	private static final Type WEEK_RESULTS_TYPE = new TypeToken<List<WeekResult>>(){}.getType();
 	/** Saved stats, not settings: changing them must not trigger a config refresh. */
-	private static final List<String> STATS_KEYS = Arrays.asList(STATS_KEY, WEEKLY_KEY, WEEK_START_KEY, WEEK_RESULTS_KEY);
+	private static final List<String> STATS_KEYS = Arrays.asList(STATS_KEY, WEEKLY_KEY, WEEK_START_KEY, WEEK_RESULTS_KEY,
+		PARTY_GZ_KEY, STAFF_UPDATED_KEY);
 	private static final String CHAT_BUILD_CALLBACK = "chatMessageBuilding";
 	/** Position of the name string relative to the top of the object stack in that callback. */
 	private static final int NAME_STACK_OFFSET = 3;
@@ -84,6 +109,22 @@ public class CorClanPlugin extends Plugin
 	private static final Pattern IMG_TAG = Pattern.compile("<img=\\d+>");
 	private static final int PANEL_LEADERBOARD_SIZE = 5;
 	private static final int PANEL_GIVERS_SIZE = 10;
+
+	// CoR party
+	/** Position updates at most every 5 game ticks (~3s), slower in big parties to spare RuneLite's party server. */
+	private static final int LOCATION_TICKS = 5;
+	/** Resend an unchanged position this often so others know we are still here. */
+	private static final long LOCATION_HEARTBEAT_MILLIS = 30_000L;
+	/** A clanmate who sent nothing for this long drops off the map. */
+	private static final long LOCATION_EXPIRY_MILLIS = 90_000L;
+	/** Changed gz counts go to the party at most this often; everyone in clan chat sees the same gz's anyway. */
+	private static final long GZ_SEND_MILLIS = 300_000L;
+	/** About this many members answer a newcomer with their counts (everyone holds nearly the same view). */
+	private static final int GZ_JOIN_RESPONDERS = 3;
+	/** Staff lists longer than this are ignored, so nobody can fill everyone's config. */
+	private static final int MAX_STAFF_TEXT = 4000;
+	/** Staff edits dated further ahead than this (wrong clock) are ignored. */
+	private static final long MAX_CLOCK_SKEW_MILLIS = 600_000L;
 
 	/** Defaults that apply without any config. The "Member icons" config box overrides these. */
 	private static final Map<String, List<String>> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
@@ -127,12 +168,49 @@ public class CorClanPlugin extends Plugin
 	@Inject
 	private ItemManager itemManager;
 
+	@Inject
+	private PartyService partyService;
+
+	@Inject
+	private WSClient wsClient;
+
+	@Inject
+	private ClanMapPoints mapPoints;
+
 	private final GzTracker tracker = new GzTracker();
+	/** gz counts shared by the CoR party; client thread only */
+	private PartyGzBook partyGz = new PartyGzBook();
 
 	/** Rebuilt whenever config changes; read by chat rendering on the client thread. */
 	private volatile MemberCosmetics cosmetics = MemberCosmetics.EMPTY;
+	/** icons and titles per in-game rank title, from the staff "Clan rank icons" list */
+	private volatile MemberCosmetics rankCosmetics = MemberCosmetics.EMPTY;
 	/** this week's top 3 givers -> trophy icon; replaced whole when the weekly counts change */
 	private volatile Map<String, String> weeklyTrophies = Collections.emptyMap();
+
+	// gz counts shown everywhere: this client's, merged with the CoR party's while in it (client thread)
+	private Map<String, Integer> viewGiven = Collections.emptyMap();
+	private Map<String, Integer> viewReceived = Collections.emptyMap();
+	private Map<String, Integer> viewWeekly = Collections.emptyMap();
+	private volatile String gzKing;
+	private boolean viewShared;
+
+	// CoR party state, client thread only
+	private boolean gzDirty;
+	private long lastGzSent;
+	/** someone joined, or we did: send our gz counts on the next tick of the party timer */
+	private boolean sendGzSoon;
+	/** send the staff lists on the next tick (only staff actually send) */
+	private boolean sendStaffSoon;
+	private int locationTick;
+	private CorLocation selfLocation;
+	private long lastLocationSent;
+	private final Map<Long, CorLocation> partyLocations = new HashMap<>();
+	private final Map<Long, String> partyNames = new HashMap<>();
+	private final Map<Long, Long> partySeen = new HashMap<>();
+	/** staff lists as last received, to tell our own writes apart from a staff member's edits */
+	private String lastRemoteMemberIcons;
+	private String lastRemoteRankIcons;
 
 	private CorClanPanel panel;
 	private NavigationButton navButton;
@@ -152,9 +230,14 @@ public class CorClanPlugin extends Plugin
 		{
 			persistStats();
 		}
-		weeklyTrophies = WeeklyTrophies.of(tracker.getWeekly());
+		partyGz = loadPartyGz();
+		partyGz.rollWeek(tracker.getWeekStart());
+		clientThread.invokeLater(this::updateGzView);
 		rebuildCosmetics();
 		iconService.ensureRegistered();
+		wsClient.registerMessage(CorLocation.class);
+		wsClient.registerMessage(CorGzCounts.class);
+		wsClient.registerMessage(CorStaffSettings.class);
 
 		panel = new CorClanPanel(config, itemManager, this::resetStats);
 		navButton = NavigationButton.builder()
@@ -165,6 +248,11 @@ public class CorClanPlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(overlay);
+		// if they are already in another party (a raid, say), joining is left to them
+		if (config.partyEnabled() && !partyService.isInParty())
+		{
+			joinCorParty();
+		}
 		refreshPanel();
 		log.debug("CoR Clan started");
 	}
@@ -172,6 +260,15 @@ public class CorClanPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		stopSharingLocation();
+		if (inCorParty())
+		{
+			partyService.changeParty(null);
+		}
+		wsClient.unregisterMessage(CorLocation.class);
+		wsClient.unregisterMessage(CorGzCounts.class);
+		wsClient.unregisterMessage(CorStaffSettings.class);
+		clearPartyLocations();
 		overlayManager.remove(overlay);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
@@ -194,7 +291,41 @@ public class CorClanPlugin extends Plugin
 		{
 			return;
 		}
+		String key = event.getKey();
+		if ("partyEnabled".equals(key))
+		{
+			clientThread.invokeLater(() ->
+			{
+				if (config.partyEnabled())
+				{
+					joinCorParty();
+				}
+				else
+				{
+					leaveCorParty();
+				}
+				updateGzView();
+			});
+		}
+		if ("partyPassphrase".equals(key) && config.partyEnabled())
+		{
+			clientThread.invokeLater(this::joinCorParty);
+		}
+		if ("shareLocation".equals(key) || "shareInWilderness".equals(key))
+		{
+			clientThread.invokeLater(this::stopSharingLocation);
+		}
+		if ("clanMemberIcons".equals(key) || "clanRankIcons".equals(key))
+		{
+			String value = normalizeStaffText(event.getNewValue());
+			String remote = "clanMemberIcons".equals(key) ? lastRemoteMemberIcons : lastRemoteRankIcons;
+			if (!value.equals(remote))
+			{
+				clientThread.invokeLater(this::onStaffEdit);
+			}
+		}
 		rebuildCosmetics();
+		clientThread.invokeLater(client::refreshChat);
 		refreshPanel();
 	}
 
@@ -221,6 +352,8 @@ public class CorClanPlugin extends Plugin
 			log.debug("Broadcast for {}: {}", subject, text);
 			tracker.onBroadcast(subject, text, now);
 			persistStats();
+			gzDirty = true;
+			updateGzView();
 			refreshPanel();
 			return;
 		}
@@ -236,22 +369,23 @@ public class CorClanPlugin extends Plugin
 			if (tracker.onClanChat(sender, message, now, settings))
 			{
 				persistStats();
+				gzDirty = true;
+				updateGzView();
 				refreshPanel();
-				updateWeeklyTrophies();
 				tagGzCount(event.getMessageNode(), sender);
 				announce(sender, tracker.getLastGzSubject());
 			}
 		}
 	}
 
-	/** Appends "[GZ count: N]" to the chat line on this client, N being the sender's all-time gz total. */
+	/** Appends "[GZ count: N]" to the chat line on this client, N being the sender's all-time gz total (party-wide in the CoR party). */
 	private void tagGzCount(MessageNode node, String sender)
 	{
 		if (!config.showGzCount() || node == null)
 		{
 			return;
 		}
-		int count = tracker.getAllTime().getGiven().getOrDefault(sender, 0);
+		int count = viewGiven.getOrDefault(sender, 0);
 		node.setValue(node.getValue() + " <col=" + TITLE_COLOR + ">[GZ count: " + count + "]</col>");
 	}
 
@@ -265,7 +399,7 @@ public class CorClanPlugin extends Plugin
 		String text = subject == null
 			? "CoR: gz from " + giver + " counted (no broadcast open)"
 			: "CoR: gz from " + giver + " counted for " + subject
-				+ " (" + tracker.getAllTime().getReceived().getOrDefault(subject, 0) + " total)";
+				+ " (" + viewReceived.getOrDefault(subject, 0) + " total)";
 		clientThread.invokeLater(() -> client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", text, null));
 	}
 
@@ -285,10 +419,10 @@ public class CorClanPlugin extends Plugin
 		return displayName(me.getName());
 	}
 
-	/** The top gz giver as counted on this client. */
+	/** The top gz giver: as counted on this client, or across the CoR party when in it. */
 	private String gzKing()
 	{
-		return tracker.getAllTime().topGiver();
+		return gzKing;
 	}
 
 	// ---------------------------------------------------------------- ::cor / ::test
@@ -307,6 +441,7 @@ public class CorClanPlugin extends Plugin
 			return;
 		}
 		GzStats stats = tracker.getAllTime();
+		String scope = viewShared ? "CoR party" : "this client";
 		int rhino = iconService.indexFor(ClanIconService.KEY_STAFF);
 		int gzIcon = iconService.indexFor(ClanIconService.KEY_GZ_KING);
 		int crown = iconService.indexFor(ClanIconService.KEY_FOUNDER);
@@ -314,11 +449,11 @@ public class CorClanPlugin extends Plugin
 		ChatMessageBuilder banner = new ChatMessageBuilder();
 		icon(banner, rhino);
 		banner.append(ChatColorType.HIGHLIGHT).append("CoR Clan").append(ChatColorType.NORMAL)
-			.append(" - " + stats.totalGiven() + " gz counted ");
+			.append(" - gz leaderboard (" + scope + ") ");
 		icon(banner, rhino);
 		say(banner);
 
-		List<Map.Entry<String, Integer>> givers = GzStats.top(stats.getGiven(), 1);
+		List<Map.Entry<String, Integer>> givers = GzStats.top(viewGiven, 1);
 		ChatMessageBuilder kingLine = new ChatMessageBuilder();
 		icon(kingLine, gzIcon);
 		if (!givers.isEmpty())
@@ -335,7 +470,7 @@ public class CorClanPlugin extends Plugin
 		}
 		say(kingLine);
 
-		List<Map.Entry<String, Integer>> top = GzStats.top(stats.getReceived(), 3);
+		List<Map.Entry<String, Integer>> top = GzStats.top(viewReceived, 3);
 		if (!top.isEmpty())
 		{
 			ChatMessageBuilder topLine = new ChatMessageBuilder().append(ChatColorType.NORMAL).append("Most gz'd: ");
@@ -423,9 +558,17 @@ public class CorClanPlugin extends Plugin
 		}
 		String name = (String) slot;
 		String key = MemberCosmetics.key(name);
+		ClanChannel channel = type == ChatMessageType.CLAN_CHAT ? client.getClanChannel() : client.getGuestClanChannel();
+		ClanChannelMember member = channel == null || key.isEmpty() ? null : findMember(channel, key);
+		// rank icons only apply in our own clan's chat, where the rank titles are ours
+		String rankKey = type == ChatMessageType.CLAN_CHAT ? rankTitleKey(member) : null;
 		MemberCosmetics current = cosmetics;
-		String tags = iconTagsFor(type, key, current);
+		String tags = iconTagsFor(key, member, rankKey, current);
 		String title = current.titleFor(key);
+		if (title == null && rankKey != null)
+		{
+			title = rankCosmetics.titleFor(rankKey);
+		}
 		if (tags.isEmpty() && title == null)
 		{
 			return;
@@ -440,10 +583,10 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
-	 * Icons stack, left to right: member icons (built-in, config), the GZ King badge, this week's
-	 * trophy, then the rank rhino. Returns "" when there is nothing to show.
+	 * Icons stack, left to right: member icons (built-in, staff list, own config; or else the icons for their
+	 * clan rank), the GZ King badge, this week's trophy, then the rank rhino. Returns "" when there is nothing to show.
 	 */
-	private String iconTagsFor(ChatMessageType type, String key, MemberCosmetics current)
+	private String iconTagsFor(String key, ClanChannelMember member, String rankKey, MemberCosmetics current)
 	{
 		if (key.isEmpty())
 		{
@@ -451,7 +594,12 @@ public class CorClanPlugin extends Plugin
 		}
 		StringBuilder sb = new StringBuilder();
 
-		for (String icon : current.iconsFor(key))
+		List<String> icons = current.iconsFor(key);
+		if (icons.isEmpty() && rankKey != null)
+		{
+			icons = rankCosmetics.iconsFor(rankKey);
+		}
+		for (String icon : icons)
 		{
 			append(sb, iconService.tagFor(icon));
 		}
@@ -470,16 +618,23 @@ public class CorClanPlugin extends Plugin
 			append(sb, iconService.tagFor(weeklyTrophies.get(key)));
 		}
 
-		if (config.replaceRankIcons())
+		if (config.replaceRankIcons() && member != null)
 		{
-			ClanChannel channel = type == ChatMessageType.CLAN_CHAT ? client.getClanChannel() : client.getGuestClanChannel();
-			ClanChannelMember member = channel == null ? null : findMember(channel, key);
-			if (member != null)
-			{
-				append(sb, iconService.tagFor(iconService.iconForRank(member.getRank())));
-			}
+			append(sb, iconService.tagFor(iconService.iconForRank(member.getRank())));
 		}
 		return sb.toString();
+	}
+
+	/** Lookup key of a clan chat member's in-game rank title, e.g. "gnome child", or null. Client thread. */
+	private String rankTitleKey(ClanChannelMember member)
+	{
+		ClanSettings settings = client.getClanSettings();
+		if (member == null || member.getRank() == null || settings == null)
+		{
+			return null;
+		}
+		ClanTitle title = settings.titleForRank(member.getRank());
+		return title == null || title.getName() == null ? null : MemberCosmetics.key(title.getName());
 	}
 
 	private static void append(StringBuilder sb, String tag)
@@ -504,23 +659,47 @@ public class CorClanPlugin extends Plugin
 
 	// ---------------------------------------------------------------- helpers
 
-	/** Safe from any thread: builds a new immutable snapshot and swaps it in. */
+	/**
+	 * Safe from any thread: builds new immutable snapshots and swaps them in. Layers, later wins per player:
+	 * built-in defaults, the staff "Clan member icons" list, then your own "Member icons".
+	 */
 	private void rebuildCosmetics()
 	{
 		cosmetics = MemberCosmetics.build(
 			BUILTIN_MEMBER_ICONS,
 			BUILTIN_MEMBER_TITLES,
-			config.memberIcons(),
+			config.clanMemberIcons() + "\n" + config.memberIcons(),
+			iconService::isMemberKey);
+		rankCosmetics = MemberCosmetics.build(
+			Collections.emptyMap(),
+			Collections.emptyMap(),
+			config.clanRankIcons(),
 			iconService::isMemberKey);
 	}
 
-	/** Client thread: recomputes the weekly trophies and redraws chat if anyone moved. */
-	private void updateWeeklyTrophies()
+	/**
+	 * Client thread: recomputes the counts shown everywhere (this client's, merged with the party's while in the
+	 * CoR party), the GZ King and the weekly trophies, and redraws chat if a badge moved.
+	 */
+	private void updateGzView()
 	{
-		Map<String, String> next = WeeklyTrophies.of(tracker.getWeekly());
-		if (!next.equals(weeklyTrophies))
+		boolean shared = config.partyEnabled() && !partyGz.isEmpty();
+		GzStats allTime = tracker.getAllTime();
+		Map<String, Integer> localWeekly = tracker.getWeekly().getGiven();
+		viewShared = shared;
+		viewGiven = shared ? partyGz.given(allTime.getGiven()) : new HashMap<>(allTime.getGiven());
+		viewReceived = shared ? partyGz.received(allTime.getReceived()) : new HashMap<>(allTime.getReceived());
+		viewWeekly = shared ? partyGz.weekly(localWeekly) : new HashMap<>(localWeekly);
+
+		List<Map.Entry<String, Integer>> top = GzStats.top(viewGiven, 1);
+		String king = top.isEmpty() ? null : top.get(0).getKey();
+		GzStats weekly = new GzStats();
+		weekly.getGiven().putAll(viewWeekly);
+		Map<String, String> trophies = WeeklyTrophies.of(weekly);
+		if (!trophies.equals(weeklyTrophies) || !Objects.equals(king, gzKing))
 		{
-			weeklyTrophies = next;
+			weeklyTrophies = trophies;
+			gzKing = king;
 			client.refreshChat();
 		}
 	}
@@ -593,6 +772,26 @@ public class CorClanPlugin extends Plugin
 		configManager.setConfiguration(CorClanConfig.GROUP, WEEKLY_KEY, gson.toJson(tracker.getWeekly()));
 		configManager.setConfiguration(CorClanConfig.GROUP, WEEK_START_KEY, String.valueOf(tracker.getWeekStart()));
 		configManager.setConfiguration(CorClanConfig.GROUP, WEEK_RESULTS_KEY, gson.toJson(tracker.getWeekResults(), WEEK_RESULTS_TYPE));
+		configManager.setConfiguration(CorClanConfig.GROUP, PARTY_GZ_KEY, gson.toJson(partyGz));
+	}
+
+	private PartyGzBook loadPartyGz()
+	{
+		String json = configManager.getConfiguration(CorClanConfig.GROUP, PARTY_GZ_KEY);
+		if (json == null || json.isEmpty())
+		{
+			return new PartyGzBook();
+		}
+		try
+		{
+			PartyGzBook book = gson.fromJson(json, PartyGzBook.class);
+			return book != null ? book.normalized() : new PartyGzBook();
+		}
+		catch (JsonSyntaxException ex)
+		{
+			log.debug("Discarding unreadable party gz counts", ex);
+			return new PartyGzBook();
+		}
 	}
 
 	private void resetStats()
@@ -601,9 +800,10 @@ public class CorClanPlugin extends Plugin
 		{
 			tracker.resetAllTime();
 			tracker.resetSession();
+			partyGz.clear();
 			persistStats();
+			updateGzView();
 			refreshPanel();
-			updateWeeklyTrophies();
 		});
 	}
 
@@ -627,8 +827,9 @@ public class CorClanPlugin extends Plugin
 		// a quiet week still has to roll over on screen, not just on the next gz
 		if (tracker.rollWeek(System.currentTimeMillis()))
 		{
+			partyGz.rollWeek(tracker.getWeekStart());
 			persistStats();
-			updateWeeklyTrophies();
+			updateGzView();
 		}
 		GzStats allTime = tracker.getAllTime();
 		GzStats session = tracker.getSession();
@@ -642,16 +843,17 @@ public class CorClanPlugin extends Plugin
 		String summary = String.format("This client: %d given, %d received all time",
 			allTime.totalGiven(), allTime.totalReceived());
 
-		List<Map.Entry<String, Integer>> givers = GzStats.top(allTime.getGiven(), PANEL_GIVERS_SIZE);
-		List<Map.Entry<String, Integer>> receivers = GzStats.top(allTime.getReceived(), PANEL_LEADERBOARD_SIZE);
+		List<Map.Entry<String, Integer>> givers = GzStats.top(viewGiven, PANEL_GIVERS_SIZE);
+		List<Map.Entry<String, Integer>> receivers = GzStats.top(viewReceived, PANEL_LEADERBOARD_SIZE);
 		List<BroadcastRecord> recent = new ArrayList<>(allTime.getRecent());
 
-		List<Map.Entry<String, Integer>> weeklyGivers = GzStats.top(tracker.getWeekly().getGiven(), PANEL_LEADERBOARD_SIZE);
+		List<Map.Entry<String, Integer>> weeklyGivers = GzStats.top(viewWeekly, PANEL_LEADERBOARD_SIZE);
 
-		// every giver this client has counted
-		List<Map.Entry<String, Integer>> allGivers = GzStats.top(allTime.getGiven(), Integer.MAX_VALUE);
+		// every giver counted (by this client, or the party)
+		List<Map.Entry<String, Integer>> allGivers = GzStats.top(viewGiven, Integer.MAX_VALUE);
 
-		return new PanelData(mine, summary, givers, receivers, recent,
+		String scope = viewShared ? " (CoR party)" : " (this client)";
+		return new PanelData(mine, summary, partyStatus(), scope, givers, receivers, recent,
 			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers,
 			clanRoster(), clanRankTitles());
 	}
@@ -724,5 +926,413 @@ public class CorClanPlugin extends Plugin
 	public void onClanMemberLeft(ClanMemberLeft event)
 	{
 		refreshPanel();
+	}
+
+	// ---------------------------------------------------------------- CoR party (opt-in)
+
+	private String passphrase()
+	{
+		String p = config.partyPassphrase() == null ? "" : config.partyPassphrase().trim();
+		return p.isEmpty() ? CorClanConfig.DEFAULT_PARTY_PASSPHRASE : p;
+	}
+
+	/** In RuneLite's party with our passphrase. */
+	private boolean inCorParty()
+	{
+		return partyService.isInParty() && passphrase().equals(partyService.getPartyPassphrase());
+	}
+
+	private boolean partyActive()
+	{
+		return config.partyEnabled() && inCorParty() && partyService.getLocalMember() != null;
+	}
+
+	private void joinCorParty()
+	{
+		if (!inCorParty())
+		{
+			log.debug("Joining the CoR party");
+			partyService.changeParty(passphrase());
+		}
+	}
+
+	private void leaveCorParty()
+	{
+		stopSharingLocation();
+		clearPartyLocations();
+		if (inCorParty())
+		{
+			partyService.changeParty(null);
+		}
+	}
+
+	private String partyStatus()
+	{
+		if (!config.partyEnabled())
+		{
+			return "CoR party: off (turn on in settings)";
+		}
+		if (!partyService.isInParty())
+		{
+			return "CoR party: not connected";
+		}
+		if (!inCorParty())
+		{
+			return "CoR party: you are in another party";
+		}
+		int others = Math.max(0, partyService.getMembers().size() - 1);
+		return "CoR party: on, " + others + (others == 1 ? " other member" : " other members");
+	}
+
+	/** The sender of a CoR message, or null if it is us, unknown, or we are not in the CoR party. */
+	private PartyMember sender(long memberId)
+	{
+		if (!partyActive())
+		{
+			return null;
+		}
+		PartyMember member = partyService.getMemberById(memberId);
+		PartyMember local = partyService.getLocalMember();
+		if (member == null || member.getDisplayName() == null || (local != null && local.getMemberId() == memberId))
+		{
+			return null;
+		}
+		return member;
+	}
+
+	/** Lookup keys of everyone in our clan. Client thread. */
+	private Set<String> clanMemberKeys()
+	{
+		Set<String> keys = new HashSet<>();
+		ClanSettings settings = client.getClanSettings();
+		if (settings != null)
+		{
+			for (ClanMember m : settings.getMembers())
+			{
+				keys.add(MemberCosmetics.key(m.getName()));
+			}
+		}
+		return keys;
+	}
+
+	/** Our clan's rank for a name, or null if they are not in it. Client thread. */
+	private ClanRank clanRankOf(String name)
+	{
+		ClanSettings settings = client.getClanSettings();
+		if (settings == null || name == null)
+		{
+			return null;
+		}
+		String key = MemberCosmetics.key(name);
+		for (ClanMember m : settings.getMembers())
+		{
+			if (key.equals(MemberCosmetics.key(m.getName())))
+			{
+				return m.getRank();
+			}
+		}
+		return null;
+	}
+
+	private static boolean isStaff(ClanRank rank)
+	{
+		return rank != null && rank.getRank() >= ClanRank.ADMINISTRATOR.getRank();
+	}
+
+	@Subscribe
+	public void onPartyChanged(PartyChanged event)
+	{
+		clientThread.invokeLater(() ->
+		{
+			clearPartyLocations();
+			// we just joined: the party gets our counts, and staff their lists
+			sendGzSoon = true;
+			sendStaffSoon = true;
+			refreshPanel();
+		});
+	}
+
+	@Subscribe
+	public void onUserJoin(UserJoin event)
+	{
+		// the newcomer needs the party's counts and the staff settings
+		clientThread.invokeLater(() ->
+		{
+			PartyMember local = partyService.getLocalMember();
+			if (local != null && local.getMemberId() != event.getMemberId())
+			{
+				int others = Math.max(1, partyService.getMembers().size() - 1);
+				if (Math.random() * others < GZ_JOIN_RESPONDERS)
+				{
+					sendGzSoon = true;
+				}
+				sendStaffSoon = true;
+			}
+			refreshPanel();
+		});
+	}
+
+	@Subscribe
+	public void onUserPart(UserPart event)
+	{
+		clientThread.invokeLater(() ->
+		{
+			if (partyLocations.remove(event.getMemberId()) != null)
+			{
+				redrawMap();
+			}
+			partyNames.remove(event.getMemberId());
+			partySeen.remove(event.getMemberId());
+			refreshPanel();
+		});
+	}
+
+	/**
+	 * Every 10 seconds: sends our gz counts when someone joined, or when they changed and the last send was
+	 * {@link #GZ_SEND_MILLIS} ago, and the staff lists when asked.
+	 */
+	@Schedule(period = 10, unit = ChronoUnit.SECONDS)
+	public void partyTimer()
+	{
+		clientThread.invokeLater(() ->
+		{
+			if (!partyActive())
+			{
+				return;
+			}
+			long now = System.currentTimeMillis();
+			if (sendGzSoon || (gzDirty && now - lastGzSent >= GZ_SEND_MILLIS))
+			{
+				partyGz.rollWeek(tracker.getWeekStart());
+				partyService.send(partyGz.message(tracker.getWeekly(), tracker.getAllTime()));
+				gzDirty = false;
+				sendGzSoon = false;
+				lastGzSent = now;
+			}
+			if (sendStaffSoon)
+			{
+				sendStaffSettings();
+				sendStaffSoon = false;
+			}
+		});
+	}
+
+	// party messages arrive on the websocket thread; all state lives on the client thread
+
+	@Subscribe
+	public void onCorGzCounts(CorGzCounts msg)
+	{
+		clientThread.invokeLater(() ->
+		{
+			PartyMember from = sender(msg.getMemberId());
+			if (from == null || clanRankOf(from.getDisplayName()) == null)
+			{
+				return;
+			}
+			Set<String> clan = clanMemberKeys();
+			partyGz.rollWeek(tracker.getWeekStart());
+			if (partyGz.merge(msg, System.currentTimeMillis(), name -> clan.contains(MemberCosmetics.key(name))))
+			{
+				persistStats();
+				updateGzView();
+				refreshPanel();
+			}
+		});
+	}
+
+	@Subscribe
+	public void onCorLocation(CorLocation msg)
+	{
+		clientThread.invokeLater(() ->
+		{
+			PartyMember from = sender(msg.getMemberId());
+			if (from == null || clanRankOf(from.getDisplayName()) == null)
+			{
+				return;
+			}
+			long id = msg.getMemberId();
+			if (msg.isStopped())
+			{
+				partyLocations.remove(id);
+				partySeen.remove(id);
+			}
+			else
+			{
+				partyLocations.put(id, msg);
+				partyNames.put(id, from.getDisplayName());
+				partySeen.put(id, System.currentTimeMillis());
+			}
+			redrawMap();
+		});
+	}
+
+	@Subscribe
+	public void onCorStaffSettings(CorStaffSettings msg)
+	{
+		clientThread.invokeLater(() ->
+		{
+			PartyMember from = sender(msg.getMemberId());
+			if (from == null || !isStaff(clanRankOf(from.getDisplayName())))
+			{
+				return;
+			}
+			String members = msg.getMemberIcons() == null ? "" : msg.getMemberIcons();
+			String ranks = msg.getRankIcons() == null ? "" : msg.getRankIcons();
+			if (members.length() > MAX_STAFF_TEXT || ranks.length() > MAX_STAFF_TEXT
+				|| msg.getUpdatedAt() > System.currentTimeMillis() + MAX_CLOCK_SKEW_MILLIS)
+			{
+				return;
+			}
+			long ours = staffUpdatedAt();
+			if (msg.getUpdatedAt() > ours)
+			{
+				log.debug("Staff icon settings from {}", from.getDisplayName());
+				lastRemoteMemberIcons = normalizeStaffText(members);
+				lastRemoteRankIcons = normalizeStaffText(ranks);
+				configManager.setConfiguration(CorClanConfig.GROUP, STAFF_UPDATED_KEY, String.valueOf(msg.getUpdatedAt()));
+				configManager.setConfiguration(CorClanConfig.GROUP, "clanMemberIcons", members);
+				configManager.setConfiguration(CorClanConfig.GROUP, "clanRankIcons", ranks);
+				rebuildCosmetics();
+				client.refreshChat();
+			}
+			else if (msg.getUpdatedAt() < ours)
+			{
+				// they have an older list: if we are staff, ours goes out on the next timer tick
+				sendStaffSoon = true;
+			}
+		});
+	}
+
+	/** Client thread: a staff list was edited in this client's settings. */
+	private void onStaffEdit()
+	{
+		if (!isStaff(clanRankOf(localPlayerName())))
+		{
+			return;
+		}
+		configManager.setConfiguration(CorClanConfig.GROUP, STAFF_UPDATED_KEY, String.valueOf(System.currentTimeMillis()));
+		sendStaffSettings();
+	}
+
+	/** Client thread: staff send their lists to the party. */
+	private void sendStaffSettings()
+	{
+		long updatedAt = staffUpdatedAt();
+		if (!partyActive() || updatedAt == 0 || !isStaff(clanRankOf(localPlayerName())))
+		{
+			return;
+		}
+		partyService.send(new CorStaffSettings(updatedAt, config.clanMemberIcons(), config.clanRankIcons()));
+	}
+
+	private long staffUpdatedAt()
+	{
+		String raw = configManager.getConfiguration(CorClanConfig.GROUP, STAFF_UPDATED_KEY);
+		try
+		{
+			return raw == null ? 0L : Long.parseLong(raw);
+		}
+		catch (NumberFormatException ex)
+		{
+			return 0L;
+		}
+	}
+
+	private static String normalizeStaffText(String text)
+	{
+		return text == null ? "" : text.replace("\r\n", "\n").trim();
+	}
+
+	// ---------------------------------------------------------------- clan map (through the CoR party)
+
+	@Subscribe
+	public void onGameTick(GameTick event)
+	{
+		if (!partyActive() || !config.shareLocation())
+		{
+			stopSharingLocation();
+			return;
+		}
+		int every = Math.max(LOCATION_TICKS, partyService.getMembers().size() / 2);
+		if (++locationTick < every)
+		{
+			return;
+		}
+		locationTick = 0;
+		expirePartyLocations();
+
+		Player me = client.getLocalPlayer();
+		if (client.getGameState() != GameState.LOGGED_IN || me == null)
+		{
+			return;
+		}
+		boolean inWilderness = client.getVarbitValue(VarbitID.INSIDE_WILDERNESS) == 1;
+		if (LocationRules.decide(inWilderness, client.isInInstancedRegion(), config.shareInWilderness()) != LocationRules.Decision.SEND)
+		{
+			stopSharingLocation();
+			return;
+		}
+		WorldPoint here = me.getWorldLocation();
+		CorLocation loc = new CorLocation(client.getWorld(), here.getX(), here.getY(), here.getPlane(), inWilderness, false);
+		long now = System.currentTimeMillis();
+		boolean moved = !loc.equals(selfLocation);
+		if (moved || now - lastLocationSent >= LOCATION_HEARTBEAT_MILLIS)
+		{
+			partyService.send(loc);
+			lastLocationSent = now;
+		}
+		selfLocation = loc;
+		if (moved)
+		{
+			redrawMap();
+		}
+	}
+
+	/** Client thread: tells the party we stopped and hides the map. Safe to call when not sharing. */
+	private void stopSharingLocation()
+	{
+		if (selfLocation == null)
+		{
+			return;
+		}
+		selfLocation = null;
+		locationTick = 0;
+		lastLocationSent = 0;
+		if (partyActive())
+		{
+			partyService.send(new CorLocation(0, 0, 0, 0, false, true));
+		}
+		mapPoints.clear();
+	}
+
+	private void expirePartyLocations()
+	{
+		long cutoff = System.currentTimeMillis() - LOCATION_EXPIRY_MILLIS;
+		if (partySeen.entrySet().removeIf(e -> e.getValue() < cutoff))
+		{
+			partyLocations.keySet().retainAll(partySeen.keySet());
+			redrawMap();
+		}
+	}
+
+	/** Only people who share can see others. */
+	private void redrawMap()
+	{
+		if (selfLocation == null)
+		{
+			mapPoints.clear();
+			return;
+		}
+		Map<String, CorLocation> others = new TreeMap<>();
+		partyLocations.forEach((id, loc) -> others.put(partyNames.getOrDefault(id, "Clanmate"), loc));
+		mapPoints.update(others, selfLocation);
+	}
+
+	private void clearPartyLocations()
+	{
+		partyLocations.clear();
+		partyNames.clear();
+		partySeen.clear();
+		mapPoints.clear();
 	}
 }

@@ -54,6 +54,16 @@ public class MemberCosmeticsTest
 	}
 
 	@Test
+	public void rankTitleLinesWorkLikeNames()
+	{
+		MemberCosmetics ranks = MemberCosmetics.build(Collections.emptyMap(), Collections.emptyMap(),
+			"Gnome child=gem|Gnome\nOwner=crown,star", ICONS);
+		assertEquals(Collections.singletonList("gem"), ranks.iconsFor(MemberCosmetics.key("Gnome child")));
+		assertEquals("Gnome", ranks.titleFor("gnome child"));
+		assertEquals(Arrays.asList("crown", "star"), ranks.iconsFor("owner"));
+	}
+
+	@Test
 	public void keysIgnoreCaseTagsAndSpacing()
 	{
 		assertEquals("iron nick", MemberCosmetics.key("<img=12>Iron NICK "));

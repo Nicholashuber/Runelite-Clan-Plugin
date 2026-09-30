@@ -33,6 +33,107 @@ public interface CorClanConfig extends Config
 	)
 	String gzSection = "gz";
 
+	@ConfigSection(
+		name = "CoR party",
+		description = "Optional: join the clan's RuneLite party to share gz counts, staff icon settings and (if you choose) your map position",
+		position = 3
+	)
+	String partySection = "party";
+
+	@ConfigSection(
+		name = "Staff",
+		description = "Clan icon settings managed by staff and shared through the CoR party",
+		position = 4,
+		closedByDefault = true
+	)
+	String staffSection = "staff";
+
+	/** Used when the passphrase setting is empty. */
+	String DEFAULT_PARTY_PASSPHRASE = "cor-clan-rhinos";
+
+	@ConfigItem(
+		keyName = "partyEnabled",
+		name = "Join the CoR party",
+		description = "Puts you in the clan's RuneLite party (RuneLite's own party service, the same one the Party plugin uses). "
+			+ "Party members share gz counts, so leaderboards and weekly trophies match for everyone online, and get the "
+			+ "icon settings from clan staff. You can only be in one party, so this leaves any other party you are in.",
+		warning = "This joins the CoR clan's RuneLite party and leaves any party you are in now (raids, bossing). "
+			+ "Everyone in the party can see your character name. Continue?",
+		position = 0,
+		section = partySection
+	)
+	default boolean partyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "partyPassphrase",
+		name = "Party passphrase",
+		description = "Everyone in CoR must use the same one. Leave empty for the default. Staff can pick a new one and "
+			+ "share it in Discord to keep strangers out.",
+		position = 1,
+		section = partySection
+	)
+	default String partyPassphrase()
+	{
+		return "";
+	}
+
+	@ConfigItem(
+		keyName = "shareLocation",
+		name = "Share my location",
+		description = "Show your world and map position to CoR party members on their world map, and see theirs. Only "
+			+ "people who share can see others. Paused inside the Wilderness unless 'Share in Wilderness' is on, and "
+			+ "always paused inside instances.",
+		position = 2,
+		section = partySection
+	)
+	default boolean shareLocation()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "shareInWilderness",
+		name = "Share in Wilderness",
+		description = "Keep sharing your position inside the Wilderness, for clan PK trips. Off means you disappear from the "
+			+ "clan map as soon as you enter the Wilderness and can't see others until you leave.",
+		position = 3,
+		section = partySection
+	)
+	default boolean shareInWilderness()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "clanMemberIcons",
+		name = "Clan member icons",
+		description = "Same format as 'Member icons'. Edited by clan staff (Administrator rank or higher) and sent to "
+			+ "everyone in the CoR party; this box shows the clan's current list and is overwritten by staff updates.",
+		position = 0,
+		section = staffSection
+	)
+	default String clanMemberIcons()
+	{
+		return "";
+	}
+
+	@ConfigItem(
+		keyName = "clanRankIcons",
+		name = "Clan rank icons",
+		description = "One per line: in-game rank title=icon or icon,icon|Title, e.g. Gnome child=gem|Gnome. Gives everyone "
+			+ "holding that clan rank the icons and title, so promoting someone in game changes their icon. Edited by "
+			+ "staff and shared like 'Clan member icons'.",
+		position = 1,
+		section = staffSection
+	)
+	default String clanRankIcons()
+	{
+		return "";
+	}
+
 	@ConfigItem(
 		keyName = "discordUrl",
 		name = "Discord invite",
@@ -72,7 +173,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "memberIcons",
 		name = "Member icons",
-		description = "One per line: name=icon or name=icon,icon|Title. Icons: crown, trophy, star, skull, gem, fire, founder, dev. Example: Zezima=crown,star|Event Host",
+		description = "Your own additions, only on your client; they win over the clan staff's list. One per line: name=icon or name=icon,icon|Title. Icons: crown, trophy, star, skull, gem, fire, founder, dev. Example: Zezima=crown,star|Event Host",
 		position = 1,
 		section = iconsSection
 	)
@@ -96,7 +197,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "weeklyTrophies",
 		name = "Weekly top 3 trophies",
-		description = "Give this week's top 3 gz givers (on this client, resets Sunday) a gold, silver or bronze trophy",
+		description = "Give this week's top 3 gz givers (resets Sunday 00:00 UTC) a gold, silver or bronze trophy. Counted on this client, or across the CoR party when you are in it",
 		position = 3,
 		section = iconsSection
 	)
