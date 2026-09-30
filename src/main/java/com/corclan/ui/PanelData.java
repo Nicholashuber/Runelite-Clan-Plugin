@@ -1,5 +1,6 @@
 package com.corclan.ui;
 
+import com.corclan.clan.ClanRoster;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.Streaks;
 import java.util.List;
@@ -23,12 +24,19 @@ public final class PanelData
 	final Streaks.Streak currentStreak;
 	/** every giver this client has counted, highest first */
 	final List<Map.Entry<String, Integer>> allGivers;
+	/** clan members by in-game rank, highest first; null when not logged in or not in a clan */
+	final List<ClanRoster.RankGroup> clanRoster;
+	/** every rank the clan has set up, rank number to title (empty when not in a clan) */
+	final Map<Integer, String> clanRankTitles;
 
 	public PanelData(String mine, String summary, String syncStatus, boolean clanWide,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
-		List<Map.Entry<String, Integer>> allGivers)
+		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
+		Map<Integer, String> clanRankTitles)
 	{
+		this.clanRoster = clanRoster;
+		this.clanRankTitles = clanRankTitles;
 		this.allGivers = allGivers;
 		this.mine = mine;
 		this.summary = summary;
