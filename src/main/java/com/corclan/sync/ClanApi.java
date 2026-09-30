@@ -94,6 +94,12 @@ public class ClanApi
 		get("v1/cosmetics", SyncModels.CosmeticsResponse.class, onSuccess);
 	}
 
+	/** Chat icon images set on the admin page (small PNGs, base64). */
+	public void fetchIcons(Consumer<SyncModels.IconsResponse> onSuccess)
+	{
+		get("v1/icons", SyncModels.IconsResponse.class, onSuccess);
+	}
+
 	private <T> void get(String path, Class<T> type, Consumer<T> onSuccess)
 	{
 		Request request = new Request.Builder().url(BASE_URL.resolve(path)).get().build();

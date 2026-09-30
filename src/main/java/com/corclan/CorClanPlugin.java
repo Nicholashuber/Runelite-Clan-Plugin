@@ -384,6 +384,19 @@ public class CorClanPlugin extends Plugin
 			rebuildCosmetics();
 			clientThread.invokeLater(client::refreshChat);
 		});
+		clanApi.fetchIcons(response -> clientThread.invokeLater(() ->
+		{
+			if (!config.syncEnabled())
+			{
+				return;
+			}
+			if (iconService.applyServerIcons(response.getIcons()))
+			{
+				// new icon names can now be given to players, and chat shows the new images
+				rebuildCosmetics();
+				client.refreshChat();
+			}
+		}));
 	}
 
 	private void clearServerState()
@@ -393,6 +406,14 @@ public class CorClanPlugin extends Plugin
 		serverLeaderboard = null;
 		serverCosmetics = Collections.emptyList();
 		lastServerUpdate = 0;
+		clientThread.invokeLater(() ->
+		{
+			if (iconService.clearServerIcons())
+			{
+				rebuildCosmetics();
+				client.refreshChat();
+			}
+		});
 	}
 
 	// ---------------------------------------------------------------- ::cor / ::test

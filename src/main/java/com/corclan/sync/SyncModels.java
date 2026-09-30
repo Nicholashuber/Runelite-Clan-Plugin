@@ -159,6 +159,50 @@ public final class SyncModels
 		}
 	}
 
+	/** A chat icon image from the clan server's admin page: a small PNG sent as base64. */
+	public static final class IconData
+	{
+		private String key;
+		private String hash;
+		private String png;
+
+		public IconData()
+		{
+		}
+
+		public IconData(String key, String hash, String png)
+		{
+			this.key = key;
+			this.hash = hash;
+			this.png = png;
+		}
+
+		public String getKey()
+		{
+			return key;
+		}
+
+		public String getHash()
+		{
+			return hash;
+		}
+
+		public String getPng()
+		{
+			return png;
+		}
+	}
+
+	public static final class IconsResponse
+	{
+		private List<IconData> icons;
+
+		public List<IconData> getIcons()
+		{
+			return icons == null ? Collections.emptyList() : icons;
+		}
+	}
+
 	public static final class CosmeticsResponse
 	{
 		private List<Cosmetic> players;
