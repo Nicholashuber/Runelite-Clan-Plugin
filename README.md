@@ -26,6 +26,8 @@ When it is on, the plugin sends to the CoR clan server (`cor-clan-api-production
 
 - clan broadcasts you see in your clan's chat (for example "Zezima has received a drop: ..."),
 - clan chat messages that are a gz (gz / grats / congrats), with the name of who said them,
+- your clan's rank names with their rank numbers (for example 126 "Owner", 5 "Captain"), once per login, so
+  clan admins can pick a chat icon per rank. No player names are sent with them,
 - your character name, your clan's name and your RuneLite account hash, so reports from different
   clan members can be merged.
 

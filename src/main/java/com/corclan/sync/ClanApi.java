@@ -84,6 +84,32 @@ public class ClanApi
 		});
 	}
 
+	/** Sends the clan's rank names (rank number + title only) so admins can pick an icon per rank. */
+	public void sendRanks(SyncModels.RanksPayload payload)
+	{
+		Request request = new Request.Builder()
+			.url(BASE_URL.resolve("v1/ranks"))
+			.post(RequestBody.create(JSON, gson.toJson(payload)))
+			.build();
+		http.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.debug("CoR sync: sending ranks failed", e);
+			}
+
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				try (Response r = response)
+				{
+					log.debug("CoR sync: ranks sent, {}", r.code());
+				}
+			}
+		});
+	}
+
 	public void fetchLeaderboard(Consumer<SyncModels.Leaderboard> onSuccess)
 	{
 		get("v1/leaderboard?limit=5", SyncModels.Leaderboard.class, onSuccess);

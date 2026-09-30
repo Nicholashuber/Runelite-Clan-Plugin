@@ -193,13 +193,71 @@ public final class SyncModels
 		}
 	}
 
+	/** The icon picked on the admin page for one clan rank ("none" = no icon). */
+	public static final class RankIcon
+	{
+		private int rank;
+		private String icon;
+
+		public RankIcon()
+		{
+		}
+
+		public RankIcon(int rank, String icon)
+		{
+			this.rank = rank;
+			this.icon = icon;
+		}
+
+		public int getRank()
+		{
+			return rank;
+		}
+
+		public String getIcon()
+		{
+			return icon;
+		}
+	}
+
 	public static final class IconsResponse
 	{
 		private List<IconData> icons;
+		private List<RankIcon> rankIcons;
 
 		public List<IconData> getIcons()
 		{
 			return icons == null ? Collections.emptyList() : icons;
+		}
+
+		public List<RankIcon> getRankIcons()
+		{
+			return rankIcons == null ? Collections.emptyList() : rankIcons;
+		}
+	}
+
+	/** A clan rank number and the clan's own name for it. No player names. */
+	public static final class RankTitle
+	{
+		private final int rank;
+		private final String title;
+
+		public RankTitle(int rank, String title)
+		{
+			this.rank = rank;
+			this.title = title;
+		}
+	}
+
+	public static final class RanksPayload
+	{
+		private final Reporter reporter;
+		private final List<RankTitle> ranks;
+
+		public RanksPayload(Reporter reporter, List<RankTitle> ranks)
+		{
+			this.reporter = reporter;
+			this.ranks = ranks;
 		}
 	}
 

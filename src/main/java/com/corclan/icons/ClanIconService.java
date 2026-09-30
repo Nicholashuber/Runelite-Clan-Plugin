@@ -63,6 +63,8 @@ public class ClanIconService
 	private final Map<String, String> serverHashes = new HashMap<>();
 	/** server icons with new names, which players can be given */
 	private final Set<String> customKeys = ConcurrentHashMap.newKeySet();
+	/** clan rank -> icon picked on the clan server; replaced whole, read on the client thread */
+	private volatile Map<Integer, String> rankOverrides = Collections.emptyMap();
 
 	@Inject
 	public ClanIconService(ChatIconManager chatIconManager)
@@ -180,7 +182,8 @@ public class ClanIconService
 	/** Puts every bundled image back and forgets the server's icons. Call on the client thread. */
 	public synchronized boolean clearServerIcons()
 	{
-		boolean changed = !serverHashes.isEmpty();
+		boolean changed = !serverHashes.isEmpty() || !rankOverrides.isEmpty();
+		rankOverrides = Collections.emptyMap();
 		for (String key : new HashSet<>(serverHashes.keySet()))
 		{
 			restore(key);
@@ -232,16 +235,36 @@ public class ClanIconService
 	}
 
 	/**
-	 * Maps a clan rank to a rank icon key. Clan ranks are ints: guests are negative, normal member
-	 * ranks count up from 0, administrators are 100+, deputy owner 125, owner 126. J-Mods (127)
-	 * keep their own icon.
+	 * Applies the icon picked per clan rank on the clan server. Ranks not listed use the default rule.
+	 *
+	 * @return true if anything changed
 	 */
-	public static String rankKey(ClanRank rank)
+	public boolean applyRankIcons(List<SyncModels.RankIcon> picks)
 	{
-		if (rank == null || ClanRank.JMOD.equals(rank))
+		Map<Integer, String> next = new HashMap<>();
+		for (SyncModels.RankIcon pick : picks)
+		{
+			String icon = pick.getIcon();
+			if (icon != null && (RankIcons.NO_ICON.equals(icon) || ICON_KEY.matcher(icon).matches()))
+			{
+				next.put(pick.getRank(), icon);
+			}
+		}
+		if (next.equals(rankOverrides))
+		{
+			return false;
+		}
+		rankOverrides = Collections.unmodifiableMap(next);
+		return true;
+	}
+
+	/** Icon key to draw for a clan rank, or null for none. J-Mods keep their own icon unless the server says otherwise. */
+	public String iconForRank(ClanRank rank)
+	{
+		if (rank == null)
 		{
 			return null;
 		}
-		return rank.getRank() >= ClanRank.ADMINISTRATOR.getRank() ? KEY_STAFF : KEY_MEMBER;
+		return RankIcons.resolve(rank.getRank(), rankOverrides, k -> bundled.containsKey(k) || customKeys.contains(k));
 	}
 }

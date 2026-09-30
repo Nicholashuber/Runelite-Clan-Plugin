@@ -32,8 +32,16 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
 import net.runelite.api.Player;
+import java.util.TreeMap;
+import net.runelite.api.GameState;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
+import net.runelite.api.clan.ClanMember;
+import net.runelite.api.clan.ClanRank;
+import net.runelite.api.clan.ClanSettings;
+import net.runelite.api.clan.ClanTitle;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.ScriptCallbackEvent;
@@ -123,6 +131,10 @@ public class CorClanPlugin extends Plugin
 	private volatile SyncModels.Reporter reporter;
 	private volatile SyncModels.Leaderboard serverLeaderboard;
 	private volatile List<SyncModels.Cosmetic> serverCosmetics = Collections.emptyList();
+	/** once the server's icons and titles have loaded they replace the built-in defaults (the server owns them) */
+	private volatile boolean serverCosmeticsLoaded;
+	/** rank names are sent once per login */
+	private boolean ranksReported;
 	private volatile long lastServerUpdate;
 
 	private CorClanPanel panel;
@@ -328,6 +340,63 @@ public class CorClanPlugin extends Plugin
 		syncQueue.add(event);
 	}
 
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		if (event.getGameState() == GameState.LOGIN_SCREEN)
+		{
+			ranksReported = false;
+		}
+	}
+
+	/**
+	 * Once per login (with sync on) sends the clan's rank numbers and their titles, e.g. 126 "Owner",
+	 * 5 "Captain", so admins can pick an icon per rank. No player names are sent.
+	 */
+	@Subscribe
+	public void onGameTick(GameTick event)
+	{
+		if (ranksReported || !config.syncEnabled())
+		{
+			return;
+		}
+		ClanSettings settings = client.getClanSettings();
+		long hash = client.getAccountHash();
+		String me = localPlayerName();
+		if (settings == null || settings.getName() == null || hash == -1 || me == null)
+		{
+			return;
+		}
+		ranksReported = true;
+
+		Map<Integer, String> titles = new TreeMap<>();
+		List<ClanRank> ranks = new ArrayList<>(Arrays.asList(ClanRank.OWNER, ClanRank.DEPUTY_OWNER, ClanRank.ADMINISTRATOR, ClanRank.GUEST));
+		for (ClanMember member : settings.getMembers())
+		{
+			ranks.add(member.getRank());
+		}
+		for (ClanRank rank : ranks)
+		{
+			if (rank == null || titles.containsKey(rank.getRank()))
+			{
+				continue;
+			}
+			ClanTitle title = settings.titleForRank(rank);
+			if (title != null && title.getName() != null && !title.getName().isEmpty())
+			{
+				titles.put(rank.getRank(), title.getName());
+			}
+		}
+		if (titles.isEmpty())
+		{
+			return;
+		}
+		List<SyncModels.RankTitle> payload = new ArrayList<>();
+		titles.forEach((rank, title) -> payload.add(new SyncModels.RankTitle(rank, title)));
+		clanApi.sendRanks(new SyncModels.RanksPayload(
+			new SyncModels.Reporter(Long.toString(hash), me, settings.getName()), payload));
+	}
+
 	/** Sends queued sightings to the clan server in one batch. Runs off the client thread. */
 	@Schedule(period = 30, unit = ChronoUnit.SECONDS, asynchronous = true)
 	public void flushSync()
@@ -380,6 +449,7 @@ public class CorClanPlugin extends Plugin
 				return;
 			}
 			serverCosmetics = response.getPlayers();
+			serverCosmeticsLoaded = true;
 			lastServerUpdate = System.currentTimeMillis();
 			rebuildCosmetics();
 			clientThread.invokeLater(client::refreshChat);
@@ -390,7 +460,9 @@ public class CorClanPlugin extends Plugin
 			{
 				return;
 			}
-			if (iconService.applyServerIcons(response.getIcons()))
+			boolean iconsChanged = iconService.applyServerIcons(response.getIcons());
+			boolean ranksChanged = iconService.applyRankIcons(response.getRankIcons());
+			if (iconsChanged || ranksChanged)
 			{
 				// new icon names can now be given to players, and chat shows the new images
 				rebuildCosmetics();
@@ -405,6 +477,8 @@ public class CorClanPlugin extends Plugin
 		reporter = null;
 		serverLeaderboard = null;
 		serverCosmetics = Collections.emptyList();
+		serverCosmeticsLoaded = false;
+		ranksReported = false;
 		lastServerUpdate = 0;
 		clientThread.invokeLater(() ->
 		{
@@ -597,7 +671,7 @@ public class CorClanPlugin extends Plugin
 			ClanChannelMember member = channel == null ? null : findMember(channel, key);
 			if (member != null)
 			{
-				append(sb, iconService.tagFor(ClanIconService.rankKey(member.getRank())));
+				append(sb, iconService.tagFor(iconService.iconForRank(member.getRank())));
 			}
 		}
 		return sb.toString();
@@ -625,12 +699,16 @@ public class CorClanPlugin extends Plugin
 
 	// ---------------------------------------------------------------- helpers
 
-	/** Safe from any thread: builds a new immutable snapshot and swaps it in. */
+	/**
+	 * Safe from any thread: builds a new immutable snapshot and swaps it in. The built-in defaults only apply
+	 * until the clan server's list has loaded; after that the admin page decides (it was seeded with them).
+	 */
 	private void rebuildCosmetics()
 	{
+		boolean fromServer = config.syncEnabled() && serverCosmeticsLoaded;
 		cosmetics = MemberCosmetics.build(
-			BUILTIN_MEMBER_ICONS,
-			BUILTIN_MEMBER_TITLES,
+			fromServer ? Collections.emptyMap() : BUILTIN_MEMBER_ICONS,
+			fromServer ? Collections.emptyMap() : BUILTIN_MEMBER_TITLES,
 			config.syncEnabled() ? serverCosmetics : Collections.emptyList(),
 			config.memberIcons(),
 			iconService::isMemberKey);
