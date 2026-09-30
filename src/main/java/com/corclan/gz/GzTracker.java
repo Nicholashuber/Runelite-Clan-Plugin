@@ -4,9 +4,13 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Attributes gz messages to the most recent clan broadcast while its window is open.
@@ -24,6 +28,12 @@ public class GzTracker
 	// #1 giver(s) of each finished week, for streaks
 	private List<WeekResult> weekResults = new ArrayList<>();
 	private BroadcastRecord current;
+
+	/** Anti-abuse: at most this many gz's per player are counted in any rolling hour. */
+	public static final int MAX_GZ_PER_HOUR = 100;
+	static final long HOUR_MILLIS = 3_600_000L;
+	/** when each player's recently counted gz's happened, oldest first; only the last hour is kept */
+	private final Map<String, ArrayDeque<Long>> recentGz = new HashMap<>();
 
 	// last counted gz, for the on-screen indicator
 	private long lastGzTime;
@@ -201,9 +211,36 @@ public class GzTracker
 	/**
 	 * @return true if any counter changed (caller should persist + refresh UI)
 	 */
+	/**
+	 * Records a gz for {@code sender} if they've had fewer than {@link #MAX_GZ_PER_HOUR} counted in
+	 * the last hour. Names are compared case-insensitively so "Bob" and "bob" share one allowance.
+	 * @return false if the gz is over the cap and must not be counted
+	 */
+	private boolean underHourlyCap(String sender, long now)
+	{
+		String key = sender.toLowerCase(Locale.ROOT);
+		ArrayDeque<Long> times = recentGz.computeIfAbsent(key, k -> new ArrayDeque<>());
+		while (!times.isEmpty() && now - times.peekFirst() >= HOUR_MILLIS)
+		{
+			times.pollFirst();
+		}
+		if (times.size() >= MAX_GZ_PER_HOUR)
+		{
+			return false;
+		}
+		times.addLast(now);
+		// drop players with nothing in the last hour so the map can't grow forever
+		if (recentGz.size() > 500)
+		{
+			recentGz.values().removeIf(t -> t.isEmpty() || now - t.peekLast() >= HOUR_MILLIS);
+		}
+		return true;
+	}
+
 	public boolean onClanChat(String sender, String message, long now, Settings settings)
 	{
-		if (sender == null || sender.isEmpty() || !GzDetector.isGz(message, settings.maxMessageLength))
+		if (sender == null || sender.isEmpty() || !GzDetector.isGz(message, settings.maxMessageLength)
+			|| !underHourlyCap(sender, now))
 		{
 			return false;
 		}
