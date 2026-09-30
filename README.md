@@ -48,7 +48,9 @@ duplicate reports. It does not store the text of chat messages.
 **Share my location** is **off by default** and shows RuneLite's IP-address warning when turned on. While it is on,
 the plugin sends your character name, RuneLite account hash, world and map tile to the CoR clan server every
 3 seconds. The reply lists clanmates who are sharing, and they appear on the world map with a rhino marker;
-hovering shows their name and world, and clicking jumps the map to them. Only people who share can see others.
+hovering shows their name and world, and clicking jumps the map to them. Your own marker, labelled "You", appears
+once the server has accepted your position, so you can see sharing is working even when nobody else is on the
+map. Only people who share can see others.
 
 - Inside the **Wilderness** your position is not sent unless **Share in Wilderness** is also on (meant for clan
   PK trips). With it off you vanish from the clan map as soon as you enter the Wilderness and can't see others

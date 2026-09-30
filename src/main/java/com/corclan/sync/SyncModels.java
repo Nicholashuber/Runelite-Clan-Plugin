@@ -28,6 +28,11 @@ public final class SyncModels
 		{
 			return accountHash;
 		}
+
+		public String getRsn()
+		{
+			return rsn;
+		}
 	}
 
 	/** A clan broadcast or a gz line seen in clan chat. Only one of subject / giver is set. */

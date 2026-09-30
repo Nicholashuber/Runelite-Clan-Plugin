@@ -434,16 +434,19 @@ public class CorClanPlugin extends Plugin
 		}
 
 		WorldPoint here = me.getWorldLocation();
+		int world = client.getWorld();
 		SyncModels.Reporter r = new SyncModels.Reporter(Long.toString(hash), displayName(me.getName()), channel.getName());
 		locationReporter = r;
 		locationShared = true;
+		// your own marker is drawn only once the server has accepted this position, so seeing it means sharing works
+		SyncModels.PlayerLocation self = new SyncModels.PlayerLocation(r.getRsn(), world, here.getX(), here.getY(), here.getPlane(), inWilderness);
 		clanApi.sendLocation(
-			new SyncModels.LocationPayload(r, client.getWorld(), here.getX(), here.getY(), here.getPlane(), inWilderness),
+			new SyncModels.LocationPayload(r, world, here.getX(), here.getY(), here.getPlane(), inWilderness),
 			response -> clientThread.invokeLater(() ->
 			{
 				if (locationShared)
 				{
-					mapPoints.update(response.getPlayers());
+					mapPoints.update(response.getPlayers(), self);
 				}
 			}));
 	}

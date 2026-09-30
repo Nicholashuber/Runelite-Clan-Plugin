@@ -26,27 +26,40 @@ public class ClanMapPoints
 		this.icon = ImageUtil.loadImageResource(ClanMapPoints.class, "/com/corclan/panel_icon.png");
 	}
 
-	/** Replaces every marker with the latest positions from the clan server. */
-	public void update(List<SyncModels.PlayerLocation> players)
+	/**
+	 * Replaces every marker with the latest positions from the clan server, plus your own marker so
+	 * you can see sharing is working even when nobody else is on the map.
+	 *
+	 * @param self the position that was just accepted by the server, or null
+	 */
+	public void update(List<SyncModels.PlayerLocation> players, SyncModels.PlayerLocation self)
 	{
 		clear();
+		if (self != null)
+		{
+			add(self, "You");
+		}
 		for (SyncModels.PlayerLocation p : players)
 		{
-			if (p.getRsn() == null)
+			if (p.getRsn() != null)
 			{
-				continue;
+				add(p, p.getRsn());
 			}
-			WorldMapPoint point = WorldMapPoint.builder()
-				.worldPoint(new WorldPoint(p.getX(), p.getY(), p.getPlane()))
-				.image(icon)
-				.name(p.getRsn())
-				.tooltip(p.getRsn() + " (W" + p.getWorld() + ")" + (p.isWilderness() ? ", Wilderness" : ""))
-				.snapToEdge(true)
-				.jumpOnClick(true)
-				.build();
-			worldMapPointManager.add(point);
-			points.add(point);
 		}
+	}
+
+	private void add(SyncModels.PlayerLocation p, String label)
+	{
+		WorldMapPoint point = WorldMapPoint.builder()
+			.worldPoint(new WorldPoint(p.getX(), p.getY(), p.getPlane()))
+			.image(icon)
+			.name(label)
+			.tooltip(label + " (W" + p.getWorld() + ")" + (p.isWilderness() ? ", Wilderness" : ""))
+			.snapToEdge(true)
+			.jumpOnClick(true)
+			.build();
+		worldMapPointManager.add(point);
+		points.add(point);
 	}
 
 	public void clear()
