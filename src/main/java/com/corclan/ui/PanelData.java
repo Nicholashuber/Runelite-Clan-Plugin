@@ -13,6 +13,8 @@ public final class PanelData
 	final String summary;
 	/** one line about the CoR party */
 	final String partyStatus;
+	/** one line about the clan map */
+	final String mapStatus;
 	/** " (this client)" or " (CoR party)", after leaderboard titles */
 	final String scope;
 	final List<Map.Entry<String, Integer>> givers;
@@ -31,7 +33,7 @@ public final class PanelData
 	/** every rank the clan has set up, rank number to title (empty when not in a clan) */
 	final Map<Integer, String> clanRankTitles;
 
-	public PanelData(String mine, String summary, String partyStatus, String scope,
+	public PanelData(String mine, String summary, String partyStatus, String mapStatus, String scope,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
@@ -43,6 +45,7 @@ public final class PanelData
 		this.mine = mine;
 		this.summary = summary;
 		this.partyStatus = partyStatus;
+		this.mapStatus = mapStatus;
 		this.scope = scope;
 		this.givers = givers;
 		this.receivers = receivers;

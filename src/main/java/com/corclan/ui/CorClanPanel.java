@@ -532,7 +532,7 @@ public class CorClanPanel extends PluginPanel
 	/** Must be called on the Swing thread with a snapshot built on the client thread. */
 	public void refresh(PanelData data)
 	{
-		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.partyStatus) + "</html>");
+		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.partyStatus) + "<br>" + escape(data.mapStatus) + "</html>");
 
 		String scope = data.scope;
 		giversTitle.setText("Top gz givers" + scope);

@@ -40,18 +40,19 @@ public class ClanMapPoints
 		clear();
 		if (self != null)
 		{
-			add(self, "You");
+			int n = others.size();
+			add(self, "You", "You: sharing with the CoR party, " + n + (n == 1 ? " clanmate" : " clanmates") + " on the map");
 		}
-		others.forEach((name, loc) -> add(loc, name));
+		others.forEach((name, loc) -> add(loc, name, name + " (W" + loc.getWorld() + ")" + (loc.isWilderness() ? ", Wilderness" : "")));
 	}
 
-	private void add(CorLocation p, String label)
+	private void add(CorLocation p, String label, String tooltip)
 	{
 		WorldMapPoint point = WorldMapPoint.builder()
 			.worldPoint(new WorldPoint(p.getX(), p.getY(), p.getPlane()))
 			.image(icon)
 			.name(label)
-			.tooltip(label + " (W" + p.getWorld() + ")" + (p.isWilderness() ? ", Wilderness" : ""))
+			.tooltip(tooltip)
 			.snapToEdge(true)
 			.jumpOnClick(true)
 			.build();

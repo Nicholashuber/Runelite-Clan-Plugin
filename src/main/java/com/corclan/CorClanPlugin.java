@@ -14,6 +14,7 @@ import com.corclan.icons.MemberCosmetics;
 import com.corclan.icons.WeeklyTrophies;
 import com.corclan.map.ClanMapPoints;
 import com.corclan.map.LocationRules;
+import com.corclan.map.MapState;
 import com.corclan.party.CorGzCounts;
 import com.corclan.party.CorLocation;
 import com.corclan.party.CorStaffSettings;
@@ -212,6 +213,10 @@ public class CorClanPlugin extends Plugin
 	/** send the staff lists on the next tick (only staff actually send) */
 	private boolean sendStaffSoon;
 	private int locationTick;
+	/** what the clan map is doing; announced in chat when it changes */
+	private MapState mapState = MapState.OFF;
+	/** clanmates on the map at the last redraw, so the panel only refreshes when it changes */
+	private int mapCount;
 	private CorLocation selfLocation;
 	private long lastLocationSent;
 	private final Map<Long, CorLocation> partyLocations = new HashMap<>();
@@ -325,7 +330,14 @@ public class CorClanPlugin extends Plugin
 		}
 		if ("shareLocation".equals(key) || "shareInWilderness".equals(key))
 		{
-			clientThread.invokeLater(this::stopSharingLocation);
+			clientThread.invokeLater(() ->
+			{
+				stopSharingLocation();
+				if (!config.shareLocation())
+				{
+					setMapState(MapState.OFF);
+				}
+			});
 		}
 		if ("clanMemberIcons".equals(key) || "clanRankIcons".equals(key))
 		{
@@ -898,7 +910,7 @@ public class CorClanPlugin extends Plugin
 		List<Map.Entry<String, Integer>> allGivers = GzStats.top(viewGiven, Integer.MAX_VALUE);
 
 		String scope = viewShared ? " (CoR party)" : " (this client)";
-		return new PanelData(mine, summary, partyStatus(), scope, givers, receivers, recent,
+		return new PanelData(mine, summary, partyStatus(), mapState.status(partyLocations.size()), scope, givers, receivers, recent,
 			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers,
 			clanRoster(), clanRankTitles());
 	}
@@ -1306,30 +1318,29 @@ public class CorClanPlugin extends Plugin
 	/** Client thread, every game tick: shares our position with the CoR party while "Share my location" is on. */
 	private void tickLocation()
 	{
-		if (!partyActive() || !config.shareLocation())
-		{
-			stopSharingLocation();
-			return;
-		}
-		int every = Math.max(LOCATION_TICKS, partyService.getMembers().size() / 2);
-		if (++locationTick < every)
-		{
-			return;
-		}
-		locationTick = 0;
-		expirePartyLocations();
-
 		Player me = client.getLocalPlayer();
 		if (client.getGameState() != GameState.LOGGED_IN || me == null)
 		{
 			return;
 		}
 		boolean inWilderness = client.getVarbitValue(VarbitID.INSIDE_WILDERNESS) == 1;
-		if (LocationRules.decide(inWilderness, client.isInInstancedRegion(), config.shareInWilderness()) != LocationRules.Decision.SEND)
+		LocationRules.Decision decision = LocationRules.decide(inWilderness, client.isInInstancedRegion(), config.shareInWilderness());
+		setMapState(MapState.of(config.shareLocation(), config.partyEnabled(), partyActive(), decision));
+		if (mapState != MapState.SHARING)
 		{
 			stopSharingLocation();
 			return;
 		}
+
+		int every = Math.max(LOCATION_TICKS, partyService.getMembers().size() / 2);
+		// the first position goes out right away, so your own marker appears as soon as you turn sharing on
+		if (selfLocation != null && ++locationTick < every)
+		{
+			return;
+		}
+		locationTick = 0;
+		expirePartyLocations();
+
 		WorldPoint here = me.getWorldLocation();
 		CorLocation loc = new CorLocation(client.getWorld(), here.getX(), here.getY(), here.getPlane(), inWilderness, false);
 		long now = System.currentTimeMillis();
@@ -1344,6 +1355,21 @@ public class CorClanPlugin extends Plugin
 		{
 			redrawMap();
 		}
+	}
+
+	/** Client thread: remembers the clan map's state, and says in chat when it starts sharing or pauses. */
+	private void setMapState(MapState next)
+	{
+		if (next == mapState)
+		{
+			return;
+		}
+		mapState = next;
+		if (next.announcement != null)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", next.announcement, null);
+		}
+		refreshPanel();
 	}
 
 	/** Client thread: tells the party we stopped and hides the map. Safe to call when not sharing. */
@@ -1384,6 +1410,11 @@ public class CorClanPlugin extends Plugin
 		Map<String, CorLocation> others = new TreeMap<>();
 		partyLocations.forEach((id, loc) -> others.put(partyNames.getOrDefault(id, "Clanmate"), loc));
 		mapPoints.update(others, selfLocation);
+		if (others.size() != mapCount)
+		{
+			mapCount = others.size();
+			refreshPanel();
+		}
 	}
 
 	private void clearPartyLocations()

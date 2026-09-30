@@ -36,6 +36,9 @@ Everyone in the party can see your character name. While you are in it, the plug
   you move, every 30 seconds when you stand still. Never from inside instances, and inside the Wilderness
   only when **Share in Wilderness** is on. Only people who share see the clan map, but positions go to
   everyone in the party, so treat the passphrase like a key.
+  So you can tell it works even when you are the only one sharing, your own rhino marker labelled **You**
+  appears on the world map as soon as sharing starts, a chat message says so (and says when sharing pauses
+  or what to turn on), and the CoR panel shows a **Clan map** status line.
 - **staff icon lists**, only if your in-game clan rank is Administrator or higher.
 
 Messages from players who are not in your clan are ignored. The default passphrase is public (it is in this
