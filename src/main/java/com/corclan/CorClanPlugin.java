@@ -81,6 +81,7 @@ public class CorClanPlugin extends Plugin
 	private static final String OLD_DISCORD_PLACEHOLDER = "https://discord.gg/";
 	private static final Pattern IMG_TAG = Pattern.compile("<img=\\d+>");
 	private static final int PANEL_LEADERBOARD_SIZE = 5;
+	private static final int PANEL_GIVERS_SIZE = 10;
 
 	/** Defaults that apply without any config. The clan server and the "Member icons" config box override these. */
 	private static final Map<String, List<String>> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
@@ -777,7 +778,7 @@ public class CorClanPlugin extends Plugin
 
 		List<Map.Entry<String, Integer>> givers = lb != null
 			? entries(lb.getGivers())
-			: GzStats.top(allTime.getGiven(), PANEL_LEADERBOARD_SIZE);
+			: GzStats.top(allTime.getGiven(), PANEL_GIVERS_SIZE);
 		List<Map.Entry<String, Integer>> receivers = lb != null
 			? entries(lb.getReceivers())
 			: GzStats.top(allTime.getReceived(), PANEL_LEADERBOARD_SIZE);
@@ -786,7 +787,10 @@ public class CorClanPlugin extends Plugin
 		// weekly and streaks are always this client's own counts; the clan server has no weekly data
 		List<Map.Entry<String, Integer>> weeklyGivers = GzStats.top(tracker.getWeekly().getGiven(), PANEL_LEADERBOARD_SIZE);
 
+		// every giver this client has counted; the clan server only sends its top few
+		List<Map.Entry<String, Integer>> allGivers = GzStats.top(allTime.getGiven(), Integer.MAX_VALUE);
+
 		return new PanelData(mine, summary, syncStatus, lb != null, givers, receivers, recent,
-			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak());
+			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers);
 	}
 }

@@ -21,11 +21,15 @@ public final class PanelData
 	/** consecutive weekly #1 runs; null when there are none */
 	final Streaks.Streak longestStreak;
 	final Streaks.Streak currentStreak;
+	/** every giver this client has counted, highest first */
+	final List<Map.Entry<String, Integer>> allGivers;
 
 	public PanelData(String mine, String summary, String syncStatus, boolean clanWide,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
-		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak)
+		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
+		List<Map.Entry<String, Integer>> allGivers)
 	{
+		this.allGivers = allGivers;
 		this.mine = mine;
 		this.summary = summary;
 		this.syncStatus = syncStatus;
