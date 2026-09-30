@@ -26,8 +26,9 @@ the game server; only you see the output.
 |---------|--------|--------------|
 | Links | Discord invite, Website | URLs opened by the panel buttons |
 | Chat icons | Custom rank icons | Replace the default clan rank icon with CoR icons |
-| Chat icons | Member icons | One per line, `name=icon`, `name=icon,icon` or `name=icon,icon|Title`. Icons: `crown`, `trophy`, `star`, `skull`, `gem`, `fire`, `founder`, `dev`. A title shows as `[Title]` before the name. Icons stack: member icons, then GZ King, then the rank rhino |
+| Chat icons | Member icons | One per line, `name=icon`, `name=icon,icon` or `name=icon,icon|Title`. Icons: `crown`, `trophy`, `star`, `skull`, `gem`, `fire`, `founder`, `dev`. A title shows as `[Title]` before the name. Icons stack: member icons, then GZ King, then the weekly trophy, then the rank rhino |
 | Chat icons | GZ King icon | Give the top all-time gz giver a special icon |
+| Chat icons | Weekly top 3 trophies | This week's top 3 gz givers (on your client, resets Sunday) get a gold, silver or bronze trophy next to their name |
 | GZ tracker | Track gz's | Master switch |
 | GZ tracker | GZ window | Seconds after a broadcast during which gz's count for that member (default 90) |
 | GZ tracker | One gz per person | Only the first gz per member per broadcast counts as "received" |

@@ -73,6 +73,10 @@ public class ClanIconService
 			register(key, "member_" + key + ".png");
 		}
 		register(KEY_GZ_KING, "member_gzking.png");
+		for (String key : WeeklyTrophies.KEYS)
+		{
+			register(key, key + ".png");
+		}
 		log.debug("Registered {} CoR chat icons", iconIds.size());
 	}
 

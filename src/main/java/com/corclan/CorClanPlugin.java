@@ -9,6 +9,7 @@ import com.corclan.gz.Streaks;
 import com.corclan.gz.WeekResult;
 import com.corclan.icons.ClanIconService;
 import com.corclan.icons.MemberCosmetics;
+import com.corclan.icons.WeeklyTrophies;
 import com.corclan.ui.CorClanOverlay;
 import com.corclan.ui.CorClanPanel;
 import com.corclan.ui.PanelData;
@@ -130,6 +131,8 @@ public class CorClanPlugin extends Plugin
 
 	/** Rebuilt whenever config changes; read by chat rendering on the client thread. */
 	private volatile MemberCosmetics cosmetics = MemberCosmetics.EMPTY;
+	/** this week's top 3 givers -> trophy icon; replaced whole when the weekly counts change */
+	private volatile Map<String, String> weeklyTrophies = Collections.emptyMap();
 
 	private CorClanPanel panel;
 	private NavigationButton navButton;
@@ -149,6 +152,7 @@ public class CorClanPlugin extends Plugin
 		{
 			persistStats();
 		}
+		weeklyTrophies = WeeklyTrophies.of(tracker.getWeekly());
 		rebuildCosmetics();
 		iconService.ensureRegistered();
 
@@ -233,6 +237,7 @@ public class CorClanPlugin extends Plugin
 			{
 				persistStats();
 				refreshPanel();
+				updateWeeklyTrophies();
 				tagGzCount(event.getMessageNode(), sender);
 				announce(sender, tracker.getLastGzSubject());
 			}
@@ -435,8 +440,8 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
-	 * Icons stack, left to right: member icons (built-in, config), the GZ King badge, then
-	 * the rank rhino. Returns "" when there is nothing to show.
+	 * Icons stack, left to right: member icons (built-in, config), the GZ King badge, this week's
+	 * trophy, then the rank rhino. Returns "" when there is nothing to show.
 	 */
 	private String iconTagsFor(ChatMessageType type, String key, MemberCosmetics current)
 	{
@@ -458,6 +463,11 @@ public class CorClanPlugin extends Plugin
 			{
 				append(sb, iconService.tagFor(ClanIconService.KEY_GZ_KING));
 			}
+		}
+
+		if (config.weeklyTrophies())
+		{
+			append(sb, iconService.tagFor(weeklyTrophies.get(key)));
 		}
 
 		if (config.replaceRankIcons())
@@ -502,6 +512,17 @@ public class CorClanPlugin extends Plugin
 			BUILTIN_MEMBER_TITLES,
 			config.memberIcons(),
 			iconService::isMemberKey);
+	}
+
+	/** Client thread: recomputes the weekly trophies and redraws chat if anyone moved. */
+	private void updateWeeklyTrophies()
+	{
+		Map<String, String> next = WeeklyTrophies.of(tracker.getWeekly());
+		if (!next.equals(weeklyTrophies))
+		{
+			weeklyTrophies = next;
+			client.refreshChat();
+		}
 	}
 
 	/** Name as shown in game (tags stripped, regular spaces). */
@@ -582,6 +603,7 @@ public class CorClanPlugin extends Plugin
 			tracker.resetSession();
 			persistStats();
 			refreshPanel();
+			updateWeeklyTrophies();
 		});
 	}
 
@@ -606,6 +628,7 @@ public class CorClanPlugin extends Plugin
 		if (tracker.rollWeek(System.currentTimeMillis()))
 		{
 			persistStats();
+			updateWeeklyTrophies();
 		}
 		GzStats allTime = tracker.getAllTime();
 		GzStats session = tracker.getSession();

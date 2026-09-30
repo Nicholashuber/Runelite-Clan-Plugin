@@ -94,6 +94,18 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "weeklyTrophies",
+		name = "Weekly top 3 trophies",
+		description = "Give this week's top 3 gz givers (on this client, resets Sunday) a gold, silver or bronze trophy",
+		position = 3,
+		section = iconsSection
+	)
+	default boolean weeklyTrophies()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "gzTrackingEnabled",
 		name = "Track gz's",
 		description = "Count gz / grats / congrats messages in clan chat",
