@@ -8,6 +8,8 @@ import com.corclan.gz.Streaks;
 import com.corclan.gz.WeekResult;
 import com.corclan.icons.ClanIconService;
 import com.corclan.icons.MemberCosmetics;
+import com.corclan.map.ClanMapPoints;
+import com.corclan.map.LocationRules;
 import com.corclan.sync.ClanApi;
 import com.corclan.sync.SyncModels;
 import com.corclan.sync.SyncQueue;
@@ -44,8 +46,10 @@ import net.runelite.api.clan.ClanMember;
 import net.runelite.api.clan.ClanRank;
 import net.runelite.api.clan.ClanSettings;
 import net.runelite.api.clan.ClanTitle;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.ScriptCallbackEvent;
@@ -70,8 +74,8 @@ import net.runelite.client.util.Text;
 @Slf4j
 @PluginDescriptor(
 	name = "CoR Clan",
-	description = "Clan sidebar, custom clan chat icons and a gz tracker for the C o R clan, with optional clan-wide sync.",
-	tags = {"clan", "cor", "gz", "chat", "icons", "social"}
+	description = "Clan sidebar, custom clan chat icons, a gz tracker and an opt-in clan map for the C o R clan.",
+	tags = {"clan", "cor", "gz", "chat", "icons", "social", "map"}
 )
 public class CorClanPlugin extends Plugin
 {
@@ -136,6 +140,16 @@ public class CorClanPlugin extends Plugin
 	@Inject
 	private ItemManager itemManager;
 
+	@Inject
+	private ClanMapPoints mapPoints;
+
+	// clan map: send every 5 game ticks (~3s) while "Share my location" is on
+	private static final int LOCATION_TICKS = 5;
+	private int locationTick;
+	/** the server currently has our position, so it must be told when we stop */
+	private boolean locationShared;
+	private SyncModels.Reporter locationReporter;
+
 	private final GzTracker tracker = new GzTracker();
 	private final SyncQueue syncQueue = new SyncQueue();
 
@@ -198,6 +212,7 @@ public class CorClanPlugin extends Plugin
 			// last chance to send what is queued; the server merges any duplicates
 			flushSync();
 		}
+		stopSharingLocation();
 		overlayManager.remove(overlay);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
@@ -231,6 +246,10 @@ public class CorClanPlugin extends Plugin
 			{
 				clearServerState();
 			}
+		}
+		if ("shareLocation".equals(event.getKey()) && !config.shareLocation())
+		{
+			clientThread.invokeLater(this::stopSharingLocation);
 		}
 		rebuildCosmetics();
 		refreshPanel();
@@ -367,15 +386,90 @@ public class CorClanPlugin extends Plugin
 		if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
 			ranksReported = false;
+			stopSharingLocation();
 		}
+	}
+
+	@Subscribe
+	public void onGameTick(GameTick event)
+	{
+		tickLocation();
+		reportRanks();
+	}
+
+	// ---------------------------------------------------------------- clan map (opt-in)
+
+	/**
+	 * Client thread, every ~3 seconds while "Share my location" is on: sends this player's own world and
+	 * tile, and draws the clanmates the server sends back. Never inside instances; inside the Wilderness
+	 * only when "Share in Wilderness" is on.
+	 */
+	private void tickLocation()
+	{
+		if (!config.shareLocation())
+		{
+			stopSharingLocation();
+			return;
+		}
+		if (++locationTick < LOCATION_TICKS)
+		{
+			return;
+		}
+		locationTick = 0;
+
+		Player me = client.getLocalPlayer();
+		long hash = client.getAccountHash();
+		ClanChannel channel = client.getClanChannel();
+		if (client.getGameState() != GameState.LOGGED_IN || me == null || me.getName() == null || hash == -1
+			|| channel == null || channel.getName() == null)
+		{
+			return;
+		}
+		boolean inWilderness = client.getVarbitValue(VarbitID.INSIDE_WILDERNESS) == 1;
+		LocationRules.Decision decision = LocationRules.decide(inWilderness, client.isInInstancedRegion(), config.shareInWilderness());
+		if (decision != LocationRules.Decision.SEND)
+		{
+			stopSharingLocation();
+			return;
+		}
+
+		WorldPoint here = me.getWorldLocation();
+		SyncModels.Reporter r = new SyncModels.Reporter(Long.toString(hash), displayName(me.getName()), channel.getName());
+		locationReporter = r;
+		locationShared = true;
+		clanApi.sendLocation(
+			new SyncModels.LocationPayload(r, client.getWorld(), here.getX(), here.getY(), here.getPlane(), inWilderness),
+			response -> clientThread.invokeLater(() ->
+			{
+				if (locationShared)
+				{
+					mapPoints.update(response.getPlayers());
+				}
+			}));
+	}
+
+	/** Client thread: tells the server to forget us and clears the map. Safe to call when not sharing. */
+	private void stopSharingLocation()
+	{
+		if (!locationShared)
+		{
+			return;
+		}
+		locationShared = false;
+		locationTick = 0;
+		SyncModels.Reporter r = locationReporter;
+		if (r != null)
+		{
+			clanApi.sendLocationStop(new SyncModels.LocationStopPayload(r));
+		}
+		mapPoints.clear();
 	}
 
 	/**
 	 * Once per login (with sync on) sends the clan's rank numbers and their titles, e.g. 126 "Owner",
 	 * 5 "Captain", so admins can pick an icon per rank. No player names are sent.
 	 */
-	@Subscribe
-	public void onGameTick(GameTick event)
+	private void reportRanks()
 	{
 		if (ranksReported || !config.syncEnabled())
 		{
