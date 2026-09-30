@@ -1,5 +1,6 @@
 package com.corclan;
 
+import com.corclan.clan.ClanRoster;
 import com.corclan.gz.BroadcastParser;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.GzStats;
@@ -44,6 +45,9 @@ import net.runelite.api.clan.ClanMember;
 import net.runelite.api.clan.ClanRank;
 import net.runelite.api.clan.ClanSettings;
 import net.runelite.api.clan.ClanTitle;
+import net.runelite.api.events.ClanChannelChanged;
+import net.runelite.api.events.ClanMemberJoined;
+import net.runelite.api.events.ClanMemberLeft;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ChatMessage;
@@ -890,6 +894,77 @@ public class CorClanPlugin extends Plugin
 		List<Map.Entry<String, Integer>> allGivers = GzStats.top(allTime.getGiven(), Integer.MAX_VALUE);
 
 		return new PanelData(mine, summary, syncStatus, lb != null, givers, receivers, recent,
-			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers);
+			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers,
+			clanRoster(), clanRankTitles());
+	}
+
+	/**
+	 * Every rank the clan has set up (rank number to title), including ranks nobody holds, so the
+	 * org chart can show vacant ranks and find the letter tiers between Soul and Gnome child.
+	 */
+	private Map<Integer, String> clanRankTitles()
+	{
+		ClanSettings settings = client.getClanSettings();
+		Map<Integer, String> titles = new TreeMap<>();
+		if (settings == null)
+		{
+			return titles;
+		}
+		for (int rank = 0; rank <= ClanRank.OWNER.getRank(); rank++)
+		{
+			ClanTitle title = settings.titleForRank(new ClanRank(rank));
+			if (title != null && title.getName() != null && !title.getName().isEmpty())
+			{
+				titles.put(rank, title.getName());
+			}
+		}
+		return titles;
+	}
+
+	/**
+	 * Clan members grouped by in-game rank, read from the game's clan data (client thread only).
+	 * @return null when not logged in or not in a clan
+	 */
+	private List<ClanRoster.RankGroup> clanRoster()
+	{
+		ClanSettings settings = client.getClanSettings();
+		if (settings == null)
+		{
+			return null;
+		}
+		ClanChannel channel = client.getClanChannel();
+		List<ClanRoster.Member> members = new ArrayList<>();
+		for (ClanMember member : settings.getMembers())
+		{
+			ClanRank rank = member.getRank();
+			if (member.getName() == null || rank == null)
+			{
+				continue;
+			}
+			ClanTitle title = settings.titleForRank(rank);
+			boolean online = channel != null && channel.findMember(member.getName()) != null;
+			members.add(new ClanRoster.Member(displayName(member.getName()), rank.getRank(),
+				title != null ? title.getName() : null, online));
+		}
+		return ClanRoster.group(members);
+	}
+
+	// the clan members section shows who is online, so redraw when that changes
+	@Subscribe
+	public void onClanChannelChanged(ClanChannelChanged event)
+	{
+		refreshPanel();
+	}
+
+	@Subscribe
+	public void onClanMemberJoined(ClanMemberJoined event)
+	{
+		refreshPanel();
+	}
+
+	@Subscribe
+	public void onClanMemberLeft(ClanMemberLeft event)
+	{
+		refreshPanel();
 	}
 }
