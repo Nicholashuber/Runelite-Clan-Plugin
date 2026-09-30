@@ -33,30 +33,6 @@ public interface CorClanConfig extends Config
 	)
 	String gzSection = "gz";
 
-	@ConfigSection(
-		name = "Clan sync",
-		description = "Optional: share gz counts with the CoR clan server and get clan-wide leaderboards and icons",
-		position = 3
-	)
-	String syncSection = "sync";
-
-	@ConfigItem(
-		keyName = "syncEnabled",
-		name = "Sync with clan server",
-		description = "Sends the clan broadcasts and gz messages you see in clan chat, your clan's rank names, your character name "
-			+ "and your RuneLite account hash to the CoR clan server, and loads the clan-wide gz leaderboard, chat icons and member icons from it. "
-			+ "Nothing else from chat is sent.",
-		warning = "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers. "
-			+ "It sends clan broadcasts and gz messages from clan chat, your clan's rank names, your character name and your "
-			+ "RuneLite account hash to the CoR clan server. Turn it on?",
-		position = 0,
-		section = syncSection
-	)
-	default boolean syncEnabled()
-	{
-		return false;
-	}
-
 	@ConfigItem(
 		keyName = "discordUrl",
 		name = "Discord invite",

@@ -11,8 +11,6 @@ public final class PanelData
 {
 	final String mine;
 	final String summary;
-	final String syncStatus;
-	final boolean clanWide;
 	final List<Map.Entry<String, Integer>> givers;
 	final List<Map.Entry<String, Integer>> receivers;
 	final List<BroadcastRecord> recent;
@@ -29,7 +27,7 @@ public final class PanelData
 	/** every rank the clan has set up, rank number to title (empty when not in a clan) */
 	final Map<Integer, String> clanRankTitles;
 
-	public PanelData(String mine, String summary, String syncStatus, boolean clanWide,
+	public PanelData(String mine, String summary,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
@@ -40,8 +38,6 @@ public final class PanelData
 		this.allGivers = allGivers;
 		this.mine = mine;
 		this.summary = summary;
-		this.syncStatus = syncStatus;
-		this.clanWide = clanWide;
 		this.givers = givers;
 		this.receivers = receivers;
 		this.recent = recent;

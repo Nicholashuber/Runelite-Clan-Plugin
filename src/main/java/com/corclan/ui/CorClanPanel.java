@@ -43,8 +43,8 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
 /**
- * The CoR sidebar: links, gz leaderboards (clan-wide when sync is on, otherwise this client's own
- * counts), recent clan broadcasts, the gz podiums and weekly #1 streaks.
+ * The CoR sidebar: links, gz leaderboards (this client's own counts), recent clan broadcasts, the gz
+ * podiums and weekly #1 streaks.
  */
 public class CorClanPanel extends PluginPanel
 {
@@ -525,9 +525,9 @@ public class CorClanPanel extends PluginPanel
 	/** Must be called on the Swing thread with a snapshot built on the client thread. */
 	public void refresh(PanelData data)
 	{
-		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.syncStatus) + "</html>");
+		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "</html>");
 
-		String scope = data.clanWide ? " (clan)" : " (this client)";
+		String scope = " (this client)";
 		giversTitle.setText("Top gz givers" + scope);
 		receiversTitle.setText("Most gz'd" + scope);
 		fillLeaderboard(giversPanel, data.givers.subList(0, Math.min(GIVERS_SIZE, data.givers.size())), "No gz's counted yet");
