@@ -14,8 +14,8 @@ The optional **Clan sync** setting (off by default) is the only feature that tal
 - **GZ tracker**: counts gz / grats / congrats messages in clan chat and attributes them to whoever the
   latest clan broadcast (drop, level, pet, ...) was about, for a short configurable window. Stats are
   stored in your RuneLite settings.
-- **Clan sync** (optional, off by default): clan-wide gz leaderboards, plus member icons and titles managed
-  by clan admins, shared through the CoR clan server.
+- **Clan sync** (optional, off by default): clan-wide gz leaderboards, plus chat icons, member icons and
+  titles managed by clan admins, shared through the CoR clan server.
 
 ## Clan sync and your data
 
@@ -26,14 +26,16 @@ When it is on, the plugin sends to the CoR clan server (`cor-clan-api-production
 
 - clan broadcasts you see in your clan's chat (for example "Zezima has received a drop: ..."),
 - clan chat messages that are a gz (gz / grats / congrats), with the name of who said them,
+- your clan's rank names with their rank numbers (for example 126 "Owner", 5 "Captain"), once per login, so
+  clan admins can pick a chat icon per rank. No player names are sent with them,
 - your character name, your clan's name and your RuneLite account hash, so reports from different
   clan members can be merged.
 
 Nothing else from chat is sent: no other messages, no private chat, no public chat. Events are sent in
 small batches about every 30 seconds.
 
-It downloads the clan-wide gz leaderboard and the member icons and titles set by clan admins, about every
-2 minutes. If the server is unreachable the plugin keeps working locally. Turning sync off stops all
+It downloads the clan-wide gz leaderboard, the member icons and titles set by clan admins, and the chat
+icon images from the clan's admin page (small PNGs, at most 32x16 pixels), about every 2 minutes. If the server is unreachable the plugin keeps working locally. Turning sync off stops all
 network traffic immediately.
 
 The server stores player names, when gz's and broadcasts happened, and short hashes used to match

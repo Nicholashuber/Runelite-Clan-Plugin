@@ -43,12 +43,12 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "syncEnabled",
 		name = "Sync with clan server",
-		description = "Sends the clan broadcasts and gz messages you see in clan chat, your character name and your "
-			+ "RuneLite account hash to the CoR clan server, and loads the clan-wide gz leaderboard and member icons from it. "
+		description = "Sends the clan broadcasts and gz messages you see in clan chat, your clan's rank names, your character name "
+			+ "and your RuneLite account hash to the CoR clan server, and loads the clan-wide gz leaderboard, chat icons and member icons from it. "
 			+ "Nothing else from chat is sent.",
 		warning = "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers. "
-			+ "It sends clan broadcasts and gz messages from clan chat, your character name and your RuneLite account hash "
-			+ "to the CoR clan server. Turn it on?",
+			+ "It sends clan broadcasts and gz messages from clan chat, your clan's rank names, your character name and your "
+			+ "RuneLite account hash to the CoR clan server. Turn it on?",
 		position = 0,
 		section = syncSection
 	)
