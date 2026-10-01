@@ -1,6 +1,7 @@
 package com.corclan;
 
 import com.corclan.clan.ClanRoster;
+import com.corclan.discord.DiscordDrops;
 import com.corclan.glow.GlowEffect;
 import com.corclan.glow.GlowPicks;
 import com.corclan.glow.HolyAura;
@@ -183,6 +184,9 @@ public class CorClanPlugin extends Plugin
 
 	@Inject
 	private GlowPicks glowPicks;
+
+	@Inject
+	private DiscordDrops discordDrops;
 
 	@Inject
 	private ItemManager itemManager;
@@ -384,6 +388,10 @@ public class CorClanPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
+		if (event.getType() == ChatMessageType.CLAN_MESSAGE)
+		{
+			postOwnBroadcast(event.getMessage());
+		}
 		if (!config.gzTrackingEnabled())
 		{
 			return;
@@ -425,6 +433,18 @@ public class CorClanPlugin extends Plugin
 				tagGzCount(event.getMessageNode(), sender);
 				announce(sender, tracker.getLastGzSubject());
 			}
+		}
+	}
+
+	/** A clan broadcast about you goes to the clan's Discord webhook, if one is set. */
+	private void postOwnBroadcast(String message)
+	{
+		String text = BroadcastParser.clean(Text.removeTags(message));
+		String subject = BroadcastParser.subjectOf(text);
+		String me = localPlayerName();
+		if (subject != null && me != null && MemberCosmetics.key(subject).equals(MemberCosmetics.key(me)))
+		{
+			discordDrops.onOwnBroadcast(me, text);
 		}
 	}
 

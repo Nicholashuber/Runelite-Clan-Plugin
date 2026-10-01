@@ -584,4 +584,50 @@ public interface CorClanConfig extends Config
 	{
 		return 40;
 	}
+
+	@ConfigSection(
+		name = "Discord drops",
+		description = "Post your own clan broadcasts (drops, pets, levels) with a screenshot to the clan's Discord channel",
+		position = 8
+	)
+	String discordSection = "discord";
+
+	@ConfigItem(
+		keyName = "discordWebhookUrl",
+		name = "Webhook URL",
+		description = "The clan's Discord webhook (staff pin it in Discord). Empty means nothing is ever posted. "
+			+ "Only discord.com webhook links are used.",
+		secret = true,
+		position = 0,
+		section = discordSection
+	)
+	default String discordWebhookUrl()
+	{
+		return "";
+	}
+
+	@ConfigItem(
+		keyName = "discordDrops",
+		name = "Post my broadcasts",
+		description = "When a clan broadcast is about you (a drop, pet, level, collection log), post it to the webhook. "
+			+ "Only your own broadcasts, so each one is posted once",
+		position = 1,
+		section = discordSection
+	)
+	default boolean discordDrops()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "discordScreenshot",
+		name = "Include screenshot",
+		description = "Attach a screenshot of your game client to the post",
+		position = 2,
+		section = discordSection
+	)
+	default boolean discordScreenshot()
+	{
+		return true;
+	}
 }

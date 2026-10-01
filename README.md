@@ -57,6 +57,17 @@ When a member with Administrator rank or higher edits them, the new lists go to 
 newest edit wins. Everyone else's boxes show the clan's current lists and are overwritten by staff updates.
 Your own **Member icons** always win on your client.
 
+## Discord drops
+
+Optional, and nothing is sent until you paste the clan's webhook URL into **Discord drops → Webhook URL**
+(staff pin it in Discord). When a clan broadcast is about **you** (a drop, pet, level or collection log),
+your plugin posts it to that Discord channel as "CoR Clan", with a screenshot of your game unless you turn
+**Include screenshot** off. Only the player a broadcast is about posts it, so each one shows up once.
+
+- Only discord.com webhook links are used; anything else is ignored.
+- Posts never ping anyone (@everyone and mentions are switched off), and at most one goes out every 5 seconds.
+- The webhook URL lets anyone who has it post to that channel, so keep it inside the clan.
+
 ## Commands
 
 Type `::cor` (or `::test`) in the chatbox to print a local CoR banner with the GZ King, the most gz'd
@@ -85,6 +96,7 @@ the game server; only you see the output.
 | CoR party | Party passphrase | Empty uses the default. Everyone in CoR must use the same one |
 | CoR party | Share my location | Off by default. Show your world and tile to party members on the world map, and see theirs |
 | CoR party | Share in Wilderness | Keep sharing inside the Wilderness. Off means you vanish from the clan map there |
+| Discord drops | Webhook URL, Post my broadcasts, Include screenshot | Post your own clan broadcasts with a screenshot to the clan's Discord. See [Discord drops](#discord-drops) |
 | Staff | Clan member icons, Clan rank icons | Icon lists edited by staff and shared through the party. See [Staff icon lists](#staff-icon-lists) |
 
 ## Development
