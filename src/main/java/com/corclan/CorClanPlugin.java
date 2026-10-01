@@ -137,8 +137,8 @@ public class CorClanPlugin extends Plugin
 	/** Defaults that apply without any config. The "Member icons" config box overrides these. */
 	private static final Map<String, List<String>> BUILTIN_MEMBER_ICONS = Collections.singletonMap(
 		"lavasockz", Collections.unmodifiableList(Arrays.asList(ClanIconService.KEY_FOUNDER, ClanIconService.KEY_DEV)));
-	private static final Map<String, String> BUILTIN_MEMBER_TITLES = Collections.singletonMap(
-		"lavasockz", "Developer");
+	/** No built-in titles: Lavasockz's icons already say founder and dev. */
+	private static final Map<String, String> BUILTIN_MEMBER_TITLES = Collections.emptyMap();
 
 	/** Chat color for titles: the same blue as the crown icon. The closing tag restores the name color. */
 	private static final String TITLE_COLOR = "1046fb";
