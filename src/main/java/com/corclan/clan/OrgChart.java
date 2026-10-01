@@ -15,7 +15,7 @@ import java.util.TreeMap;
  * Lays the clan's rank groups out as the CoR org chart. Two chains of boxes, top to bottom:
  * <ul>
  * <li>staff: three tiers of leadership ranks, matched by title</li>
- * <li>competitive: the letter tiers (S = Soul ... F = Gnome child) above the Gem league entry
+ * <li>competitive: the letter tiers (S = Soul ... F = Gnome child) above the Gem League entry
  * ranks (Zenyte ... Opal) players start in; players graduate from the gems into the letters</li>
  * </ul>
  * Ranks are matched by their in-game title, since clans rename ranks freely. Every listed rank is
@@ -55,16 +55,16 @@ public final class OrgChart
 
 	/** The CoR staff hierarchy, top tier first. Edit here to change the chart. */
 	static final List<TierDef> STAFF_TIERS = Arrays.asList(
-		new TierDef("Tier 1", "Owner", "Deputy Owner"),
-		new TierDef("Tier 2", "Marshal", "General", "Brigadier", "Colonel", "Administrator"),
-		new TierDef("Tier 3", "Major", "Goon", "Executive", "Short green guy", "Hero"));
+		new TierDef("Owners", "Owner", "Deputy Owner"),
+		new TierDef("Staff", "Marshal", "General", "Brigadier", "Colonel", "Administrator"),
+		new TierDef("Hall of Fame", "Major", "Goon", "Executive", "Short green guy", "Hero"));
 
 	/** Entry league, highest first: players start at Opal and work up to Zenyte. */
-	static final TierDef GEM_LEAGUE = new TierDef("Gem league",
+	static final TierDef GEM_LEAGUE = new TierDef("Gem League",
 		"Zenyte", "Onyx", "Dragonstone", "Diamond", "Ruby", "Emerald", "Sapphire", "Opal");
 
 	/** Competitive bracket, S tier first (placeholder titles; edit here). Earned by gz count. */
-	static final TierDef LETTER_TIERS = TierDef.graded("Competitive tiers", "SABCDEF",
+	static final TierDef LETTER_TIERS = TierDef.graded("Challenger League", "SABCDEF",
 		"Soul", "Achiever", "Beast", "Competitor", "Dragon", "Elite", "Gnome child");
 
 	/** One rank slot in a tier: the title as charted, and whoever holds it (empty = vacant). */
@@ -104,7 +104,7 @@ public final class OrgChart
 	{
 		/** leadership tiers, top first */
 		public final List<Tier> staff;
-		/** letter tiers (when Soul and Gnome child are set up) above the Gem league */
+		/** letter tiers (when Soul and Gnome child are set up) above the Gem League */
 		public final List<Tier> competitive;
 		/** rank groups that aren't in any tier, highest rank first */
 		public final List<ClanRoster.RankGroup> others;

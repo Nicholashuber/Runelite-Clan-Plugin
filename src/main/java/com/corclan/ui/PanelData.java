@@ -32,13 +32,16 @@ public final class PanelData
 	final List<ClanRoster.RankGroup> clanRoster;
 	/** every rank the clan has set up, rank number to title (empty when not in a clan) */
 	final Map<Integer, String> clanRankTitles;
+	/** you are the clan Owner: show the Owner glow section */
+	final boolean owner;
 
 	public PanelData(String mine, String summary, String partyStatus, String mapStatus, String scope,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
-		Map<Integer, String> clanRankTitles)
+		Map<Integer, String> clanRankTitles, boolean owner)
 	{
+		this.owner = owner;
 		this.clanRoster = clanRoster;
 		this.clanRankTitles = clanRankTitles;
 		this.allGivers = allGivers;

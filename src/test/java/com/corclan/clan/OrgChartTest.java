@@ -78,7 +78,7 @@ public class OrgChartTest
 	public void letterTiersAreTheCompetitiveBracketSToF()
 	{
 		OrgChart.Tier letters = chart(corRanks()).competitive.get(0);
-		assertEquals("Competitive tiers", letters.name);
+		assertEquals("Challenger League", letters.name);
 		assertEquals(Arrays.asList("Soul", "Achiever", "Beast", "Competitor", "Dragon", "Elite", "Gnome child"), titles(letters));
 		assertEquals(Arrays.asList("S", "A", "B", "C", "D", "E", "F"),
 			letters.slots.stream().map(s -> s.grade).collect(Collectors.toList()));
@@ -90,7 +90,7 @@ public class OrgChartTest
 		Chart c = chart(corRanks());
 		assertEquals(2, c.competitive.size());
 		OrgChart.Tier gems = c.competitive.get(1);
-		assertEquals("Gem league", gems.name);
+		assertEquals("Gem League", gems.name);
 		assertEquals(Arrays.asList("Zenyte", "Onyx", "Dragonstone", "Diamond", "Ruby", "Emerald", "Sapphire", "Opal"), titles(gems));
 	}
 
@@ -120,7 +120,7 @@ public class OrgChartTest
 		OrgChart.Tier letters = c.competitive.get(0);
 		assertEquals(7, letters.slots.size());
 		assertTrue(letters.slots.stream().allMatch(s -> s.members.isEmpty()));
-		assertEquals("Gem league", c.competitive.get(1).name);
+		assertEquals("Gem League", c.competitive.get(1).name);
 	}
 
 	@Test

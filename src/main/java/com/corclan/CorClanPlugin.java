@@ -1,6 +1,8 @@
 package com.corclan;
 
 import com.corclan.clan.ClanRoster;
+import com.corclan.glow.GlowEffect;
+import com.corclan.glow.GlowPicks;
 import com.corclan.glow.HolyAura;
 import com.corclan.glow.RankGlowOverlay;
 import com.corclan.gz.BroadcastParser;
@@ -17,6 +19,7 @@ import com.corclan.map.LocationRules;
 import com.corclan.map.MapState;
 import com.corclan.party.CorGzCounts;
 import com.corclan.party.CorLocation;
+import com.corclan.party.CorGlowPicks;
 import com.corclan.party.CorStaffSettings;
 import com.corclan.party.PartyGzBook;
 import com.corclan.ui.CorClanOverlay;
@@ -179,6 +182,9 @@ public class CorClanPlugin extends Plugin
 	private HolyAura holyAura;
 
 	@Inject
+	private GlowPicks glowPicks;
+
+	@Inject
 	private ItemManager itemManager;
 
 	@Inject
@@ -215,6 +221,10 @@ public class CorClanPlugin extends Plugin
 	private boolean sendGzSoon;
 	/** send the staff lists on the next tick (only staff actually send) */
 	private boolean sendStaffSoon;
+	/** send our glow picks on the next tick (we or someone else joined, or we changed them) */
+	private boolean sendGlowSoon;
+	/** the side panel currently shows the Owner glow section */
+	private boolean panelShowsOwner;
 	private int locationTick;
 	/** what the clan map is doing; announced in chat when it changes */
 	private MapState mapState = MapState.OFF;
@@ -256,8 +266,10 @@ public class CorClanPlugin extends Plugin
 		wsClient.registerMessage(CorLocation.class);
 		wsClient.registerMessage(CorGzCounts.class);
 		wsClient.registerMessage(CorStaffSettings.class);
+		wsClient.registerMessage(CorGlowPicks.class);
 
-		panel = new CorClanPanel(config, itemManager, this::resetStats);
+		panel = new CorClanPanel(config, itemManager, this::resetStats,
+			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on));
 		navButton = NavigationButton.builder()
 			.tooltip("CoR Clan")
 			.icon(ImageUtil.loadImageResource(CorClanPlugin.class, "panel_icon.png"))
@@ -287,6 +299,8 @@ public class CorClanPlugin extends Plugin
 		wsClient.unregisterMessage(CorLocation.class);
 		wsClient.unregisterMessage(CorGzCounts.class);
 		wsClient.unregisterMessage(CorStaffSettings.class);
+		wsClient.unregisterMessage(CorGlowPicks.class);
+		clientThread.invoke(glowPicks::clearPartyPicks);
 		clearPartyLocations();
 		overlayManager.remove(overlay);
 		overlayManager.remove(rankGlowOverlay);
@@ -351,6 +365,10 @@ public class CorClanPlugin extends Plugin
 			{
 				clientThread.invokeLater(this::onStaffEdit);
 			}
+		}
+		if (GlowEffect.isConfigKey(event.getKey()))
+		{
+			clientThread.invokeLater(() -> sendGlowSoon = true);
 		}
 		if ("rankGlow".equals(event.getKey()) && !config.rankGlow())
 		{
@@ -483,6 +501,44 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
+	 * ::myglow lists the Owner's effects; ::myglow &lt;name&gt; [on|off] switches one (toggles without
+	 * on/off). Their settings are hidden so the rest of the clan never sees them; for anyone but the
+	 * clan Owner the command does nothing.
+	 */
+	private void myGlow(String[] args)
+	{
+		ClanRank rank = glowPicks.localRank();
+		if (!ClanRank.OWNER.equals(rank))
+		{
+			return;
+		}
+		if (args.length == 0)
+		{
+			StringBuilder list = new StringBuilder("CoR: your glow -");
+			for (GlowEffect glow : GlowEffect.values())
+			{
+				if (glow.unlockedBy(rank))
+				{
+					list.append(' ').append(glow.shortName).append(GlowPicks.picked(config, glow) ? " on," : " off,");
+				}
+			}
+			list.setLength(list.length() - 1);
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", list + ". ::myglow <name> [on|off]", null);
+			return;
+		}
+		GlowEffect glow = GlowEffect.byShortName(args[0]);
+		String state = args.length > 1 ? args[1].toLowerCase() : "";
+		if (glow == null || !glow.unlockedBy(rank) || !(state.isEmpty() || state.equals("on") || state.equals("off")))
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Usage: ::myglow <name> [on|off]. ::myglow lists the names", null);
+			return;
+		}
+		boolean on = state.isEmpty() ? !GlowPicks.picked(config, glow) : state.equals("on");
+		configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on);
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + glow.shortName + (on ? " on" : " off"), null);
+	}
+
+	/**
 	 * Double-colon commands are handled inside the client and never sent to the game server. This one
 	 * prints a local CoR banner with the gz leaderboard. Only the player who typed it sees it.
 	 * Colours come from RuneLite's chat colour types so they adapt to the opaque / transparent chatbox.
@@ -495,6 +551,11 @@ public class CorClanPlugin extends Plugin
 		if (effect != null)
 		{
 			previewGlowFx(effect, event.getArguments());
+			return;
+		}
+		if (cmd.equals("myglow"))
+		{
+			myGlow(event.getArguments());
 			return;
 		}
 		if (!cmd.equals("cor") && !cmd.equals("test"))
@@ -935,9 +996,10 @@ public class CorClanPlugin extends Plugin
 		List<Map.Entry<String, Integer>> allGivers = GzStats.top(viewGiven, Integer.MAX_VALUE);
 
 		String scope = viewShared ? " (CoR party)" : " (this client)";
+		panelShowsOwner = ClanRank.OWNER.equals(glowPicks.localRank());
 		return new PanelData(mine, summary, partyStatus(), mapState.status(partyLocations.size()), scope, givers, receivers, recent,
 			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers,
-			clanRoster(), clanRankTitles());
+			clanRoster(), clanRankTitles(), panelShowsOwner);
 	}
 
 	/**
@@ -1127,9 +1189,11 @@ public class CorClanPlugin extends Plugin
 		clientThread.invokeLater(() ->
 		{
 			clearPartyLocations();
-			// we just joined: the party gets our counts, and staff their lists
+			glowPicks.clearPartyPicks();
+			// we just joined: the party gets our counts and glow, and staff their lists
 			sendGzSoon = true;
 			sendStaffSoon = true;
+			sendGlowSoon = true;
 			refreshPanel();
 		});
 	}
@@ -1149,6 +1213,7 @@ public class CorClanPlugin extends Plugin
 					sendGzSoon = true;
 				}
 				sendStaffSoon = true;
+				sendGlowSoon = true;
 			}
 			refreshPanel();
 		});
@@ -1164,6 +1229,7 @@ public class CorClanPlugin extends Plugin
 				redrawMap();
 			}
 			partyNames.remove(event.getMemberId());
+			glowPicks.removePartyMember(event.getMemberId());
 			partySeen.remove(event.getMemberId());
 			refreshPanel();
 		});
@@ -1195,6 +1261,11 @@ public class CorClanPlugin extends Plugin
 			{
 				sendStaffSettings();
 				sendStaffSoon = false;
+			}
+			if (sendGlowSoon)
+			{
+				partyService.send(new CorGlowPicks(glowPicks.localPicks()));
+				sendGlowSoon = false;
 			}
 		});
 	}
@@ -1245,6 +1316,21 @@ public class CorClanPlugin extends Plugin
 				partySeen.put(id, System.currentTimeMillis());
 			}
 			redrawMap();
+		});
+	}
+
+	/** A party member's glow picks; drawn only as far as their clan rank (as we see it) allows. */
+	@Subscribe
+	public void onCorGlowPicks(CorGlowPicks msg)
+	{
+		clientThread.invokeLater(() ->
+		{
+			PartyMember from = sender(msg.getMemberId());
+			if (from == null || clanRankOf(from.getDisplayName()) == null)
+			{
+				return;
+			}
+			glowPicks.setPartyPicks(msg.getMemberId(), from.getDisplayName(), msg.getGlows());
 		});
 	}
 
@@ -1338,6 +1424,11 @@ public class CorClanPlugin extends Plugin
 	{
 		holyAura.onGameTick();
 		tickLocation();
+		// the Owner glow section appears once your clan rank has loaded (and goes if it changes)
+		if (panelShowsOwner != ClanRank.OWNER.equals(glowPicks.localRank()))
+		{
+			refreshPanel();
+		}
 	}
 
 	/** Client thread, every game tick: shares our position with the CoR party while "Share my location" is on. */

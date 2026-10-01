@@ -3,6 +3,8 @@ package com.corclan.ui;
 import com.corclan.CorClanConfig;
 import com.corclan.clan.ClanRoster;
 import com.corclan.clan.OrgChart;
+import com.corclan.glow.GlowEffect;
+import com.corclan.glow.GlowPicks;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.Streaks;
 import java.awt.BorderLayout;
@@ -16,17 +18,20 @@ import java.awt.image.BufferedImage;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.TimeZone;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -89,6 +94,11 @@ public class CorClanPanel extends PluginPanel
 	private List<ClanRoster.RankGroup> clanRoster;
 	private Map<Integer, String> clanRankTitles = Collections.emptyMap();
 	private Map<String, Integer> clanGzCounts = Collections.emptyMap();
+	// the Owner's own glow effects; the whole section is shown only while you are the clan Owner
+	private final JLabel ownerGlowHeader = new JLabel();
+	private final JPanel ownerGlowPanel = new JPanel();
+	private final Map<GlowEffect, JCheckBox> ownerGlowBoxes = new EnumMap<>(GlowEffect.class);
+	private JPanel ownerGlowSection;
 
 	private final JLabel summaryLabel = new JLabel();
 	private final JLabel giversTitle = new JLabel("Top gz givers");
@@ -97,7 +107,8 @@ public class CorClanPanel extends PluginPanel
 	private final JPanel receiversPanel = new JPanel();
 	private final JPanel broadcastsPanel = new JPanel();
 
-	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset)
+	/** @param onGlowToggle called on the Swing thread when the Owner switches one of their glow effects */
+	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset, BiConsumer<GlowEffect, Boolean> onGlowToggle)
 	{
 		super();
 		this.config = config;
@@ -155,6 +166,8 @@ public class CorClanPanel extends PluginPanel
 		buildAllGiversSearch();
 		content.add(Box.createVerticalStrut(8));
 		content.add(collapsible(clanHeader, clanPanel, this::updateClanHeader));
+		ownerGlowSection = buildOwnerGlow(onGlowToggle);
+		content.add(ownerGlowSection);
 
 		add(content, BorderLayout.NORTH);
 	}
@@ -253,6 +266,36 @@ public class CorClanPanel extends PluginPanel
 			}
 		});
 		return wrapper;
+	}
+
+	/**
+	 * The Owner's glow effects, one checkbox each. Hidden (with its spacing) until {@link #refresh}
+	 * says you are the clan Owner, so nobody else ever sees it.
+	 */
+	private JPanel buildOwnerGlow(BiConsumer<GlowEffect, Boolean> onGlowToggle)
+	{
+		for (GlowEffect glow : GlowEffect.values())
+		{
+			JCheckBox box = new JCheckBox(glow.label);
+			box.setFont(FontManager.getRunescapeSmallFont());
+			box.setForeground(Color.WHITE);
+			box.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+			box.setFocusable(false);
+			box.addActionListener(e -> onGlowToggle.accept(glow, box.isSelected()));
+			ownerGlowBoxes.put(glow, box);
+			ownerGlowPanel.add(box);
+		}
+		Runnable updateHeader = () -> ownerGlowHeader.setText(marker(ownerGlowPanel) + "Owner glow (only you see this)");
+		JPanel body = collapsible(ownerGlowHeader, ownerGlowPanel, updateHeader);
+		updateHeader.run();
+		ownerGlowPanel.add(muted("What other CoR plugin users see on you"), 0);
+
+		JPanel section = new JPanel(new BorderLayout());
+		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		section.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
+		section.add(body, BorderLayout.CENTER);
+		section.setVisible(false);
+		return section;
 	}
 
 	/** plain ASCII: the RuneScape font has no arrow glyphs */
@@ -551,6 +594,8 @@ public class CorClanPanel extends PluginPanel
 		fillAllGivers();
 		fillClanRoster(data.clanRoster, data.clanRankTitles, toMap(data.allGivers));
 		updateClanHeader();
+		ownerGlowSection.setVisible(data.owner);
+		ownerGlowBoxes.forEach((glow, box) -> box.setSelected(GlowPicks.picked(config, glow)));
 
 		revalidate();
 		repaint();

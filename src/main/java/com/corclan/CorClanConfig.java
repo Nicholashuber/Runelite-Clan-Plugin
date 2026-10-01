@@ -35,7 +35,7 @@ public interface CorClanConfig extends Config
 
 	@ConfigSection(
 		name = "CoR party",
-		description = "Optional: join the clan's RuneLite party to share gz counts, staff icon settings and (if you choose) your map position",
+		description = "Optional: join the clan's RuneLite party to share gz counts, staff icon settings, your rank glow and (if you choose) your map position",
 		position = 3
 	)
 	String partySection = "party";
@@ -60,8 +60,8 @@ public interface CorClanConfig extends Config
 
 	@ConfigItem(
 		keyName = "rankGlow",
-		name = "Glow clan ranks",
-		description = "Outline clan members by rank (for now: a golden glow and a lightning storm on the clan Owner). Only visible on your client",
+		name = "Show clan rank glows",
+		description = "Show the glows clan members picked for themselves. Turn off to see none",
 		position = 0,
 		section = glowSection
 	)
@@ -71,11 +71,272 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "glowGoldOutline",
+		name = "Gold outline (Owner)",
+		description = "A breathing golden outline around you. Owner only: set in the CoR side panel (Owner glow) or with ::myglow",
+		position = 1,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean glowGoldOutline()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowStormCloud",
+		name = "Storm cloud (Owner)",
+		description = "A dark storm cloud hanging over your head. Owner only: set in the CoR side panel (Owner glow) or with ::myglow",
+		position = 2,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean glowStormCloud()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowLightningStrikes",
+		name = "Lightning strikes (Owner)",
+		description = "Frequent lightning strikes on you. Owner only: set in the CoR side panel (Owner glow) or with ::myglow",
+		position = 3,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean glowLightningStrikes()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowShocks",
+		name = "Shocks (Owner)",
+		description = "Electric shocks crackling over your body. Owner only: set in the CoR side panel (Owner glow) or with ::myglow",
+		position = 4,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean glowShocks()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowBigStrike",
+		name = "Big strike (Owner)",
+		description = "A rare, big lightning strike on you. Owner only: set in the CoR side panel (Owner glow) or with ::myglow",
+		position = 5,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean glowBigStrike()
+	{
+		return true;
+	}
+
+	@ConfigSection(
+		name = "Challenger rank glows",
+		description = "The glow other CoR plugin users see on you for your Challenger League tier, Soul (S) to Gnome child (F). Shared through the CoR party. Each needs its tier or higher. Placeholders for now: none are drawn yet",
+		position = 6,
+		closedByDefault = true
+	)
+	String challengerGlowSection = "challengerGlow";
+
+	@ConfigItem(
+		keyName = "glowSoul",
+		name = "Soul glow",
+		description = "Placeholder, not drawn yet. Needs the Soul rank or higher",
+		position = 0,
+		section = challengerGlowSection
+	)
+	default boolean glowSoul()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowAchiever",
+		name = "Achiever glow",
+		description = "Placeholder, not drawn yet. Needs the Achiever rank or higher",
+		position = 1,
+		section = challengerGlowSection
+	)
+	default boolean glowAchiever()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowBeast",
+		name = "Beast glow",
+		description = "Placeholder, not drawn yet. Needs the Beast rank or higher",
+		position = 2,
+		section = challengerGlowSection
+	)
+	default boolean glowBeast()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowCompetitor",
+		name = "Competitor glow",
+		description = "Placeholder, not drawn yet. Needs the Competitor rank or higher",
+		position = 3,
+		section = challengerGlowSection
+	)
+	default boolean glowCompetitor()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowDragon",
+		name = "Dragon glow",
+		description = "Placeholder, not drawn yet. Needs the Dragon rank or higher",
+		position = 4,
+		section = challengerGlowSection
+	)
+	default boolean glowDragon()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowElite",
+		name = "Elite glow",
+		description = "Placeholder, not drawn yet. Needs the Elite rank or higher",
+		position = 5,
+		section = challengerGlowSection
+	)
+	default boolean glowElite()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowGnomeChild",
+		name = "Gnome child glow",
+		description = "Placeholder, not drawn yet. Needs the Gnome child rank or higher",
+		position = 6,
+		section = challengerGlowSection
+	)
+	default boolean glowGnomeChild()
+	{
+		return true;
+	}
+
+	@ConfigSection(
+		name = "Gem tier glows",
+		description = "The glow other CoR plugin users see on you for your Gem League rank, Opal to Zenyte. Shared through the CoR party. Each needs its gem or higher. Placeholders for now: none are drawn yet",
+		position = 7,
+		closedByDefault = true
+	)
+	String gemGlowSection = "gemGlow";
+
+	@ConfigItem(
+		keyName = "glowZenyte",
+		name = "Zenyte glow",
+		description = "Placeholder, not drawn yet. Needs the Zenyte rank or higher",
+		position = 0,
+		section = gemGlowSection
+	)
+	default boolean glowZenyte()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowOnyx",
+		name = "Onyx glow",
+		description = "Placeholder, not drawn yet. Needs the Onyx rank or higher",
+		position = 1,
+		section = gemGlowSection
+	)
+	default boolean glowOnyx()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowDragonstone",
+		name = "Dragonstone glow",
+		description = "Placeholder, not drawn yet. Needs the Dragonstone rank or higher",
+		position = 2,
+		section = gemGlowSection
+	)
+	default boolean glowDragonstone()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowDiamond",
+		name = "Diamond glow",
+		description = "Placeholder, not drawn yet. Needs the Diamond rank or higher",
+		position = 3,
+		section = gemGlowSection
+	)
+	default boolean glowDiamond()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowRuby",
+		name = "Ruby glow",
+		description = "Placeholder, not drawn yet. Needs the Ruby rank or higher",
+		position = 4,
+		section = gemGlowSection
+	)
+	default boolean glowRuby()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowEmerald",
+		name = "Emerald glow",
+		description = "Placeholder, not drawn yet. Needs the Emerald rank or higher",
+		position = 5,
+		section = gemGlowSection
+	)
+	default boolean glowEmerald()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowSapphire",
+		name = "Sapphire glow",
+		description = "Placeholder, not drawn yet. Needs the Sapphire rank or higher",
+		position = 6,
+		section = gemGlowSection
+	)
+	default boolean glowSapphire()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowOpal",
+		name = "Opal glow",
+		description = "Placeholder, not drawn yet. Needs the Opal rank or higher",
+		position = 7,
+		section = gemGlowSection
+	)
+	default boolean glowOpal()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "partyEnabled",
 		name = "Join the CoR party",
 		description = "Puts you in the clan's RuneLite party (RuneLite's own party service, the same one the Party plugin uses). "
 			+ "Party members share gz counts, so leaderboards and weekly trophies match for everyone online, and get the "
-			+ "icon settings from clan staff. You can only be in one party, so this leaves any other party you are in.",
+			+ "icon settings from clan staff. Members also see the rank glow you picked. You can only be in one party, so this leaves any other party you are in.",
 		warning = "This joins the CoR clan's RuneLite party and leaves any party you are in now (raids, bossing). "
 			+ "Everyone in the party can see your character name. Continue?",
 		position = 0,
