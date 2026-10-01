@@ -4,7 +4,9 @@ import com.corclan.clan.ClanRoster;
 import com.corclan.glow.GlowEffect;
 import com.corclan.glow.GlowPicks;
 import com.corclan.glow.HolyAura;
+import com.corclan.glow.LavaAura;
 import com.corclan.glow.RankGlowOverlay;
+import com.corclan.glow.SignatureGlowOverlay;
 import com.corclan.gz.BroadcastParser;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.GzStats;
@@ -185,6 +187,12 @@ public class CorClanPlugin extends Plugin
 	private GlowPicks glowPicks;
 
 	@Inject
+	private LavaAura lavaAura;
+
+	@Inject
+	private SignatureGlowOverlay signatureGlowOverlay;
+
+	@Inject
 	private ItemManager itemManager;
 
 	@Inject
@@ -279,6 +287,7 @@ public class CorClanPlugin extends Plugin
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(overlay);
 		overlayManager.add(rankGlowOverlay);
+		overlayManager.add(signatureGlowOverlay);
 		// if they are already in another party (a raid, say), joining is left to them
 		if (config.partyEnabled() && !partyService.isInParty())
 		{
@@ -304,7 +313,9 @@ public class CorClanPlugin extends Plugin
 		clearPartyLocations();
 		overlayManager.remove(overlay);
 		overlayManager.remove(rankGlowOverlay);
+		overlayManager.remove(signatureGlowOverlay);
 		clientThread.invoke(holyAura::clear);
+		clientThread.invoke(lavaAura::clear);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
@@ -372,6 +383,7 @@ public class CorClanPlugin extends Plugin
 		}
 		if ("rankGlow".equals(event.getKey()) && !config.rankGlow())
 		{
+			clientThread.invoke(lavaAura::clear);
 			clientThread.invoke(holyAura::clear);
 		}
 		rebuildCosmetics();
@@ -551,6 +563,12 @@ public class CorClanPlugin extends Plugin
 		if (effect != null)
 		{
 			previewGlowFx(effect, event.getArguments());
+			return;
+		}
+		if (cmd.equals("lavafx"))
+		{
+			// local preview of Lavasockz's aura on your own character
+			lavaAura.preview();
 			return;
 		}
 		if (cmd.equals("myglow"))
@@ -1423,6 +1441,7 @@ public class CorClanPlugin extends Plugin
 	public void onGameTick(GameTick event)
 	{
 		holyAura.onGameTick();
+		lavaAura.onGameTick();
 		tickLocation();
 		// the Owner glow section appears once your clan rank has loaded (and goes if it changes)
 		if (panelShowsOwner != ClanRank.OWNER.equals(glowPicks.localRank()))
