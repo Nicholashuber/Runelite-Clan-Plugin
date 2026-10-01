@@ -187,6 +187,61 @@ public class GzTracker
 		session = new GzStats();
 	}
 
+	/**
+	 * When each player's gz's in the last hour were counted, so the hourly cap survives a client restart
+	 * (otherwise restarting RuneLite would hand everyone a fresh 100). Saved with the stats.
+	 */
+	public Map<String, List<Long>> getRecentGz(long now)
+	{
+		Map<String, List<Long>> out = new HashMap<>();
+		recentGz.forEach((name, times) ->
+		{
+			List<Long> recent = new ArrayList<>();
+			for (Long t : times)
+			{
+				if (now - t < HOUR_MILLIS)
+				{
+					recent.add(t);
+				}
+			}
+			if (!recent.isEmpty())
+			{
+				out.put(name, recent);
+			}
+		});
+		return out;
+	}
+
+	/** Restores {@link #getRecentGz}; anything older than an hour, or beyond the cap, is dropped. */
+	public void loadRecentGz(Map<String, List<Long>> saved, long now)
+	{
+		recentGz.clear();
+		if (saved == null)
+		{
+			return;
+		}
+		saved.forEach((name, times) ->
+		{
+			if (name == null || times == null)
+			{
+				return;
+			}
+			ArrayDeque<Long> kept = new ArrayDeque<>();
+			times.stream()
+				.filter(t -> t != null && now - t < HOUR_MILLIS && t <= now)
+				.sorted()
+				.forEach(kept::addLast);
+			while (kept.size() > MAX_GZ_PER_HOUR)
+			{
+				kept.pollFirst();
+			}
+			if (!kept.isEmpty())
+			{
+				recentGz.put(name.toLowerCase(Locale.ROOT), kept);
+			}
+		});
+	}
+
 	/** @return the broadcast currently accepting gz's, or null if none / expired */
 	public BroadcastRecord currentWindow(long now, long windowMillis)
 	{
@@ -211,9 +266,6 @@ public class GzTracker
 		return record;
 	}
 
-	/**
-	 * @return true if any counter changed (caller should persist + refresh UI)
-	 */
 	/**
 	 * Records a gz for {@code sender} if they've had fewer than {@link #MAX_GZ_PER_HOUR} counted in
 	 * the last hour. Names are compared case-insensitively so "Bob" and "bob" share one allowance.

@@ -100,11 +100,14 @@ public class CorClanPlugin extends Plugin
 	static final String WEEK_START_KEY = "gzWeekStart";
 	static final String WEEK_RESULTS_KEY = "gzWeekResults";
 	static final String PARTY_GZ_KEY = "partyGz";
+	/** recent gz times per player, so the hourly cap survives a restart */
+	static final String RECENT_GZ_KEY = "gzRecent";
+	private static final Type RECENT_GZ_TYPE = new TypeToken<Map<String, List<Long>>>(){}.getType();
 	static final String STAFF_UPDATED_KEY = "clanSettingsUpdatedAt";
 	private static final Type WEEK_RESULTS_TYPE = new TypeToken<List<WeekResult>>(){}.getType();
 	/** Saved stats, not settings: changing them must not trigger a config refresh. */
 	private static final List<String> STATS_KEYS = Arrays.asList(STATS_KEY, WEEKLY_KEY, WEEK_START_KEY, WEEK_RESULTS_KEY,
-		PARTY_GZ_KEY, STAFF_UPDATED_KEY);
+		PARTY_GZ_KEY, STAFF_UPDATED_KEY, RECENT_GZ_KEY);
 	private static final String CHAT_BUILD_CALLBACK = "chatMessageBuilding";
 	/** Position of the name string relative to the top of the object stack in that callback. */
 	private static final int NAME_STACK_OFFSET = 3;
@@ -240,6 +243,7 @@ public class CorClanPlugin extends Plugin
 		tracker.load(loadStats(STATS_KEY));
 		tracker.loadWeekly(loadStats(WEEKLY_KEY), loadWeekStart());
 		tracker.loadWeekResults(loadWeekResults());
+		tracker.loadRecentGz(loadRecentGz(), System.currentTimeMillis());
 		if (tracker.rollWeek(System.currentTimeMillis()))
 		{
 			persistStats();
@@ -830,6 +834,27 @@ public class CorClanPlugin extends Plugin
 		configManager.setConfiguration(CorClanConfig.GROUP, WEEK_START_KEY, String.valueOf(tracker.getWeekStart()));
 		configManager.setConfiguration(CorClanConfig.GROUP, WEEK_RESULTS_KEY, gson.toJson(tracker.getWeekResults(), WEEK_RESULTS_TYPE));
 		configManager.setConfiguration(CorClanConfig.GROUP, PARTY_GZ_KEY, gson.toJson(partyGz));
+		configManager.setConfiguration(CorClanConfig.GROUP, RECENT_GZ_KEY,
+			gson.toJson(tracker.getRecentGz(System.currentTimeMillis()), RECENT_GZ_TYPE));
+	}
+
+	private Map<String, List<Long>> loadRecentGz()
+	{
+		String json = configManager.getConfiguration(CorClanConfig.GROUP, RECENT_GZ_KEY);
+		if (json == null || json.isEmpty())
+		{
+			return Collections.emptyMap();
+		}
+		try
+		{
+			Map<String, List<Long>> saved = gson.fromJson(json, RECENT_GZ_TYPE);
+			return saved != null ? saved : Collections.emptyMap();
+		}
+		catch (JsonSyntaxException ex)
+		{
+			log.debug("Discarding unreadable recent gz times", ex);
+			return Collections.emptyMap();
+		}
 	}
 
 	private PartyGzBook loadPartyGz()
