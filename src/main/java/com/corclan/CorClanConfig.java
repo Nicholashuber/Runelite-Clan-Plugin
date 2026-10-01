@@ -49,7 +49,7 @@ public interface CorClanConfig extends Config
 	String staffSection = "staff";
 
 	/** Used when the passphrase setting is empty. */
-	String DEFAULT_PARTY_PASSPHRASE = "cor-clan-rhinos";
+	String DEFAULT_PARTY_PASSPHRASE = "cor";
 
 	@ConfigSection(
 		name = "Rank glow",
