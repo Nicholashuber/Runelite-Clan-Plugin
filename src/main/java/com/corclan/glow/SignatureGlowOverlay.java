@@ -20,13 +20,15 @@ public class SignatureGlowOverlay extends Overlay
 	private final Client client;
 	private final CorClanConfig config;
 	private final ModelOutlineRenderer outlines;
+	private final LavaAura lavaAura;
 
 	@Inject
-	SignatureGlowOverlay(Client client, CorClanConfig config, ModelOutlineRenderer outlines)
+	SignatureGlowOverlay(Client client, CorClanConfig config, ModelOutlineRenderer outlines, LavaAura lavaAura)
 	{
 		this.client = client;
 		this.config = config;
 		this.outlines = outlines;
+		this.lavaAura = lavaAura;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 		setPriority(PRIORITY_HIGH);
@@ -42,7 +44,7 @@ public class SignatureGlowOverlay extends Overlay
 		long now = System.currentTimeMillis();
 		for (Player player : client.getTopLevelWorldView().players())
 		{
-			if (LavaAura.wears(player))
+			if (lavaAura.effectsFor(player).contains(DevGlow.MOLTEN_OUTLINE))
 			{
 				for (GlowStyle.Layer layer : MoltenStyle.molten(now))
 				{

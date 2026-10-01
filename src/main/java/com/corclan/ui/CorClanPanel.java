@@ -3,6 +3,7 @@ package com.corclan.ui;
 import com.corclan.CorClanConfig;
 import com.corclan.clan.ClanRoster;
 import com.corclan.clan.OrgChart;
+import com.corclan.glow.DevGlow;
 import com.corclan.glow.GlowEffect;
 import com.corclan.glow.GlowPicks;
 import com.corclan.gz.BroadcastRecord;
@@ -99,6 +100,11 @@ public class CorClanPanel extends PluginPanel
 	private final JPanel ownerGlowPanel = new JPanel();
 	private final Map<GlowEffect, JCheckBox> ownerGlowBoxes = new EnumMap<>(GlowEffect.class);
 	private JPanel ownerGlowSection;
+	// Lavasockz's own Molten Lord aura; the section is shown only while you are Lavasockz
+	private final JLabel devGlowHeader = new JLabel();
+	private final JPanel devGlowPanel = new JPanel();
+	private final Map<DevGlow, JCheckBox> devGlowBoxes = new EnumMap<>(DevGlow.class);
+	private JPanel devGlowSection;
 
 	private final JLabel summaryLabel = new JLabel();
 	private final JLabel giversTitle = new JLabel("Top gz givers");
@@ -107,8 +113,12 @@ public class CorClanPanel extends PluginPanel
 	private final JPanel receiversPanel = new JPanel();
 	private final JPanel broadcastsPanel = new JPanel();
 
-	/** @param onGlowToggle called on the Swing thread when the Owner switches one of their glow effects */
-	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset, BiConsumer<GlowEffect, Boolean> onGlowToggle)
+	/**
+	 * @param onGlowToggle called on the Swing thread when the Owner switches one of their glow effects
+	 * @param onDevToggle called on the Swing thread when Lavasockz switches part of his aura
+	 */
+	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset, BiConsumer<GlowEffect, Boolean> onGlowToggle,
+		BiConsumer<DevGlow, Boolean> onDevToggle)
 	{
 		super();
 		this.config = config;
@@ -168,6 +178,8 @@ public class CorClanPanel extends PluginPanel
 		content.add(collapsible(clanHeader, clanPanel, this::updateClanHeader));
 		ownerGlowSection = buildOwnerGlow(onGlowToggle);
 		content.add(ownerGlowSection);
+		devGlowSection = buildDevGlow(onDevToggle);
+		content.add(devGlowSection);
 
 		add(content, BorderLayout.NORTH);
 	}
@@ -266,6 +278,33 @@ public class CorClanPanel extends PluginPanel
 			}
 		});
 		return wrapper;
+	}
+
+	/** Lavasockz's aura parts, one checkbox each. Hidden until {@link #refresh} says you are Lavasockz. */
+	private JPanel buildDevGlow(BiConsumer<DevGlow, Boolean> onDevToggle)
+	{
+		for (DevGlow glow : DevGlow.values())
+		{
+			JCheckBox box = new JCheckBox(glow.label);
+			box.setFont(FontManager.getRunescapeSmallFont());
+			box.setForeground(Color.WHITE);
+			box.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+			box.setFocusable(false);
+			box.addActionListener(e -> onDevToggle.accept(glow, box.isSelected()));
+			devGlowBoxes.put(glow, box);
+			devGlowPanel.add(box);
+		}
+		Runnable updateHeader = () -> devGlowHeader.setText(marker(devGlowPanel) + "Dev glow (only you see this)");
+		JPanel body = collapsible(devGlowHeader, devGlowPanel, updateHeader);
+		updateHeader.run();
+		devGlowPanel.add(muted("What other CoR plugin users see on you"), 0);
+
+		JPanel section = new JPanel(new BorderLayout());
+		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		section.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
+		section.add(body, BorderLayout.CENTER);
+		section.setVisible(false);
+		return section;
 	}
 
 	/**
@@ -596,6 +635,8 @@ public class CorClanPanel extends PluginPanel
 		updateClanHeader();
 		ownerGlowSection.setVisible(data.owner);
 		ownerGlowBoxes.forEach((glow, box) -> box.setSelected(GlowPicks.picked(config, glow)));
+		devGlowSection.setVisible(data.dev);
+		devGlowBoxes.forEach((glow, box) -> box.setSelected(DevGlow.picked(config, glow)));
 
 		revalidate();
 		repaint();

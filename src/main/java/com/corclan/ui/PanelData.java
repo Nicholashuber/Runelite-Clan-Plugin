@@ -34,14 +34,17 @@ public final class PanelData
 	final Map<Integer, String> clanRankTitles;
 	/** you are the clan Owner: show the Owner glow section */
 	final boolean owner;
+	/** you are Lavasockz: show the Dev glow section */
+	final boolean dev;
 
 	public PanelData(String mine, String summary, String partyStatus, String mapStatus, String scope,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
-		Map<Integer, String> clanRankTitles, boolean owner)
+		Map<Integer, String> clanRankTitles, boolean owner, boolean dev)
 	{
 		this.owner = owner;
+		this.dev = dev;
 		this.clanRoster = clanRoster;
 		this.clanRankTitles = clanRankTitles;
 		this.allGivers = allGivers;

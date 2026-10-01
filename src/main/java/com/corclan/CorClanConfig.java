@@ -135,6 +135,58 @@ public interface CorClanConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "devGlowOutline",
+		name = "Molten outline (Lavasockz)",
+		description = "A flickering molten outline around you. Lavasockz only: set in the CoR side panel (Dev glow) or with ::devglow",
+		position = 10,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean devGlowOutline()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "devGlowFire",
+		name = "Fire bursts (Lavasockz)",
+		description = "Fire bursting at your feet. Lavasockz only: set in the CoR side panel (Dev glow) or with ::devglow",
+		position = 11,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean devGlowFire()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "devGlowPillar",
+		name = "Flame pillar (Lavasockz)",
+		description = "A Flames of Zamorak pillar now and then. Lavasockz only: set in the CoR side panel (Dev glow) or with ::devglow",
+		position = 12,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean devGlowPillar()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "devGlowMeteor",
+		name = "Meteor strike (Lavasockz)",
+		description = "A rare meteor slamming down on you. Lavasockz only: set in the CoR side panel (Dev glow) or with ::devglow",
+		position = 13,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean devGlowMeteor()
+	{
+		return true;
+	}
+
 	@ConfigSection(
 		name = "Challenger rank glows",
 		description = "The glow other CoR plugin users see on you for your Challenger League tier, Soul (S) to Gnome child (F). Shared through the CoR party. Each needs its tier or higher. Placeholders for now: none are drawn yet",
