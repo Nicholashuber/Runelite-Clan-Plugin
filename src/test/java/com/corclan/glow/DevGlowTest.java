@@ -25,8 +25,8 @@ public class DevGlowTest
 	@Test
 	public void rankAndDevPicksShareOneMessageWithoutMixingUp()
 	{
-		List<String> picks = Arrays.asList("gold_outline", "dev_meteor", "storm_cloud", "dev_molten_outline");
-		assertEquals(EnumSet.of(DevGlow.METEOR, DevGlow.MOLTEN_OUTLINE), DevGlow.active(picks));
+		List<String> picks = Arrays.asList("gold_outline", "dev_zamorak_flames", "storm_cloud");
+		assertEquals(EnumSet.of(DevGlow.ZAMORAK_FLAMES), DevGlow.active(picks));
 		// Ray's rank glows ignore the dev ids
 		assertEquals(EnumSet.of(GlowEffect.GOLD_OUTLINE, GlowEffect.STORM_CLOUD), GlowEffect.active(ClanRank.OWNER, picks));
 	}
@@ -52,18 +52,5 @@ public class DevGlowTest
 		}
 		assertNull(DevGlow.byShortName("nope"));
 		assertTrue(!DevGlow.isConfigKey("glowGoldOutline"));
-	}
-
-	@Test
-	public void everyAuraBurstHasItsSwitch()
-	{
-		LavaAura aura = new LavaAura(null, null);
-		Set<DevGlow> switched = EnumSet.noneOf(DevGlow.class);
-		for (LavaAura.Burst burst : aura.bursts)
-		{
-			switched.add(burst.glow);
-		}
-		switched.add(DevGlow.MOLTEN_OUTLINE);
-		assertEquals(EnumSet.allOf(DevGlow.class), switched);
 	}
 }

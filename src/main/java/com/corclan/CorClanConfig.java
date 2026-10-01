@@ -149,40 +149,14 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "devGlowFire",
-		name = "Fire bursts (Lavasockz)",
-		description = "Fire bursting at your feet. Lavasockz only: set in the CoR side panel (Dev glow) or with ::devglow",
+		keyName = "devGlowFlames",
+		name = "Flames of Zamorak (Lavasockz)",
+		description = "Flames of Zamorak burning around you nonstop. Lavasockz only: set in the CoR side panel (Dev glow) or with ::devglow",
 		position = 11,
 		section = glowSection,
 		hidden = true
 	)
-	default boolean devGlowFire()
-	{
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "devGlowPillar",
-		name = "Flame pillar (Lavasockz)",
-		description = "A Flames of Zamorak pillar now and then. Lavasockz only: set in the CoR side panel (Dev glow) or with ::devglow",
-		position = 12,
-		section = glowSection,
-		hidden = true
-	)
-	default boolean devGlowPillar()
-	{
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "devGlowMeteor",
-		name = "Meteor strike (Lavasockz)",
-		description = "A rare meteor slamming down on you. Lavasockz only: set in the CoR side panel (Dev glow) or with ::devglow",
-		position = 13,
-		section = glowSection,
-		hidden = true
-	)
-	default boolean devGlowMeteor()
+	default boolean devGlowFlames()
 	{
 		return true;
 	}

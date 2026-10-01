@@ -6,23 +6,21 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * The parts of Lavasockz's Molten Lord aura ({@link LavaAura}), each switchable by Lavasockz only: hidden
- * settings, set from the "Dev glow" section of the CoR side panel (shown only to Lavasockz) or with ::devglow.
- * Picks travel through the CoR party inside the same message as the rank glow picks, so other plugin users see
- * what he chose. Separate from {@link GlowEffect}, which is unlocked by clan rank, not by name.
+ * The parts of Lavasockz's aura ({@link LavaAura}), each switchable by Lavasockz only: hidden settings, set
+ * from the "Dev glow" section of the CoR side panel (shown only to Lavasockz) or with ::devglow. Picks travel
+ * through the CoR party inside the same message as the rank glow picks, so other plugin users see what he
+ * chose. Separate from {@link GlowEffect}, which is unlocked by clan rank, not by name.
  */
 public enum DevGlow
 {
 	MOLTEN_OUTLINE("dev_molten_outline", "devGlowOutline", "lava", "Molten outline"),
-	FIRE_BURSTS("dev_fire_bursts", "devGlowFire", "fire", "Fire bursts"),
-	FLAME_PILLAR("dev_flame_pillar", "devGlowPillar", "pillar", "Flame pillar"),
-	METEOR("dev_meteor", "devGlowMeteor", "meteor", "Meteor strike");
+	ZAMORAK_FLAMES("dev_zamorak_flames", "devGlowFlames", "flames", "Flames of Zamorak");
 
 	/** sent to other party members; never change one once released */
 	public final String id;
 	/** the hidden checkbox's key in {@link CorClanConfig} */
 	public final String configKey;
-	/** its name in ::devglow, e.g. ::devglow meteor off */
+	/** its name in ::devglow, e.g. ::devglow flames off */
 	public final String shortName;
 	/** shown next to its checkbox in the side panel */
 	public final String label;
@@ -41,12 +39,8 @@ public enum DevGlow
 		{
 			case MOLTEN_OUTLINE:
 				return config.devGlowOutline();
-			case FIRE_BURSTS:
-				return config.devGlowFire();
-			case FLAME_PILLAR:
-				return config.devGlowPillar();
-			case METEOR:
-				return config.devGlowMeteor();
+			case ZAMORAK_FLAMES:
+				return config.devGlowFlames();
 			default:
 				return false;
 		}
@@ -80,7 +74,7 @@ public enum DevGlow
 	/**
 	 * What the wearer shows.
 	 * @param picks the ids they shared through the party (rank glow ids mixed in are ignored), or null if they
-	 *              shared none: then the whole aura shows
+	 *              shared none: then everything shows
 	 */
 	public static Set<DevGlow> active(Collection<String> picks)
 	{

@@ -1470,13 +1470,13 @@ public class CorClanPlugin extends Plugin
 	public void onClientTick(ClientTick event)
 	{
 		holyAura.onClientTick();
+		lavaAura.onClientTick();
 	}
 
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
 		holyAura.onGameTick();
-		lavaAura.onGameTick();
 		tickLocation();
 		// the Owner glow section appears once your clan rank has loaded (and goes if it changes)
 		if (panelShowsOwner != ClanRank.OWNER.equals(glowPicks.localRank()) || panelShowsDev != isDev())

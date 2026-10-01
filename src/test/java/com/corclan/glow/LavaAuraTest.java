@@ -5,8 +5,8 @@ import static org.junit.Assert.assertTrue;
 import java.awt.Color;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
+import net.runelite.api.gameval.SpotanimID;
 import org.junit.Test;
 
 public class LavaAuraTest
@@ -40,22 +40,10 @@ public class LavaAuraTest
 	}
 
 	@Test
-	public void burstsUseTheirOwnSlotsAndRandomGaps()
+	public void flamesUseTheirOwnSlotAwayFromRaysStorm()
 	{
-		LavaAura aura = new LavaAura(null, null);
-		Set<Integer> slots = new HashSet<>();
-		Random random = new Random(7);
-		for (LavaAura.Burst burst : aura.bursts)
-		{
-			assertTrue("slot clashes with Ray's storm", burst.slot < 3082 || burst.slot > 3084);
-			assertTrue(slots.add(burst.slot));
-			for (int i = 0; i < 200; i++)
-			{
-				int d = burst.delay(random);
-				assertTrue(d >= burst.minTicks && d <= burst.maxTicks);
-			}
-		}
-		assertTrue(aura.meteor.minTicks > aura.pillar.minTicks && aura.pillar.minTicks > aura.fire.minTicks);
+		assertTrue(LavaAura.SLOT < 3082 || LavaAura.SLOT > 3084);
+		assertEquals(SpotanimID.ZAMORAK_FLAME, LavaAura.FLAMES);
 	}
 
 	@Test

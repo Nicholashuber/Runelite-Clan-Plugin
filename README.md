@@ -16,10 +16,10 @@ Everything runs locally inside your own RuneLite client. The only exception is t
   stored in your RuneLite settings.
 - **Rank glow** (only on your client): the clan Owner gets a golden outline and a lightning storm overhead.
   `::glowzap`, `::glowshock` and `::glowstrike <id>` preview the storm effects on your own character.
-- **Lavasockz's "Molten Lord" aura** (only on your client, while Show clan rank glows is on): a flickering
-  molten outline, fire bursts, a Flames of Zamorak pillar and a rare meteor strike. `::lavafx` previews it on
-  your own character. Lavasockz switches each part in the CoR side panel (Dev glow, shown only to him) or with
-  `::devglow`; party members see his choice.
+- **Lavasockz's aura** (only on your client, while Show clan rank glows is on): a flickering molten outline
+  and the Flames of Zamorak burning around him nonstop, following him as he walks. `::lavafx` plays it once on your own character. Lavasockz can
+  switch it off in the CoR side panel (Dev glow, shown only to him) or with `::devglow`; party members see his
+  choice.
 - **CoR party** (optional, off by default): joins the clan's RuneLite party, so members share gz counts
   (matching leaderboards, GZ King and weekly trophies for everyone online), get icon settings from clan staff,
   and can choose to show each other on the world map.
