@@ -3,161 +3,142 @@ package com.corclan.party;
 import com.corclan.gz.GzStats;
 import com.corclan.gz.GzTracker;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 
 /**
- * Gz counts shared by CoR party members. Everyone in clan chat sees the same gz's, so the best estimate for a
- * player is the highest count anyone reported (adding them up would count each gz once per viewer).
- * Serialized with Gson so it survives restarts; the weekly part only holds counts for {@link #weekStart}.
+ * Gz totals that CoR party members shared about themselves. Each member only ever reports their own numbers
+ * (RuneLite does not allow crowdsourcing data about other players), and this client's own counts are used
+ * for everyone else. Per name, the higher of the two is shown. Serialized with Gson so it survives restarts.
  */
 public class PartyGzBook
 {
-	/** Most names per list in one message, to keep party messages small. */
-	public static final int MAX_NAMES = 100;
 	private static final long HOUR_MILLIS = 3_600_000L;
 
-	private long weekStart;
-	private Map<String, Integer> weekly = new HashMap<>();
-	private Map<String, Integer> given = new HashMap<>();
-	private Map<String, Integer> received = new HashMap<>();
+	/** One member's own totals. */
+	static final class Self
+	{
+		int given;
+		int received;
+		int weekly;
+		/** the week {@link #weekly} belongs to */
+		long weekStart;
+	}
 
-	/** Starts a fresh weekly count when the week changed. */
+	private long weekStart;
+	/** display name -> what that member reported about themselves */
+	private Map<String, Self> members = new HashMap<>();
+
+	/** Weekly counts from an older week stop counting. */
 	public void rollWeek(long currentWeekStart)
 	{
-		if (currentWeekStart != weekStart)
-		{
-			weekStart = currentWeekStart;
-			weekly = new HashMap<>();
-		}
+		weekStart = currentWeekStart;
 	}
 
 	/**
-	 * Merges another member's counts. Names that are not clan members and weekly counts from another week are
-	 * ignored, and no weekly count can be higher than the hourly gz cap allows for the time since the week began.
+	 * Stores what {@code name} reported about themselves. Weekly counts can't be higher than the hourly gz cap
+	 * allows for the time since the week began.
 	 *
-	 * @return true if any count went up
+	 * @return true if anything they report went up
 	 */
-	public boolean merge(CorGzCounts msg, long now, Predicate<String> isClanMember)
+	public boolean merge(String name, CorGzCounts msg, long now)
 	{
-		if (msg == null)
+		if (name == null || name.isEmpty() || msg == null)
 		{
 			return false;
 		}
+		Self self = members.computeIfAbsent(name, n -> new Self());
 		boolean changed = false;
+		if (msg.getGiven() > self.given)
+		{
+			self.given = msg.getGiven();
+			changed = true;
+		}
+		if (msg.getReceived() > self.received)
+		{
+			self.received = msg.getReceived();
+			changed = true;
+		}
 		if (msg.getWeekStart() == weekStart && now >= weekStart)
 		{
 			long hours = (now - weekStart) / HOUR_MILLIS + 1;
-			int weeklyCap = (int) Math.min(Integer.MAX_VALUE, hours * GzTracker.MAX_GZ_PER_HOUR);
-			changed |= mergeInto(weekly, msg.getWeekly(), isClanMember, weeklyCap);
-		}
-		changed |= mergeInto(given, msg.getGiven(), isClanMember, Integer.MAX_VALUE);
-		changed |= mergeInto(received, msg.getReceived(), isClanMember, Integer.MAX_VALUE);
-		return changed;
-	}
-
-	private static boolean mergeInto(Map<String, Integer> into, Map<String, Integer> from, Predicate<String> isClanMember, int cap)
-	{
-		if (from == null)
-		{
-			return false;
-		}
-		boolean changed = false;
-		int added = 0;
-		for (Map.Entry<String, Integer> e : from.entrySet())
-		{
-			if (added >= MAX_NAMES)
+			int weekly = (int) Math.min(msg.getWeekly(), hours * GzTracker.MAX_GZ_PER_HOUR);
+			if (self.weekStart != weekStart)
 			{
-				break;
+				self.weekStart = weekStart;
+				self.weekly = 0;
 			}
-			String name = e.getKey();
-			Integer count = e.getValue();
-			if (name == null || count == null || count <= 0 || !isClanMember.test(name))
+			if (weekly > self.weekly)
 			{
-				continue;
-			}
-			added++;
-			int value = Math.min(count, cap);
-			if (value > into.getOrDefault(name, 0))
-			{
-				into.put(name, value);
+				self.weekly = weekly;
 				changed = true;
 			}
 		}
 		return changed;
 	}
 
-	/** This client's counts and the party's, highest per name. */
-	public Map<String, Integer> weekly(Map<String, Integer> local)
-	{
-		return max(local, weekly);
-	}
-
+	/** This client's counts, with each party member's own report where it is higher. */
 	public Map<String, Integer> given(Map<String, Integer> local)
 	{
-		return max(local, given);
+		Map<String, Integer> out = new HashMap<>(local);
+		members.forEach((name, self) -> raise(out, name, self.given));
+		return out;
 	}
 
 	public Map<String, Integer> received(Map<String, Integer> local)
 	{
-		return max(local, received);
+		Map<String, Integer> out = new HashMap<>(local);
+		members.forEach((name, self) -> raise(out, name, self.received));
+		return out;
 	}
 
-	/** The message to send: the merged view, top {@link #MAX_NAMES} of each list. */
-	public CorGzCounts message(GzStats localWeekly, GzStats localAllTime)
+	public Map<String, Integer> weekly(Map<String, Integer> local)
+	{
+		Map<String, Integer> out = new HashMap<>(local);
+		members.forEach((name, self) ->
+		{
+			if (self.weekStart == weekStart)
+			{
+				raise(out, name, self.weekly);
+			}
+		});
+		return out;
+	}
+
+	/** What we send: only our own numbers, as this client counted them. */
+	public CorGzCounts message(String me, GzStats localWeekly, GzStats localAllTime)
 	{
 		return new CorGzCounts(weekStart,
-			top(weekly(localWeekly.getGiven())),
-			top(given(localAllTime.getGiven())),
-			top(received(localAllTime.getReceived())));
+			localAllTime.getGiven().getOrDefault(me, 0),
+			localAllTime.getReceived().getOrDefault(me, 0),
+			localWeekly.getGiven().getOrDefault(me, 0));
 	}
 
 	public boolean isEmpty()
 	{
-		return weekly.isEmpty() && given.isEmpty() && received.isEmpty();
+		return members.isEmpty();
 	}
 
 	public void clear()
 	{
-		weekly = new HashMap<>();
-		given = new HashMap<>();
-		received = new HashMap<>();
+		members = new HashMap<>();
 	}
 
-	/** Gson leaves missing fields null. */
+	/** Gson leaves missing fields null (and older saves had a different shape, which is dropped). */
 	public PartyGzBook normalized()
 	{
-		if (weekly == null)
+		if (members == null)
 		{
-			weekly = new HashMap<>();
+			members = new HashMap<>();
 		}
-		if (given == null)
-		{
-			given = new HashMap<>();
-		}
-		if (received == null)
-		{
-			received = new HashMap<>();
-		}
+		members.values().removeIf(self -> self == null);
 		return this;
 	}
 
-	private static Map<String, Integer> max(Map<String, Integer> a, Map<String, Integer> b)
+	private static void raise(Map<String, Integer> counts, String name, int value)
 	{
-		Map<String, Integer> out = new HashMap<>(a);
-		b.forEach((name, n) -> out.merge(name, n, Math::max));
-		return out;
-	}
-
-	private static Map<String, Integer> top(Map<String, Integer> counts)
-	{
-		Map<String, Integer> out = new HashMap<>();
-		List<Map.Entry<String, Integer>> top = GzStats.top(counts, MAX_NAMES);
-		for (Map.Entry<String, Integer> e : top)
+		if (value > 0)
 		{
-			out.put(e.getKey(), e.getValue());
+			counts.merge(name, value, Math::max);
 		}
-		return out;
 	}
 }

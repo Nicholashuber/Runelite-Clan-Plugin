@@ -37,11 +37,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
@@ -129,10 +127,8 @@ public class CorClanPlugin extends Plugin
 	private static final long LOCATION_HEARTBEAT_MILLIS = 30_000L;
 	/** A clanmate who sent nothing for this long drops off the map. */
 	private static final long LOCATION_EXPIRY_MILLIS = 90_000L;
-	/** Changed gz counts go to the party at most this often; everyone in clan chat sees the same gz's anyway. */
-	private static final long GZ_SEND_MILLIS = 300_000L;
-	/** About this many members answer a newcomer with their counts (everyone holds nearly the same view). */
-	private static final int GZ_JOIN_RESPONDERS = 3;
+	/** Our own gz totals go to the party at most this often when they changed. */
+	private static final long GZ_SEND_MILLIS = 60_000L;
 	/** Staff lists longer than this are ignored, so nobody can fill everyone's config. */
 	private static final int MAX_STAFF_TEXT = 4000;
 	/** Staff edits dated further ahead than this (wrong clock) are ignored. */
@@ -1162,21 +1158,6 @@ public class CorClanPlugin extends Plugin
 		return member;
 	}
 
-	/** Lookup keys of everyone in our clan. Client thread. */
-	private Set<String> clanMemberKeys()
-	{
-		Set<String> keys = new HashSet<>();
-		ClanSettings settings = client.getClanSettings();
-		if (settings != null)
-		{
-			for (ClanMember m : settings.getMembers())
-			{
-				keys.add(MemberCosmetics.key(m.getName()));
-			}
-		}
-		return keys;
-	}
-
 	/** Our clan's rank for a name, or null if they are not in it. Client thread. */
 	private ClanRank clanRankOf(String name)
 	{
@@ -1225,11 +1206,7 @@ public class CorClanPlugin extends Plugin
 			PartyMember local = partyService.getLocalMember();
 			if (local != null && local.getMemberId() != event.getMemberId())
 			{
-				int others = Math.max(1, partyService.getMembers().size() - 1);
-				if (Math.random() * others < GZ_JOIN_RESPONDERS)
-				{
-					sendGzSoon = true;
-				}
+				sendGzSoon = true;
 				sendStaffSoon = true;
 				sendGlowSoon = true;
 			}
@@ -1267,10 +1244,12 @@ public class CorClanPlugin extends Plugin
 				return;
 			}
 			long now = System.currentTimeMillis();
-			if (sendGzSoon || (gzDirty && now - lastGzSent >= GZ_SEND_MILLIS))
+			String me = localPlayerName();
+			if (me != null && (sendGzSoon || (gzDirty && now - lastGzSent >= GZ_SEND_MILLIS)))
 			{
+				// only our own numbers: RuneLite does not allow crowdsourcing data about other players
 				partyGz.rollWeek(tracker.getWeekStart());
-				partyService.send(partyGz.message(tracker.getWeekly(), tracker.getAllTime()));
+				partyService.send(partyGz.message(me, tracker.getWeekly(), tracker.getAllTime()));
 				gzDirty = false;
 				sendGzSoon = false;
 				lastGzSent = now;
@@ -1300,9 +1279,8 @@ public class CorClanPlugin extends Plugin
 			{
 				return;
 			}
-			Set<String> clan = clanMemberKeys();
 			partyGz.rollWeek(tracker.getWeekStart());
-			if (partyGz.merge(msg, System.currentTimeMillis(), name -> clan.contains(MemberCosmetics.key(name))))
+			if (partyGz.merge(displayName(from.getDisplayName()), msg, System.currentTimeMillis()))
 			{
 				persistStats();
 				updateGzView();

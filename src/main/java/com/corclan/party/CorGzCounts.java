@@ -1,23 +1,27 @@
 package com.corclan.party;
 
-import java.util.HashMap;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import net.runelite.client.party.messages.PartyMemberMessage;
 
-/** One CoR party member's view of the gz counts (their own counts merged with what the party sent them). */
+/**
+ * A CoR party member's own gz totals, as their client counted them. Only ever about the sender (who is
+ * identified by the party, not by the message): nobody reports numbers about other players.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 public class CorGzCounts extends PartyMemberMessage
 {
-	/** epoch millis of the Sunday 00:00 UTC the weekly counts belong to */
+	/** epoch millis of the Sunday 00:00 UTC the weekly count belongs to */
 	private long weekStart;
-	private Map<String, Integer> weekly = new HashMap<>();
-	private Map<String, Integer> given = new HashMap<>();
-	private Map<String, Integer> received = new HashMap<>();
+	/** gz's they gave, all time */
+	private int given;
+	/** gz's they received, all time */
+	private int received;
+	/** gz's they gave this week */
+	private int weekly;
 }

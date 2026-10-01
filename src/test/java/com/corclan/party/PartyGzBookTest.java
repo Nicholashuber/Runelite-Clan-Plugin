@@ -8,14 +8,12 @@ import com.corclan.gz.GzStats;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Predicate;
 import org.junit.Test;
 
 public class PartyGzBookTest
 {
 	private static final long WEEK = 1_790_000_000_000L;
 	private static final long HOUR = 3_600_000L;
-	private static final Predicate<String> ANYONE = name -> true;
 
 	private static Map<String, Integer> counts(Object... nameCount)
 	{
@@ -27,71 +25,67 @@ public class PartyGzBookTest
 		return out;
 	}
 
-	private static CorGzCounts msg(long weekStart, Map<String, Integer> weekly, Map<String, Integer> given)
-	{
-		return new CorGzCounts(weekStart, weekly, given, new HashMap<>());
-	}
-
 	@Test
-	public void highestCountWinsInsteadOfAdding()
+	public void weOnlyEverSendOurOwnNumbers()
 	{
 		PartyGzBook book = new PartyGzBook();
 		book.rollWeek(WEEK);
-		assertTrue(book.merge(msg(WEEK, counts("Bob", 5), counts("Bob", 50)), WEEK + 10 * HOUR, ANYONE));
-		assertFalse(book.merge(msg(WEEK, counts("Bob", 3), counts("Bob", 40)), WEEK + 10 * HOUR, ANYONE));
+		GzStats weekly = new GzStats();
+		weekly.getGiven().putAll(counts("Me", 4, "Someone else", 99));
+		GzStats allTime = new GzStats();
+		allTime.getGiven().putAll(counts("Me", 40, "Someone else", 999));
+		allTime.getReceived().putAll(counts("Me", 7, "Someone else", 888));
 
-		assertEquals(Integer.valueOf(5), book.weekly(counts("Bob", 4)).get("Bob"));
-		assertEquals(Integer.valueOf(9), book.weekly(counts("Bob", 9)).get("Bob"));
-		assertEquals(Integer.valueOf(50), book.given(Collections.emptyMap()).get("Bob"));
+		CorGzCounts out = book.message("Me", weekly, allTime);
+		assertEquals(WEEK, out.getWeekStart());
+		assertEquals(40, out.getGiven());
+		assertEquals(7, out.getReceived());
+		assertEquals(4, out.getWeekly());
 	}
 
 	@Test
-	public void weeklyCountsFromAnotherWeekAreIgnored()
+	public void membersRaiseTheirOwnCountsOnly()
 	{
 		PartyGzBook book = new PartyGzBook();
 		book.rollWeek(WEEK);
-		book.merge(msg(WEEK - 7 * 24 * HOUR, counts("Bob", 5), counts("Bob", 5)), WEEK + HOUR, ANYONE);
+		assertTrue(book.merge("Bob", new CorGzCounts(WEEK, 50, 9, 5), WEEK + 10 * HOUR));
+		assertFalse(book.merge("Bob", new CorGzCounts(WEEK, 40, 9, 3), WEEK + 10 * HOUR));
+
+		// our own counts for everyone stay; Bob's report raises only Bob
+		Map<String, Integer> given = book.given(counts("Bob", 30, "Alice", 12));
+		assertEquals(Integer.valueOf(50), given.get("Bob"));
+		assertEquals(Integer.valueOf(12), given.get("Alice"));
+		assertEquals(Integer.valueOf(9), book.received(Collections.emptyMap()).get("Bob"));
+		assertEquals(Integer.valueOf(8), book.weekly(counts("Bob", 8)).get("Bob"));
+	}
+
+	@Test
+	public void weeklyFromAnotherWeekDoesNotCount()
+	{
+		PartyGzBook book = new PartyGzBook();
+		book.rollWeek(WEEK);
+		book.merge("Bob", new CorGzCounts(WEEK, 5, 0, 5), WEEK + HOUR);
+		book.rollWeek(WEEK + 7 * 24 * HOUR);
 		assertNull(book.weekly(Collections.emptyMap()).get("Bob"));
 		assertEquals(Integer.valueOf(5), book.given(Collections.emptyMap()).get("Bob"));
 	}
 
 	@Test
-	public void newWeekClearsOnlyWeekly()
-	{
-		PartyGzBook book = new PartyGzBook();
-		book.rollWeek(WEEK);
-		book.merge(msg(WEEK, counts("Bob", 5), counts("Bob", 5)), WEEK + HOUR, ANYONE);
-		book.rollWeek(WEEK + 7 * 24 * HOUR);
-		assertTrue(book.weekly(Collections.emptyMap()).isEmpty());
-		assertEquals(Integer.valueOf(5), book.given(Collections.emptyMap()).get("Bob"));
-	}
-
-	@Test
-	public void outsidersAndImpossibleWeeklyCountsAreDropped()
+	public void impossibleWeeklyCountsAreCapped()
 	{
 		PartyGzBook book = new PartyGzBook();
 		book.rollWeek(WEEK);
 		// 30 minutes into the week the hourly cap allows at most 100
-		book.merge(msg(WEEK, counts("Bob", 999_999, "Stranger", 7), counts("Stranger", 7)), WEEK + HOUR / 2, "Bob"::equals);
+		book.merge("Bob", new CorGzCounts(WEEK, 999_999, 0, 999_999), WEEK + HOUR / 2);
 		assertEquals(Integer.valueOf(100), book.weekly(Collections.emptyMap()).get("Bob"));
-		assertNull(book.weekly(Collections.emptyMap()).get("Stranger"));
-		assertNull(book.given(Collections.emptyMap()).get("Stranger"));
 	}
 
 	@Test
-	public void messageCarriesTheMergedView()
+	public void missingNameIsIgnored()
 	{
 		PartyGzBook book = new PartyGzBook();
-		book.rollWeek(WEEK);
-		book.merge(msg(WEEK, counts("Bob", 5), counts("Bob", 50)), WEEK + HOUR, ANYONE);
-		GzStats weekly = new GzStats();
-		weekly.getGiven().put("Alice", 2);
-		GzStats allTime = new GzStats();
-		allTime.getGiven().put("Alice", 20);
-
-		CorGzCounts out = book.message(weekly, allTime);
-		assertEquals(WEEK, out.getWeekStart());
-		assertEquals(counts("Bob", 5, "Alice", 2), out.getWeekly());
-		assertEquals(counts("Bob", 50, "Alice", 20), out.getGiven());
+		assertFalse(book.merge(null, new CorGzCounts(WEEK, 5, 5, 5), WEEK));
+		assertFalse(book.merge("", new CorGzCounts(WEEK, 5, 5, 5), WEEK));
+		assertTrue(book.isEmpty());
 	}
 }

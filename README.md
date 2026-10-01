@@ -31,10 +31,10 @@ party with the CoR passphrase and **leaves any other party you are in** (you can
 
 Everyone in the party can see your character name. While you are in it, the plugin sends to the party:
 
-- **gz counts**: the top 100 names from this week, all time given and all time received, as your client
-  counted them. Sent when you join, when someone else joins, and at most every 5 minutes when they changed.
-  Receivers keep the highest count per name (everyone sees the same gz's, so counts are never added up),
-  ignore names that are not in their clan, and cap weekly counts at what the 100-per-hour limit allows.
+- **your own gz totals**: how many gz's you gave (all time and this week) and how many you received, as your
+  client counted them. Only your own numbers, never anyone else's. Sent when you join, when someone else joins,
+  and at most once a minute when they changed. Leaderboards show what your own client counted, with each
+  party member's own report where it is higher; weekly reports are capped at what the 100-per-hour limit allows.
 - **your map position** (world and tile), only while **Share my location** is on: every ~3 seconds when
   you move, every 30 seconds when you stand still. Never from inside instances, and inside the Wilderness
   only when **Share in Wilderness** is on. Only people who share see the clan map, but positions go to
