@@ -36,7 +36,7 @@ public interface CorClanConfig extends Config
 	@ConfigSection(
 		name = "CoR party",
 		description = "Optional: join the clan's RuneLite party to share gz counts, staff icon settings and (if you choose) your map position",
-		position = 4
+		position = 3
 	)
 	String partySection = "party";
 
@@ -54,7 +54,7 @@ public interface CorClanConfig extends Config
 	@ConfigSection(
 		name = "Rank glow",
 		description = "Outlines clan members in the game world by rank. Only you see it",
-		position = 3
+		position = 4
 	)
 	String glowSection = "glow";
 
