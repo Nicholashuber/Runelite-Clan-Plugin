@@ -8,11 +8,11 @@ public enum MapState
 {
 	/** "Share my location" is off */
 	OFF("Clan map: off (turn on 'Share my location')", null),
-	/** sharing is on but the CoR party is off */
-	NEED_PARTY("Clan map: turn on 'Join the CoR party' to share",
-		"CoR: turn on 'Join the CoR party' to share your location on the clan map."),
-	/** the CoR party is on but not connected yet (or you are in another party) */
-	CONNECTING("Clan map: waiting for the CoR party", null),
+	/** sharing is on but you are not in the CoR party (or are in another party) */
+	NEED_PARTY("Clan map: press Join CoR party in the CoR panel to share",
+		"CoR: press Join CoR party in the CoR side panel to share your location on the clan map."),
+	/** in the CoR party but not connected yet */
+	CONNECTING("Clan map: connecting to the CoR party", null),
 	PAUSED_WILDERNESS("Clan map: paused in the Wilderness",
 		"CoR: location sharing paused in the Wilderness. Turn on 'Share in Wilderness' to keep sharing."),
 	PAUSED_INSTANCE("Clan map: paused inside an instance",
@@ -31,13 +31,13 @@ public enum MapState
 		this.announcement = announcement;
 	}
 
-	public static MapState of(boolean shareLocation, boolean partyEnabled, boolean partyConnected, LocationRules.Decision decision)
+	public static MapState of(boolean shareLocation, boolean inCorParty, boolean partyConnected, LocationRules.Decision decision)
 	{
 		if (!shareLocation)
 		{
 			return OFF;
 		}
-		if (!partyEnabled)
+		if (!inCorParty)
 		{
 			return NEED_PARTY;
 		}

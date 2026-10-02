@@ -277,7 +277,8 @@ public class CorClanPlugin extends Plugin
 
 		panel = new CorClanPanel(config, itemManager, this::resetStats,
 			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
-			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on));
+			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
+			this::toggleCorParty);
 		navButton = NavigationButton.builder()
 			.tooltip("CoR Clan")
 			.icon(ImageUtil.loadImageResource(CorClanPlugin.class, "panel_icon.png"))
@@ -288,11 +289,7 @@ public class CorClanPlugin extends Plugin
 		overlayManager.add(overlay);
 		overlayManager.add(rankGlowOverlay);
 		overlayManager.add(signatureGlowOverlay);
-		// if they are already in another party (a raid, say), joining is left to them
-		if (config.partyEnabled() && !partyService.isInParty())
-		{
-			joinCorParty();
-		}
+		// the CoR party is only ever joined from the panel button: never automatically
 		refreshPanel();
 		log.debug("CoR Clan started");
 	}
@@ -339,25 +336,6 @@ public class CorClanPlugin extends Plugin
 			return;
 		}
 		String key = event.getKey();
-		if ("partyEnabled".equals(key))
-		{
-			clientThread.invokeLater(() ->
-			{
-				if (config.partyEnabled())
-				{
-					joinCorParty();
-				}
-				else
-				{
-					leaveCorParty();
-				}
-				updateGzView();
-			});
-		}
-		if ("partyPassphrase".equals(key) && config.partyEnabled())
-		{
-			clientThread.invokeLater(this::joinCorParty);
-		}
 		if ("shareLocation".equals(key) || "shareInWilderness".equals(key))
 		{
 			clientThread.invokeLater(() ->
@@ -869,7 +847,7 @@ public class CorClanPlugin extends Plugin
 	 */
 	private void updateGzView()
 	{
-		boolean shared = config.partyEnabled() && !partyGz.isEmpty();
+		boolean shared = inCorParty() && !partyGz.isEmpty();
 		GzStats allTime = tracker.getAllTime();
 		Map<String, Integer> localWeekly = tracker.getWeekly().getGiven();
 		viewShared = shared;
@@ -1064,7 +1042,7 @@ public class CorClanPlugin extends Plugin
 		panelShowsDev = isDev();
 		return new PanelData(mine, summary, partyStatus(), mapState.status(partyLocations.size()), scope, givers, receivers, recent,
 			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers,
-			clanRoster(), clanRankTitles(), panelShowsOwner, panelShowsDev);
+			clanRoster(), clanRankTitles(), panelShowsOwner, panelShowsDev, inCorParty());
 	}
 
 	/**
@@ -1153,16 +1131,29 @@ public class CorClanPlugin extends Plugin
 
 	private boolean partyActive()
 	{
-		return config.partyEnabled() && inCorParty() && partyService.getLocalMember() != null;
+		return inCorParty() && partyService.getLocalMember() != null;
 	}
 
-	private void joinCorParty()
+	/**
+	 * Panel button: joins the CoR party, or leaves it if we are in it. The only way the plugin ever changes
+	 * the party, so it never joins on its own (RuneLite asks plugins not to auto-join parties).
+	 */
+	private void toggleCorParty()
 	{
-		if (!inCorParty())
+		clientThread.invokeLater(() ->
 		{
-			log.debug("Joining the CoR party");
-			partyService.changeParty(passphrase());
-		}
+			if (inCorParty())
+			{
+				leaveCorParty();
+			}
+			else
+			{
+				log.debug("Joining the CoR party");
+				partyService.changeParty(passphrase());
+			}
+			updateGzView();
+			refreshPanel();
+		});
 	}
 
 	private void leaveCorParty()
@@ -1177,17 +1168,17 @@ public class CorClanPlugin extends Plugin
 
 	private String partyStatus()
 	{
-		if (!config.partyEnabled())
-		{
-			return "CoR party: off (turn on in settings)";
-		}
 		if (!partyService.isInParty())
 		{
-			return "CoR party: not connected";
+			return "CoR party: not joined";
 		}
 		if (!inCorParty())
 		{
 			return "CoR party: you are in another party";
+		}
+		if (partyService.getLocalMember() == null)
+		{
+			return "CoR party: connecting";
 		}
 		int others = Math.max(0, partyService.getMembers().size() - 1);
 		return "CoR party: on, " + others + (others == 1 ? " other member" : " other members");
@@ -1241,6 +1232,7 @@ public class CorClanPlugin extends Plugin
 			clearPartyLocations();
 			glowPicks.clearPartyPicks();
 			lavaAura.clearPartyPicks();
+			updateGzView();
 			// we just joined: the party gets our counts and glow, and staff their lists
 			sendGzSoon = true;
 			sendStaffSoon = true;
@@ -1495,7 +1487,7 @@ public class CorClanPlugin extends Plugin
 		}
 		boolean inWilderness = client.getVarbitValue(VarbitID.INSIDE_WILDERNESS) == 1;
 		LocationRules.Decision decision = LocationRules.decide(inWilderness, client.isInInstancedRegion(), config.shareInWilderness());
-		setMapState(MapState.of(config.shareLocation(), config.partyEnabled(), partyActive(), decision));
+		setMapState(MapState.of(config.shareLocation(), inCorParty(), partyActive(), decision));
 		if (mapState != MapState.SHARING)
 		{
 			stopSharingLocation();

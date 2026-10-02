@@ -35,7 +35,7 @@ public interface CorClanConfig extends Config
 
 	@ConfigSection(
 		name = "CoR party",
-		description = "Optional: join the clan's RuneLite party to share gz counts, staff icon settings, your rank glow and (if you choose) your map position",
+		description = "Optional: join the clan's RuneLite party with the Join CoR party button in the CoR side panel, to share gz counts, staff icon settings, your rank glow and (if you choose) your map position",
 		position = 3
 	)
 	String partySection = "party";
@@ -358,26 +358,10 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "partyEnabled",
-		name = "Join the CoR party",
-		description = "Puts you in the clan's RuneLite party (RuneLite's own party service, the same one the Party plugin uses). "
-			+ "Party members share gz counts, so leaderboards and weekly trophies match for everyone online, and get the "
-			+ "icon settings from clan staff. Members also see the rank glow you picked. You can only be in one party, so this leaves any other party you are in.",
-		warning = "This joins the CoR clan's RuneLite party and leaves any party you are in now (raids, bossing). "
-			+ "Everyone in the party can see your character name. Continue?",
-		position = 0,
-		section = partySection
-	)
-	default boolean partyEnabled()
-	{
-		return false;
-	}
-
-	@ConfigItem(
 		keyName = "partyPassphrase",
 		name = "Party passphrase",
-		description = "Everyone in CoR must use the same one. Leave empty for the default. Staff can pick a new one and "
-			+ "share it in Discord to keep strangers out.",
+		description = "Used by the Join CoR party button in the CoR side panel. Everyone in CoR must use the same one. "
+			+ "Leave empty for the default. Staff can pick a new one and share it in Discord to keep strangers out.",
 		position = 1,
 		section = partySection
 	)
@@ -389,7 +373,8 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "shareLocation",
 		name = "Share my location",
-		description = "Show your world and map position to CoR party members on their world map, and see theirs. Only "
+		description = "While you are in the CoR party (Join CoR party in the side panel), show your world and map position "
+			+ "to party members on their world map, and see theirs. Only "
 			+ "people who share can see others. Paused inside the Wilderness unless 'Share in Wilderness' is on, and "
 			+ "always paused inside instances.",
 		position = 2,

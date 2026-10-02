@@ -3,7 +3,7 @@
 A RuneLite plugin for members of the **C o R** clan.
 
 Everything runs locally inside your own RuneLite client. The only exception is the optional **CoR party**
-(off by default), which uses RuneLite's own party service; see [CoR party and your data](#cor-party-and-your-data).
+(you join it yourself with a button), which uses RuneLite's own party service; see [CoR party and your data](#cor-party-and-your-data).
 
 ## Features
 
@@ -20,15 +20,16 @@ Everything runs locally inside your own RuneLite client. The only exception is t
   and the Flames of Zamorak burning around him nonstop, following him as he walks. `::lavafx` plays it once on your own character. Lavasockz can
   switch it off in the CoR side panel (Dev glow, shown only to him) or with `::devglow`; party members see his
   choice.
-- **CoR party** (optional, off by default): joins the clan's RuneLite party, so members share gz counts
+- **CoR party** (optional, joined with the **Join CoR party** button in the CoR side panel): the clan's RuneLite party, so members share gz counts
   (matching leaderboards, GZ King and weekly trophies for everyone online), get icon settings from clan staff,
   and can choose to show each other on the world map.
 
 ## CoR party and your data
 
 The CoR party uses **RuneLite's own party service**, the same one behind RuneLite's Party plugin. The plugin
-talks to no other server. **Join the CoR party** is off by default; turning it on puts you in the RuneLite
-party with the CoR passphrase and **leaves any other party you are in** (you can only be in one).
+talks to no other server. The plugin **never joins a party on its own**: you join with the **Join CoR party**
+button in the CoR side panel (it asks first, and leaves any other party you are in, since you can only be in
+one), and leave with **Leave CoR party** or by turning the plugin off.
 
 Everyone in the party can see your character name. While you are in it, the plugin sends to the party:
 
@@ -85,7 +86,6 @@ the game server; only you see the output.
 | GZ tracker | Chat message when counted | Also print a local game message per counted gz (off by default) |
 | GZ tracker | Max gz message length | Longer messages are never treated as a gz |
 | Rank glow | Glow clan ranks | Golden outline and lightning storm on the clan Owner, only on your client |
-| CoR party | Join the CoR party | Off by default. Joins the clan's RuneLite party (leaves any other). See [CoR party and your data](#cor-party-and-your-data) |
 | CoR party | Party passphrase | Empty uses the default. Everyone in CoR must use the same one |
 | CoR party | Share my location | Off by default. Show your world and tile to party members on the world map, and see theirs |
 | CoR party | Share in Wilderness | Keep sharing inside the Wilderness. Off means you vanish from the clan map there |

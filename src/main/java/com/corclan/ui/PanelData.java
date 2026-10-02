@@ -36,15 +36,18 @@ public final class PanelData
 	final boolean owner;
 	/** you are Lavasockz: show the Dev glow section */
 	final boolean dev;
+	/** in the CoR party: the panel button says Leave instead of Join */
+	final boolean inCorParty;
 
 	public PanelData(String mine, String summary, String partyStatus, String mapStatus, String scope,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
-		Map<Integer, String> clanRankTitles, boolean owner, boolean dev)
+		Map<Integer, String> clanRankTitles, boolean owner, boolean dev, boolean inCorParty)
 	{
 		this.owner = owner;
 		this.dev = dev;
+		this.inCorParty = inCorParty;
 		this.clanRoster = clanRoster;
 		this.clanRankTitles = clanRankTitles;
 		this.allGivers = allGivers;

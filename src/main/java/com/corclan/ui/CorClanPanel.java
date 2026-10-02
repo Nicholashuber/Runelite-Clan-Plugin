@@ -107,6 +107,9 @@ public class CorClanPanel extends PluginPanel
 	private JPanel devGlowSection;
 
 	private final JLabel summaryLabel = new JLabel();
+	/** joins or leaves the CoR party; the plugin never joins on its own */
+	private final JButton partyButton = new JButton("Join CoR party");
+	private boolean inCorParty;
 	private final JLabel giversTitle = new JLabel("Top gz givers");
 	private final JLabel receiversTitle = new JLabel("Most gz'd");
 	private final JPanel giversPanel = new JPanel();
@@ -116,9 +119,10 @@ public class CorClanPanel extends PluginPanel
 	/**
 	 * @param onGlowToggle called on the Swing thread when the Owner switches one of their glow effects
 	 * @param onDevToggle called on the Swing thread when Lavasockz switches part of his aura
+	 * @param onPartyToggle called on the Swing thread when the player presses Join / Leave CoR party
 	 */
 	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset, BiConsumer<GlowEffect, Boolean> onGlowToggle,
-		BiConsumer<DevGlow, Boolean> onDevToggle)
+		BiConsumer<DevGlow, Boolean> onDevToggle, Runnable onPartyToggle)
 	{
 		super();
 		this.config = config;
@@ -142,6 +146,26 @@ public class CorClanPanel extends PluginPanel
 		summaryLabel.setForeground(Color.WHITE);
 		summaryLabel.setFont(FontManager.getRunescapeSmallFont());
 		content.add(section("GZ tracker", summaryLabel));
+		content.add(Box.createVerticalStrut(8));
+
+		partyButton.setFocusable(false);
+		partyButton.setToolTipText("RuneLite party for CoR members: shared gz totals, the clan map, staff icons and glows");
+		partyButton.addActionListener(e ->
+		{
+			if (!inCorParty)
+			{
+				int choice = JOptionPane.showConfirmDialog(this,
+					"Join the CoR party? This leaves any RuneLite party you are in now (raids, bossing),\n"
+						+ "and everyone in the party can see your character name.",
+					"CoR Clan", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+				if (choice != JOptionPane.YES_OPTION)
+				{
+					return;
+				}
+			}
+			onPartyToggle.run();
+		});
+		content.add(partyButton);
 		content.add(Box.createVerticalStrut(8));
 
 		content.add(section(giversTitle, giversPanel));
@@ -614,6 +638,8 @@ public class CorClanPanel extends PluginPanel
 	/** Must be called on the Swing thread with a snapshot built on the client thread. */
 	public void refresh(PanelData data)
 	{
+		inCorParty = data.inCorParty;
+		partyButton.setText(data.inCorParty ? "Leave CoR party" : "Join CoR party");
 		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.partyStatus) + "<br>" + escape(data.mapStatus) + "</html>");
 
 		String scope = data.scope;
