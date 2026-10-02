@@ -3,7 +3,6 @@ package com.corclan.icons;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import com.corclan.sync.SyncModels;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -18,43 +17,35 @@ public class MemberCosmeticsTest
 		Collections.singletonMap("lavasockz", Arrays.asList("founder", "dev"));
 	private static final Map<String, String> BUILTIN_TITLES = Collections.singletonMap("lavasockz", "Developer");
 
-	private static MemberCosmetics build(List<SyncModels.Cosmetic> server, String config)
+	private static MemberCosmetics build(String config)
 	{
-		return MemberCosmetics.build(BUILTIN_ICONS, BUILTIN_TITLES, server, config, ICONS);
+		return MemberCosmetics.build(BUILTIN_ICONS, BUILTIN_TITLES, config, ICONS);
 	}
 
 	@Test
 	public void builtInsApplyWithNothingElse()
 	{
-		MemberCosmetics c = build(Collections.emptyList(), "");
+		MemberCosmetics c = build("");
 		assertEquals(Arrays.asList("founder", "dev"), c.iconsFor("lavasockz"));
 		assertEquals("Developer", c.titleFor("lavasockz"));
 		assertTrue(c.iconsFor("nobody").isEmpty());
 	}
 
 	@Test
-	public void serverOverridesBuiltInsAndConfigOverridesServer()
+	public void configOverridesBuiltIns()
 	{
-		List<SyncModels.Cosmetic> server = Arrays.asList(
-			new SyncModels.Cosmetic("Lavasockz", Collections.singletonList("crown"), "Clan Dev"),
-			new SyncModels.Cosmetic("Zezima", Arrays.asList("star", "gem"), null));
-
-		MemberCosmetics fromServer = build(server, null);
-		assertEquals(Collections.singletonList("crown"), fromServer.iconsFor("lavasockz"));
-		assertEquals("Clan Dev", fromServer.titleFor("lavasockz"));
-		assertEquals(Arrays.asList("star", "gem"), fromServer.iconsFor("zezima"));
-
-		MemberCosmetics withConfig = build(server, "Zezima=fire|Event Host");
-		assertEquals(Collections.singletonList("fire"), withConfig.iconsFor("zezima"));
-		assertEquals("Event Host", withConfig.titleFor("zezima"));
+		MemberCosmetics c = build("Lavasockz=crown|Clan Dev\nZezima=star,gem");
+		assertEquals(Collections.singletonList("crown"), c.iconsFor("lavasockz"));
+		assertEquals("Clan Dev", c.titleFor("lavasockz"));
+		assertEquals(Arrays.asList("star", "gem"), c.iconsFor("zezima"));
+		assertNull(c.titleFor("zezima"));
 	}
 
 	@Test
 	public void unknownIconsAndUnsafeTitlesAreDropped()
 	{
-		List<SyncModels.Cosmetic> server = Collections.singletonList(
-			new SyncModels.Cosmetic("Bob", Arrays.asList("rainbow", "crown", "crown", "star", "gem", "fire", "skull"), "<col=ff0000>Boss"));
-		MemberCosmetics c = build(server, "Carl=crown|this title is far too long to fit\nDave=star|<>");
+		MemberCosmetics c = build("Bob=rainbow,crown,crown,star,gem,fire,skull|<col=ff0000>Boss\n"
+			+ "Carl=crown|this title is far too long to fit\nDave=star|<>");
 		assertEquals(Arrays.asList("crown", "star", "gem", "fire"), c.iconsFor("bob"));
 		assertEquals("Boss", c.titleFor("bob"));
 		assertEquals(Collections.singletonList("crown"), c.iconsFor("carl"));
@@ -63,12 +54,21 @@ public class MemberCosmeticsTest
 	}
 
 	@Test
+	public void rankTitleLinesWorkLikeNames()
+	{
+		MemberCosmetics ranks = MemberCosmetics.build(Collections.emptyMap(), Collections.emptyMap(),
+			"Gnome child=gem|Gnome\nOwner=crown,star", ICONS);
+		assertEquals(Collections.singletonList("gem"), ranks.iconsFor(MemberCosmetics.key("Gnome child")));
+		assertEquals("Gnome", ranks.titleFor("gnome child"));
+		assertEquals(Arrays.asList("crown", "star"), ranks.iconsFor("owner"));
+	}
+
+	@Test
 	public void keysIgnoreCaseTagsAndSpacing()
 	{
 		assertEquals("iron nick", MemberCosmetics.key("<img=12>Iron NICK "));
 		assertEquals("iron nick", MemberCosmetics.key("Iron_Nick"));
-		MemberCosmetics c = build(Collections.singletonList(
-			new SyncModels.Cosmetic("Iron Nick", Collections.singletonList("gem"), null)), "");
+		MemberCosmetics c = build("Iron_Nick=gem");
 		assertEquals(Collections.singletonList("gem"), c.iconsFor(MemberCosmetics.key("iron nick")));
 	}
 }

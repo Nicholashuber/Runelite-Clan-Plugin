@@ -6,31 +6,29 @@ import java.awt.Graphics2D;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Player;
-import net.runelite.api.clan.ClanChannel;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.outline.ModelOutlineRenderer;
 
 /**
- * Outlines clan members in the game world by the glow they picked ({@link GlowPicks}). Drawn on this
- * client only; players without the plugin see nothing.
- * For now the only outline is the Owner's {@link GlowStyle#holy}.
+ * Outlines for named members' signature auras (for now Lavasockz's molten outline, see {@link MoltenStyle}).
+ * Drawn on this client only; players without the plugin see nothing.
  */
-public class RankGlowOverlay extends Overlay
+public class SignatureGlowOverlay extends Overlay
 {
 	private final Client client;
 	private final CorClanConfig config;
 	private final ModelOutlineRenderer outlines;
-	private final GlowPicks picks;
+	private final LavaAura lavaAura;
 
 	@Inject
-	RankGlowOverlay(Client client, CorClanConfig config, ModelOutlineRenderer outlines, GlowPicks picks)
+	SignatureGlowOverlay(Client client, CorClanConfig config, ModelOutlineRenderer outlines, LavaAura lavaAura)
 	{
 		this.client = client;
 		this.config = config;
 		this.outlines = outlines;
-		this.picks = picks;
+		this.lavaAura = lavaAura;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 		setPriority(PRIORITY_HIGH);
@@ -43,17 +41,12 @@ public class RankGlowOverlay extends Overlay
 		{
 			return null;
 		}
-		ClanChannel channel = client.getClanChannel();
-		if (channel == null)
-		{
-			return null;
-		}
 		long now = System.currentTimeMillis();
 		for (Player player : client.getTopLevelWorldView().players())
 		{
-			if (picks.effectsFor(channel, player).contains(GlowEffect.GOLD_OUTLINE))
+			if (lavaAura.effectsFor(player).contains(DevGlow.MOLTEN_OUTLINE))
 			{
-				for (GlowStyle.Layer layer : GlowStyle.holy(now))
+				for (GlowStyle.Layer layer : MoltenStyle.molten(now))
 				{
 					outlines.drawOutline(player, layer.width, layer.color, layer.feather);
 				}

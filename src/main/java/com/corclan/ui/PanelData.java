@@ -11,8 +11,12 @@ public final class PanelData
 {
 	final String mine;
 	final String summary;
-	final String syncStatus;
-	final boolean clanWide;
+	/** one line about the CoR party */
+	final String partyStatus;
+	/** one line about the clan map */
+	final String mapStatus;
+	/** " (this client)" or " (CoR party)", after leaderboard titles */
+	final String scope;
 	final List<Map.Entry<String, Integer>> givers;
 	final List<Map.Entry<String, Integer>> receivers;
 	final List<BroadcastRecord> recent;
@@ -28,20 +32,30 @@ public final class PanelData
 	final List<ClanRoster.RankGroup> clanRoster;
 	/** every rank the clan has set up, rank number to title (empty when not in a clan) */
 	final Map<Integer, String> clanRankTitles;
+	/** you are the clan Owner: show the Owner glow section */
+	final boolean owner;
+	/** you are Lavasockz: show the Dev glow section */
+	final boolean dev;
+	/** in the CoR party: the panel button says Leave instead of Join */
+	final boolean inCorParty;
 
-	public PanelData(String mine, String summary, String syncStatus, boolean clanWide,
+	public PanelData(String mine, String summary, String partyStatus, String mapStatus, String scope,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
-		Map<Integer, String> clanRankTitles)
+		Map<Integer, String> clanRankTitles, boolean owner, boolean dev, boolean inCorParty)
 	{
+		this.owner = owner;
+		this.dev = dev;
+		this.inCorParty = inCorParty;
 		this.clanRoster = clanRoster;
 		this.clanRankTitles = clanRankTitles;
 		this.allGivers = allGivers;
 		this.mine = mine;
 		this.summary = summary;
-		this.syncStatus = syncStatus;
-		this.clanWide = clanWide;
+		this.partyStatus = partyStatus;
+		this.mapStatus = mapStatus;
+		this.scope = scope;
 		this.givers = givers;
 		this.receivers = receivers;
 		this.recent = recent;

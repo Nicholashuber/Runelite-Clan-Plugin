@@ -3,6 +3,9 @@ package com.corclan.ui;
 import com.corclan.CorClanConfig;
 import com.corclan.clan.ClanRoster;
 import com.corclan.clan.OrgChart;
+import com.corclan.glow.DevGlow;
+import com.corclan.glow.GlowEffect;
+import com.corclan.glow.GlowPicks;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.Streaks;
 import java.awt.BorderLayout;
@@ -16,16 +19,20 @@ import java.awt.image.BufferedImage;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.TimeZone;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -43,8 +50,8 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
 /**
- * The CoR sidebar: links, gz leaderboards (clan-wide when sync is on, otherwise this client's own
- * counts), recent clan broadcasts, the gz podiums and weekly #1 streaks.
+ * The CoR sidebar: links, gz leaderboards (this client's counts, or the CoR party's), recent clan broadcasts,
+ * the gz podiums and weekly #1 streaks.
  */
 public class CorClanPanel extends PluginPanel
 {
@@ -52,6 +59,12 @@ public class CorClanPanel extends PluginPanel
 	private static final int GIVERS_SIZE = 10;
 	private static final SimpleDateFormat TIME = new SimpleDateFormat("HH:mm");
 	private static final SimpleDateFormat WEEK_DAY = new SimpleDateFormat("EEE d MMM");
+
+	static
+	{
+		// weeks start Sunday 00:00 UTC; show that day, not the local day before it
+		WEEK_DAY.setTimeZone(TimeZone.getTimeZone("UTC"));
+	}
 
 	/** In-game item shown next to 1st, 2nd and 3rd place gz givers. Change here to use other items. */
 	private static final int[] PODIUM_ITEMS = {
@@ -82,15 +95,34 @@ public class CorClanPanel extends PluginPanel
 	private List<ClanRoster.RankGroup> clanRoster;
 	private Map<Integer, String> clanRankTitles = Collections.emptyMap();
 	private Map<String, Integer> clanGzCounts = Collections.emptyMap();
+	// the Owner's own glow effects; the whole section is shown only while you are the clan Owner
+	private final JLabel ownerGlowHeader = new JLabel();
+	private final JPanel ownerGlowPanel = new JPanel();
+	private final Map<GlowEffect, JCheckBox> ownerGlowBoxes = new EnumMap<>(GlowEffect.class);
+	private JPanel ownerGlowSection;
+	// Lavasockz's own Molten Lord aura; the section is shown only while you are Lavasockz
+	private final JLabel devGlowHeader = new JLabel();
+	private final JPanel devGlowPanel = new JPanel();
+	private final Map<DevGlow, JCheckBox> devGlowBoxes = new EnumMap<>(DevGlow.class);
+	private JPanel devGlowSection;
 
 	private final JLabel summaryLabel = new JLabel();
+	/** joins or leaves the CoR party; the plugin never joins on its own */
+	private final JButton partyButton = new JButton("Join CoR party");
+	private boolean inCorParty;
 	private final JLabel giversTitle = new JLabel("Top gz givers");
 	private final JLabel receiversTitle = new JLabel("Most gz'd");
 	private final JPanel giversPanel = new JPanel();
 	private final JPanel receiversPanel = new JPanel();
 	private final JPanel broadcastsPanel = new JPanel();
 
-	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset)
+	/**
+	 * @param onGlowToggle called on the Swing thread when the Owner switches one of their glow effects
+	 * @param onDevToggle called on the Swing thread when Lavasockz switches part of his aura
+	 * @param onPartyToggle called on the Swing thread when the player presses Join / Leave CoR party
+	 */
+	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset, BiConsumer<GlowEffect, Boolean> onGlowToggle,
+		BiConsumer<DevGlow, Boolean> onDevToggle, Runnable onPartyToggle)
 	{
 		super();
 		this.config = config;
@@ -114,6 +146,26 @@ public class CorClanPanel extends PluginPanel
 		summaryLabel.setForeground(Color.WHITE);
 		summaryLabel.setFont(FontManager.getRunescapeSmallFont());
 		content.add(section("GZ tracker", summaryLabel));
+		content.add(Box.createVerticalStrut(8));
+
+		partyButton.setFocusable(false);
+		partyButton.setToolTipText("RuneLite party for CoR members: shared gz totals, the clan map, staff icons and glows");
+		partyButton.addActionListener(e ->
+		{
+			if (!inCorParty)
+			{
+				int choice = JOptionPane.showConfirmDialog(this,
+					"Join the CoR party? This leaves any RuneLite party you are in now (raids, bossing),\n"
+						+ "and everyone in the party can see your character name.",
+					"CoR Clan", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+				if (choice != JOptionPane.YES_OPTION)
+				{
+					return;
+				}
+			}
+			onPartyToggle.run();
+		});
+		content.add(partyButton);
 		content.add(Box.createVerticalStrut(8));
 
 		content.add(section(giversTitle, giversPanel));
@@ -148,6 +200,10 @@ public class CorClanPanel extends PluginPanel
 		buildAllGiversSearch();
 		content.add(Box.createVerticalStrut(8));
 		content.add(collapsible(clanHeader, clanPanel, this::updateClanHeader));
+		ownerGlowSection = buildOwnerGlow(onGlowToggle);
+		content.add(ownerGlowSection);
+		devGlowSection = buildDevGlow(onDevToggle);
+		content.add(devGlowSection);
 
 		add(content, BorderLayout.NORTH);
 	}
@@ -246,6 +302,63 @@ public class CorClanPanel extends PluginPanel
 			}
 		});
 		return wrapper;
+	}
+
+	/** Lavasockz's aura parts, one checkbox each. Hidden until {@link #refresh} says you are Lavasockz. */
+	private JPanel buildDevGlow(BiConsumer<DevGlow, Boolean> onDevToggle)
+	{
+		for (DevGlow glow : DevGlow.values())
+		{
+			JCheckBox box = new JCheckBox(glow.label);
+			box.setFont(FontManager.getRunescapeSmallFont());
+			box.setForeground(Color.WHITE);
+			box.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+			box.setFocusable(false);
+			box.addActionListener(e -> onDevToggle.accept(glow, box.isSelected()));
+			devGlowBoxes.put(glow, box);
+			devGlowPanel.add(box);
+		}
+		Runnable updateHeader = () -> devGlowHeader.setText(marker(devGlowPanel) + "Dev glow (only you see this)");
+		JPanel body = collapsible(devGlowHeader, devGlowPanel, updateHeader);
+		updateHeader.run();
+		devGlowPanel.add(muted("What other CoR plugin users see on you"), 0);
+
+		JPanel section = new JPanel(new BorderLayout());
+		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		section.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
+		section.add(body, BorderLayout.CENTER);
+		section.setVisible(false);
+		return section;
+	}
+
+	/**
+	 * The Owner's glow effects, one checkbox each. Hidden (with its spacing) until {@link #refresh}
+	 * says you are the clan Owner, so nobody else ever sees it.
+	 */
+	private JPanel buildOwnerGlow(BiConsumer<GlowEffect, Boolean> onGlowToggle)
+	{
+		for (GlowEffect glow : GlowEffect.values())
+		{
+			JCheckBox box = new JCheckBox(glow.label);
+			box.setFont(FontManager.getRunescapeSmallFont());
+			box.setForeground(Color.WHITE);
+			box.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+			box.setFocusable(false);
+			box.addActionListener(e -> onGlowToggle.accept(glow, box.isSelected()));
+			ownerGlowBoxes.put(glow, box);
+			ownerGlowPanel.add(box);
+		}
+		Runnable updateHeader = () -> ownerGlowHeader.setText(marker(ownerGlowPanel) + "Owner glow (only you see this)");
+		JPanel body = collapsible(ownerGlowHeader, ownerGlowPanel, updateHeader);
+		updateHeader.run();
+		ownerGlowPanel.add(muted("What other CoR plugin users see on you"), 0);
+
+		JPanel section = new JPanel(new BorderLayout());
+		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		section.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
+		section.add(body, BorderLayout.CENTER);
+		section.setVisible(false);
+		return section;
 	}
 
 	/** plain ASCII: the RuneScape font has no arrow glyphs */
@@ -525,9 +638,11 @@ public class CorClanPanel extends PluginPanel
 	/** Must be called on the Swing thread with a snapshot built on the client thread. */
 	public void refresh(PanelData data)
 	{
-		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.syncStatus) + "</html>");
+		inCorParty = data.inCorParty;
+		partyButton.setText(data.inCorParty ? "Leave CoR party" : "Join CoR party");
+		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.partyStatus) + "<br>" + escape(data.mapStatus) + "</html>");
 
-		String scope = data.clanWide ? " (clan)" : " (this client)";
+		String scope = data.scope;
 		giversTitle.setText("Top gz givers" + scope);
 		receiversTitle.setText("Most gz'd" + scope);
 		fillLeaderboard(giversPanel, data.givers.subList(0, Math.min(GIVERS_SIZE, data.givers.size())), "No gz's counted yet");
@@ -537,13 +652,17 @@ public class CorClanPanel extends PluginPanel
 		podiumTitle.setText("GZ podium" + scope);
 		fillPodium(podiumPanel, podiumIcons, data.givers);
 		fillPodium(weeklyPanel, weeklyIcons, data.weeklyGivers);
-		weeklyPanel.add(muted("Since " + WEEK_DAY.format(new Date(data.weekStart)) + ", resets Sunday"), 0);
+		weeklyPanel.add(muted("Since " + WEEK_DAY.format(new Date(data.weekStart)) + ", resets Sunday 00:00 UTC"), 0);
 		fillStreaks(data.longestStreak, data.currentStreak);
 		allGivers = data.allGivers;
 		updateAllGiversHeader();
 		fillAllGivers();
 		fillClanRoster(data.clanRoster, data.clanRankTitles, toMap(data.allGivers));
 		updateClanHeader();
+		ownerGlowSection.setVisible(data.owner);
+		ownerGlowBoxes.forEach((glow, box) -> box.setSelected(GlowPicks.picked(config, glow)));
+		devGlowSection.setVisible(data.dev);
+		devGlowBoxes.forEach((glow, box) -> box.setSelected(DevGlow.picked(config, glow)));
 
 		revalidate();
 		repaint();

@@ -13,7 +13,7 @@ import org.junit.Test;
 
 public class HolyAuraTest
 {
-	private static final HolyAura AURA = new HolyAura(null, null, null);
+	private static final HolyAura AURA = new HolyAura(null, null, null, null);
 
 	private static void assertDelaysCoverRange(HolyAura.Effect effect)
 	{

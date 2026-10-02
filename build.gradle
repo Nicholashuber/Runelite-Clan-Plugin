@@ -28,6 +28,7 @@ dependencies {
 }
 
 group = 'com.corclan'
+version = '0.0.0'
 
 tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
