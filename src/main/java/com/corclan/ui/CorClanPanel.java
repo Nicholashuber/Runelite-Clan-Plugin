@@ -4,6 +4,7 @@ import com.corclan.CorClanConfig;
 import com.corclan.clan.ClanRoster;
 import com.corclan.clan.OrgChart;
 import com.corclan.glow.DevGlow;
+import com.corclan.glow.FounderGlow;
 import com.corclan.glow.GlowEffect;
 import com.corclan.glow.GlowPicks;
 import com.corclan.gz.BroadcastRecord;
@@ -110,6 +111,11 @@ public class CorClanPanel extends PluginPanel
 	private final JPanel devGlowPanel = new JPanel();
 	private final Map<DevGlow, JCheckBox> devGlowBoxes = new EnumMap<>(DevGlow.class);
 	private JPanel devGlowSection;
+	// DAYLlGHT's founder aura; the section is shown only while you are DAYLlGHT
+	private final JLabel founderGlowHeader = new JLabel();
+	private final JPanel founderGlowPanel = new JPanel();
+	private final Map<FounderGlow, JCheckBox> founderGlowBoxes = new EnumMap<>(FounderGlow.class);
+	private JPanel founderGlowSection;
 
 	private final JLabel summaryLabel = new JLabel();
 	/** joins or leaves the CoR party; the plugin never joins on its own */
@@ -124,10 +130,11 @@ public class CorClanPanel extends PluginPanel
 	/**
 	 * @param onGlowToggle called on the Swing thread when the Owner switches one of their glow effects
 	 * @param onDevToggle called on the Swing thread when Lavasockz switches part of his aura
+	 * @param onFounderToggle called on the Swing thread when DAYLlGHT switches part of their aura
 	 * @param onPartyToggle called on the Swing thread when the player presses Join / Leave CoR party
 	 */
 	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset, BiConsumer<GlowEffect, Boolean> onGlowToggle,
-		BiConsumer<DevGlow, Boolean> onDevToggle, Runnable onPartyToggle)
+		BiConsumer<DevGlow, Boolean> onDevToggle, BiConsumer<FounderGlow, Boolean> onFounderToggle, Runnable onPartyToggle)
 	{
 		super();
 		this.config = config;
@@ -209,6 +216,8 @@ public class CorClanPanel extends PluginPanel
 		content.add(ownerGlowSection);
 		devGlowSection = buildDevGlow(onDevToggle);
 		content.add(devGlowSection);
+		founderGlowSection = buildFounderGlow(onFounderToggle);
+		content.add(founderGlowSection);
 
 		add(content, BorderLayout.NORTH);
 	}
@@ -327,6 +336,33 @@ public class CorClanPanel extends PluginPanel
 		JPanel body = collapsible(devGlowHeader, devGlowPanel, updateHeader);
 		updateHeader.run();
 		devGlowPanel.add(muted("What other CoR plugin users see on you"), 0);
+
+		JPanel section = new JPanel(new BorderLayout());
+		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		section.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
+		section.add(body, BorderLayout.CENTER);
+		section.setVisible(false);
+		return section;
+	}
+
+	/** DAYLlGHT's aura parts, one checkbox each. Hidden until {@link #refresh} says you are DAYLlGHT. */
+	private JPanel buildFounderGlow(BiConsumer<FounderGlow, Boolean> onFounderToggle)
+	{
+		for (FounderGlow glow : FounderGlow.values())
+		{
+			JCheckBox box = new JCheckBox(glow.label);
+			box.setFont(FontManager.getRunescapeSmallFont());
+			box.setForeground(Color.WHITE);
+			box.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+			box.setFocusable(false);
+			box.addActionListener(e -> onFounderToggle.accept(glow, box.isSelected()));
+			founderGlowBoxes.put(glow, box);
+			founderGlowPanel.add(box);
+		}
+		Runnable updateHeader = () -> founderGlowHeader.setText(marker(founderGlowPanel) + "Founder glow (only you see this)");
+		JPanel body = collapsible(founderGlowHeader, founderGlowPanel, updateHeader);
+		updateHeader.run();
+		founderGlowPanel.add(muted("What other CoR plugin users see on you"), 0);
 
 		JPanel section = new JPanel(new BorderLayout());
 		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -703,6 +739,8 @@ public class CorClanPanel extends PluginPanel
 		ownerGlowBoxes.forEach((glow, box) -> box.setSelected(GlowPicks.picked(config, glow)));
 		devGlowSection.setVisible(data.dev);
 		devGlowBoxes.forEach((glow, box) -> box.setSelected(DevGlow.picked(config, glow)));
+		founderGlowSection.setVisible(data.founder);
+		founderGlowBoxes.forEach((glow, box) -> box.setSelected(FounderGlow.picked(config, glow)));
 
 		revalidate();
 		repaint();

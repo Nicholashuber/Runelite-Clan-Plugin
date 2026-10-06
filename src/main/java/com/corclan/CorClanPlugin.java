@@ -2,7 +2,9 @@ package com.corclan;
 
 import com.corclan.chat.RankCommands;
 import com.corclan.clan.ClanRoster;
+import com.corclan.glow.DaylightAura;
 import com.corclan.glow.DevGlow;
+import com.corclan.glow.FounderGlow;
 import com.corclan.glow.GlowEffect;
 import com.corclan.glow.GlowPicks;
 import com.corclan.glow.HolyAura;
@@ -188,6 +190,9 @@ public class CorClanPlugin extends Plugin
 	private LavaAura lavaAura;
 
 	@Inject
+	private DaylightAura daylightAura;
+
+	@Inject
 	private SignatureGlowOverlay signatureGlowOverlay;
 
 	@Inject
@@ -236,6 +241,8 @@ public class CorClanPlugin extends Plugin
 	private boolean panelShowsOwner;
 	/** the side panel currently shows the Dev glow section (you are Lavasockz) */
 	private boolean panelShowsDev;
+	/** the side panel currently shows the Founder glow section (you are DAYLlGHT) */
+	private boolean panelShowsFounder;
 	private int locationTick;
 	/** what the clan map is doing; announced in chat when it changes */
 	private MapState mapState = MapState.OFF;
@@ -282,6 +289,7 @@ public class CorClanPlugin extends Plugin
 		panel = new CorClanPanel(config, itemManager, this::resetStats,
 			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
 			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
+			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
 			this::toggleCorParty);
 		navButton = NavigationButton.builder()
 			.tooltip("CoR Clan")
@@ -313,6 +321,7 @@ public class CorClanPlugin extends Plugin
 		wsClient.unregisterMessage(CorGlowPicks.class);
 		clientThread.invoke(glowPicks::clearPartyPicks);
 		clientThread.invoke(lavaAura::clearPartyPicks);
+		clientThread.invoke(daylightAura::clearPartyPicks);
 		clearPartyLocations();
 		overlayManager.remove(overlay);
 		overlayManager.remove(rankGlowOverlay);
@@ -320,6 +329,7 @@ public class CorClanPlugin extends Plugin
 		rankCommands.shutDown();
 		clientThread.invoke(holyAura::clear);
 		clientThread.invoke(lavaAura::clear);
+		clientThread.invoke(daylightAura::clear);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
@@ -362,13 +372,15 @@ public class CorClanPlugin extends Plugin
 				clientThread.invokeLater(this::onStaffEdit);
 			}
 		}
-		if (GlowEffect.isConfigKey(event.getKey()) || DevGlow.isConfigKey(event.getKey()))
+		if (GlowEffect.isConfigKey(event.getKey()) || DevGlow.isConfigKey(event.getKey())
+			|| FounderGlow.isConfigKey(event.getKey()))
 		{
 			clientThread.invokeLater(() -> sendGlowSoon = true);
 		}
 		if ("rankGlow".equals(event.getKey()) && !config.rankGlow())
 		{
 			clientThread.invoke(lavaAura::clear);
+			clientThread.invoke(daylightAura::clear);
 			clientThread.invoke(holyAura::clear);
 		}
 		rebuildCosmetics();
@@ -575,6 +587,73 @@ public class CorClanPlugin extends Plugin
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + glow.shortName + (on ? " on" : " off"), null);
 	}
 
+	/** True when you are logged in as a wearer of the founder aura (DAYLlGHT). Client thread. */
+	private boolean isFounder()
+	{
+		String me = localPlayerName();
+		return me != null && DaylightAura.WEARERS.contains(MemberCosmetics.key(me));
+	}
+
+	/**
+	 * ::founderglow lists DAYLlGHT's aura parts; ::founderglow &lt;name&gt; [on|off] switches one (toggles
+	 * without on/off). The settings are hidden, and for anyone else the command does nothing.
+	 */
+	private void founderGlow(String[] args)
+	{
+		if (!isFounder())
+		{
+			return;
+		}
+		if (args.length == 0)
+		{
+			StringBuilder list = new StringBuilder("CoR: your founder glow -");
+			for (FounderGlow glow : FounderGlow.values())
+			{
+				list.append(' ').append(glow.shortName).append(FounderGlow.picked(config, glow) ? " on," : " off,");
+			}
+			list.setLength(list.length() - 1);
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", list + ". ::founderglow <name> [on|off]", null);
+			return;
+		}
+		FounderGlow glow = FounderGlow.byShortName(args[0]);
+		String state = args.length > 1 ? args[1].toLowerCase() : "";
+		if (glow == null || !(state.isEmpty() || state.equals("on") || state.equals("off")))
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Usage: ::founderglow <name> [on|off]. ::founderglow lists the names", null);
+			return;
+		}
+		boolean on = state.isEmpty() ? !FounderGlow.picked(config, glow) : state.equals("on");
+		configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on);
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + glow.shortName + (on ? " on" : " off"), null);
+	}
+
+	/**
+	 * ::dayfx flames|swirl|smoke &lt;spot anim id&gt; [rise or height] switches a part of DAYLlGHT's aura to
+	 * another game graphic this session, to try out effects. Local only, like every :: command.
+	 */
+	private void previewDaylightFx(String[] args)
+	{
+		try
+		{
+			int id = Integer.parseInt(args.length > 1 ? args[1] : "");
+			// the swirl climbs this far each loop unless told otherwise; the smoke plays at the feet
+			boolean swirl = FounderGlow.BLACK_SWIRL.shortName.equalsIgnoreCase(args[0]);
+			int extra = args.length > 2 ? Integer.parseInt(args[2]) : swirl ? DaylightAura.DEFAULT_SWIRL_RISE : 0;
+			String done = daylightAura.preview(args[0], id, extra);
+			if (done != null)
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", done, null);
+				return;
+			}
+		}
+		catch (NumberFormatException e)
+		{
+			// fall through to the usage line
+		}
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+			"Usage: ::dayfx flames|swirl|smoke <spot anim id> [swirl rise / smoke height], e.g. ::dayfx swirl 1296 250", null);
+	}
+
 	/**
 	 * Double-colon commands are handled inside the client and never sent to the game server. This one
 	 * prints a local CoR banner with the gz leaderboard. Only the player who typed it sees it.
@@ -599,6 +678,16 @@ public class CorClanPlugin extends Plugin
 		if (cmd.equals("devglow"))
 		{
 			devGlow(event.getArguments());
+			return;
+		}
+		if (cmd.equals("dayfx"))
+		{
+			previewDaylightFx(event.getArguments());
+			return;
+		}
+		if (cmd.equals("founderglow"))
+		{
+			founderGlow(event.getArguments());
 			return;
 		}
 		if (cmd.equals("myglow"))
@@ -1050,9 +1139,10 @@ public class CorClanPlugin extends Plugin
 		String scope = viewShared ? " (CoR party)" : " (this client)";
 		panelShowsOwner = ClanRank.OWNER.equals(glowPicks.localRank());
 		panelShowsDev = isDev();
+		panelShowsFounder = isFounder();
 		return new PanelData(mine, summary, partyStatus(), mapState.status(partyLocations.size()), scope, givers, receivers, recent,
 			weeklyGivers, tracker.getWeekStart(), tracker.longestStreak(), tracker.currentStreak(), allGivers,
-			clanRoster(), clanRankTitles(), panelShowsOwner, panelShowsDev, inCorParty());
+			clanRoster(), clanRankTitles(), panelShowsOwner, panelShowsDev, panelShowsFounder, inCorParty());
 	}
 
 	/**
@@ -1242,6 +1332,7 @@ public class CorClanPlugin extends Plugin
 			clearPartyLocations();
 			glowPicks.clearPartyPicks();
 			lavaAura.clearPartyPicks();
+			daylightAura.clearPartyPicks();
 			updateGzView();
 			// we just joined: the party gets our counts and glow, and staff their lists
 			sendGzSoon = true;
@@ -1280,6 +1371,7 @@ public class CorClanPlugin extends Plugin
 			partyNames.remove(event.getMemberId());
 			glowPicks.removePartyMember(event.getMemberId());
 			lavaAura.removePartyMember(event.getMemberId());
+			daylightAura.removePartyMember(event.getMemberId());
 			partySeen.remove(event.getMemberId());
 			refreshPanel();
 		});
@@ -1316,9 +1408,10 @@ public class CorClanPlugin extends Plugin
 			}
 			if (sendGlowSoon)
 			{
-				// rank glow picks and dev glow picks travel together; each side ignores the other's ids
+				// rank, dev and founder glow picks travel together; each side ignores the others' ids
 				List<String> picks = new ArrayList<>(glowPicks.localPicks());
 				picks.addAll(lavaAura.localPicks());
+				picks.addAll(daylightAura.localPicks());
 				partyService.send(new CorGlowPicks(picks));
 				sendGlowSoon = false;
 			}
@@ -1386,6 +1479,7 @@ public class CorClanPlugin extends Plugin
 			}
 			glowPicks.setPartyPicks(msg.getMemberId(), from.getDisplayName(), msg.getGlows());
 			lavaAura.setPartyPicks(msg.getMemberId(), from.getDisplayName(), msg.getGlows());
+			daylightAura.setPartyPicks(msg.getMemberId(), from.getDisplayName(), msg.getGlows());
 		});
 	}
 
@@ -1473,6 +1567,7 @@ public class CorClanPlugin extends Plugin
 	{
 		holyAura.onClientTick();
 		lavaAura.onClientTick();
+		daylightAura.onClientTick();
 	}
 
 	@Subscribe
@@ -1481,7 +1576,8 @@ public class CorClanPlugin extends Plugin
 		holyAura.onGameTick();
 		tickLocation();
 		// the Owner glow section appears once your clan rank has loaded (and goes if it changes)
-		if (panelShowsOwner != ClanRank.OWNER.equals(glowPicks.localRank()) || panelShowsDev != isDev())
+		if (panelShowsOwner != ClanRank.OWNER.equals(glowPicks.localRank()) || panelShowsDev != isDev()
+			|| panelShowsFounder != isFounder())
 		{
 			refreshPanel();
 		}

@@ -36,6 +36,8 @@ public final class PanelData
 	final boolean owner;
 	/** you are Lavasockz: show the Dev glow section */
 	final boolean dev;
+	/** you are DAYLlGHT: show the Founder glow section */
+	final boolean founder;
 	/** in the CoR party: the panel button says Leave instead of Join */
 	final boolean inCorParty;
 
@@ -43,10 +45,11 @@ public final class PanelData
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
-		Map<Integer, String> clanRankTitles, boolean owner, boolean dev, boolean inCorParty)
+		Map<Integer, String> clanRankTitles, boolean owner, boolean dev, boolean founder, boolean inCorParty)
 	{
 		this.owner = owner;
 		this.dev = dev;
+		this.founder = founder;
 		this.inCorParty = inCorParty;
 		this.clanRoster = clanRoster;
 		this.clanRankTitles = clanRankTitles;

@@ -161,6 +161,58 @@ public interface CorClanConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "founderGlowFlames",
+		name = "Red Tormented Demon flames (DAYLlGHT)",
+		description = "A Tormented Demon's fire, turned red, burning on you nonstop. DAYLlGHT only: set in the CoR side panel (Founder glow) or with ::founderglow",
+		position = 12,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean founderGlowFlames()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "founderGlowSwirl",
+		name = "Black swirl (DAYLlGHT)",
+		description = "A black swirl spiralling up you nonstop. DAYLlGHT only: set in the CoR side panel (Founder glow) or with ::founderglow",
+		position = 15,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean founderGlowSwirl()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "founderGlowSmoke",
+		name = "Smoke cloud (DAYLlGHT)",
+		description = "A smoke cloud swirling around you nonstop. DAYLlGHT only: set in the CoR side panel (Founder glow) or with ::founderglow",
+		position = 13,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean founderGlowSmoke()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "founderGlowSparkle",
+		name = "Gem sparkle (DAYLlGHT)",
+		description = "Red gem sparkles, matching the flames, twinkling over you. DAYLlGHT only: set in the CoR side panel (Founder glow) or with ::founderglow",
+		position = 14,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean founderGlowSparkle()
+	{
+		return true;
+	}
+
 	@ConfigSection(
 		name = "Challenger rank glows (locked)",
 		description = "Locked: Challenger League requirements to be announced soon",

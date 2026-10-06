@@ -107,7 +107,7 @@ public class RankGlowOverlay extends Overlay
 	}
 
 	/** Stars blooming and fading over the player's body. */
-	private static void twinkle(Graphics2D graphics, Player player, GemStyle.Sparkle sparkle, long now)
+	static void twinkle(Graphics2D graphics, Player player, GemStyle.Sparkle sparkle, long now)
 	{
 		Shape hull = player.getConvexHull();
 		if (hull == null)

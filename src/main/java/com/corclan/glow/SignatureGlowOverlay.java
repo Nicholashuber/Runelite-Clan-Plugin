@@ -12,8 +12,8 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.outline.ModelOutlineRenderer;
 
 /**
- * Outlines for named members' signature auras (for now Lavasockz's molten outline, see {@link MoltenStyle}).
- * Drawn on this client only; players without the plugin see nothing.
+ * Named members' signature auras drawn over the scene: Lavasockz's molten outline ({@link MoltenStyle}) and
+ * DAYLlGHT's gem sparkle ({@link DaylightAura}). Drawn on this client only; players without the plugin see nothing.
  */
 public class SignatureGlowOverlay extends Overlay
 {
@@ -21,14 +21,17 @@ public class SignatureGlowOverlay extends Overlay
 	private final CorClanConfig config;
 	private final ModelOutlineRenderer outlines;
 	private final LavaAura lavaAura;
+	private final DaylightAura daylightAura;
 
 	@Inject
-	SignatureGlowOverlay(Client client, CorClanConfig config, ModelOutlineRenderer outlines, LavaAura lavaAura)
+	SignatureGlowOverlay(Client client, CorClanConfig config, ModelOutlineRenderer outlines, LavaAura lavaAura,
+		DaylightAura daylightAura)
 	{
 		this.client = client;
 		this.config = config;
 		this.outlines = outlines;
 		this.lavaAura = lavaAura;
+		this.daylightAura = daylightAura;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 		setPriority(PRIORITY_HIGH);
@@ -50,6 +53,10 @@ public class SignatureGlowOverlay extends Overlay
 				{
 					outlines.drawOutline(player, layer.width, layer.color, layer.feather);
 				}
+			}
+			if (daylightAura.effectsFor(player).contains(FounderGlow.GEM_SPARKLE))
+			{
+				RankGlowOverlay.twinkle(graphics, player, DaylightAura.SPARKLE, now);
 			}
 		}
 		return null;
