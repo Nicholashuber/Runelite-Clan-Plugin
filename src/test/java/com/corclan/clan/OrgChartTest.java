@@ -1,6 +1,8 @@
 package com.corclan.clan;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import com.corclan.clan.ClanRoster.Member;
 import com.corclan.clan.OrgChart.Chart;
@@ -77,7 +79,7 @@ public class OrgChartTest
 	@Test
 	public void letterTiersAreTheCompetitiveBracketSToF()
 	{
-		OrgChart.Tier letters = chart(corRanks()).competitive.get(0);
+		OrgChart.Tier letters = chart(corRanks()).competitive.get(1);
 		assertEquals("Challenger League", letters.name);
 		assertEquals(Arrays.asList("Soul", "Achiever", "Beast", "Competitor", "Dragon", "Elite", "Gnome child"), titles(letters));
 		assertEquals(Arrays.asList("S", "A", "B", "C", "D", "E", "F"),
@@ -85,12 +87,13 @@ public class OrgChartTest
 	}
 
 	@Test
-	public void gemLeagueIsTheBottomBoxHighestFirst()
+	public void gemLeagueComesFirstHighestFirstAndIsOpen()
 	{
 		Chart c = chart(corRanks());
 		assertEquals(2, c.competitive.size());
-		OrgChart.Tier gems = c.competitive.get(1);
+		OrgChart.Tier gems = c.competitive.get(0);
 		assertEquals("Gem League", gems.name);
+		assertNull(gems.lockedNote);
 		assertEquals(Arrays.asList("Zenyte", "Onyx", "Dragonstone", "Diamond", "Ruby", "Emerald", "Sapphire", "Opal"), titles(gems));
 	}
 
@@ -104,10 +107,10 @@ public class OrgChartTest
 			new Member("Newbie2", 10, "Opal", true));
 
 		assertEquals(1, slot(c.staff.get(0), "Owner").members.size());
-		assertEquals(1, slot(c.competitive.get(0), "Achiever").members.size());
-		assertEquals(2, slot(c.competitive.get(1), "Opal").members.size());
-		assertEquals(1, slot(c.competitive.get(1), "Opal").onlineCount());
-		assertTrue(slot(c.competitive.get(0), "Soul").members.isEmpty());
+		assertEquals(1, slot(c.competitive.get(1), "Achiever").members.size());
+		assertEquals(2, slot(c.competitive.get(0), "Opal").members.size());
+		assertEquals(1, slot(c.competitive.get(0), "Opal").onlineCount());
+		assertTrue(slot(c.competitive.get(1), "Soul").members.isEmpty());
 		assertTrue(slot(c.staff.get(1), "General").members.isEmpty());
 		assertTrue(c.others.isEmpty());
 	}
@@ -117,10 +120,19 @@ public class OrgChartTest
 	{
 		// a clan that hasn't set up the competitive ranks yet
 		Chart c = chart(Collections.singletonMap(126, "Owner"));
-		OrgChart.Tier letters = c.competitive.get(0);
+		OrgChart.Tier letters = c.competitive.get(1);
 		assertEquals(7, letters.slots.size());
 		assertTrue(letters.slots.stream().allMatch(s -> s.members.isEmpty()));
-		assertEquals("Gem League", c.competitive.get(1).name);
+		assertEquals("Gem League", c.competitive.get(0).name);
+	}
+
+	@Test
+	public void challengerLeagueSitsUnderTheGemsLockedUntilAnnounced()
+	{
+		OrgChart.Tier letters = chart(corRanks()).competitive.get(1);
+		assertEquals("Challenger League", letters.name);
+		assertNotNull(letters.lockedNote);
+		assertTrue(letters.lockedNote.contains("announced soon"));
 	}
 
 	@Test
@@ -131,9 +143,9 @@ public class OrgChartTest
 		r.put(60, "Dragon");
 		r.put(50, "Soul");
 		Chart c = chart(r, new Member("Dee", 60, "Dragon", false));
-		assertEquals("D", slot(c.competitive.get(0), "Dragon").grade);
-		assertEquals(1, slot(c.competitive.get(0), "Dragon").members.size());
-		assertEquals("S", slot(c.competitive.get(0), "Soul").grade);
+		assertEquals("D", slot(c.competitive.get(1), "Dragon").grade);
+		assertEquals(1, slot(c.competitive.get(1), "Dragon").members.size());
+		assertEquals("S", slot(c.competitive.get(1), "Soul").grade);
 	}
 
 	@Test
@@ -141,7 +153,7 @@ public class OrgChartTest
 	{
 		Chart c = chart(corRanks());
 		assertTrue(c.staff.stream().flatMap(t -> t.slots.stream()).allMatch(s -> s.grade == null));
-		assertTrue(c.competitive.get(1).slots.stream().allMatch(s -> s.grade == null));
+		assertTrue(c.competitive.get(0).slots.stream().allMatch(s -> s.grade == null));
 	}
 
 	@Test

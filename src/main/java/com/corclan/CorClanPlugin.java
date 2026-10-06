@@ -1,5 +1,6 @@
 package com.corclan;
 
+import com.corclan.chat.RankCommands;
 import com.corclan.clan.ClanRoster;
 import com.corclan.glow.DevGlow;
 import com.corclan.glow.GlowEffect;
@@ -190,6 +191,9 @@ public class CorClanPlugin extends Plugin
 	private SignatureGlowOverlay signatureGlowOverlay;
 
 	@Inject
+	private RankCommands rankCommands;
+
+	@Inject
 	private ItemManager itemManager;
 
 	@Inject
@@ -289,6 +293,7 @@ public class CorClanPlugin extends Plugin
 		overlayManager.add(overlay);
 		overlayManager.add(rankGlowOverlay);
 		overlayManager.add(signatureGlowOverlay);
+		rankCommands.startUp(() -> viewGiven, () -> rankCosmetics);
 		// the CoR party is only ever joined from the panel button: never automatically
 		refreshPanel();
 		log.debug("CoR Clan started");
@@ -312,6 +317,7 @@ public class CorClanPlugin extends Plugin
 		overlayManager.remove(overlay);
 		overlayManager.remove(rankGlowOverlay);
 		overlayManager.remove(signatureGlowOverlay);
+		rankCommands.shutDown();
 		clientThread.invoke(holyAura::clear);
 		clientThread.invoke(lavaAura::clear);
 		clientToolbar.removeNavigation(navButton);
@@ -598,6 +604,10 @@ public class CorClanPlugin extends Plugin
 		if (cmd.equals("myglow"))
 		{
 			myGlow(event.getArguments());
+			return;
+		}
+		if (glowPicks.gemPartCommand(cmd, event.getArguments()))
+		{
 			return;
 		}
 		if (!cmd.equals("cor") && !cmd.equals("test"))

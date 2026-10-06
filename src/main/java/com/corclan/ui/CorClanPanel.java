@@ -10,6 +10,8 @@ import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.Streaks;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -33,6 +35,7 @@ import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -57,6 +60,8 @@ public class CorClanPanel extends PluginPanel
 {
 	private static final int LEADERBOARD_SIZE = 5;
 	private static final int GIVERS_SIZE = 10;
+	/** wrap width of a locked tier's note, inside the org chart's box */
+	private static final int LOCKED_NOTE_WIDTH = 170;
 	private static final SimpleDateFormat TIME = new SimpleDateFormat("HH:mm");
 	private static final SimpleDateFormat WEEK_DAY = new SimpleDateFormat("EEE d MMM");
 
@@ -455,12 +460,47 @@ public class CorClanPanel extends PluginPanel
 				clanPanel.add(connector());
 			}
 			OrgChart.Tier tier = tiers.get(i);
-			JPanel box = tierBox(tier.name);
+			JPanel box = tierBox(tier.lockedNote == null ? tier.name : tier.name + " (locked)");
+			// wrapped to the panel's width; stays readable while the rest of the box is greyed out
+			JLabel note = tier.lockedNote == null ? null
+				: muted("<html><div style='width:" + LOCKED_NOTE_WIDTH + "px'>" + tier.lockedNote + "</div></html>");
+			if (note != null)
+			{
+				JPanel row = new JPanel(new BorderLayout());
+				row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+				row.add(note, BorderLayout.CENTER);
+				box.add(row);
+			}
 			for (OrgChart.Slot slot : tier.slots)
 			{
 				addRank(box, slot.grade, slot.title, slot.members, slot.onlineCount(), gzCounts);
 			}
+			if (note != null)
+			{
+				greyOut(box, tier.lockedNote);
+				note.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+			}
 			clanPanel.add(box);
+		}
+	}
+
+	/** Dims every label in a locked tier's box, so nothing in it looks reachable yet; hovering explains why. */
+	private static void greyOut(Container container, String why)
+	{
+		for (Component child : container.getComponents())
+		{
+			if (child instanceof JLabel)
+			{
+				child.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
+			}
+			if (child instanceof JComponent)
+			{
+				((JComponent) child).setToolTipText(why);
+			}
+			if (child instanceof Container)
+			{
+				greyOut((Container) child, why);
+			}
 		}
 	}
 

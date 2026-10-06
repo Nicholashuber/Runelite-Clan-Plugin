@@ -162,9 +162,9 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigSection(
-		name = "Challenger rank glows",
-		description = "The glow other CoR plugin users see on you for your Challenger League tier, Soul (S) to Gnome child (F). Shared through the CoR party. Each needs its tier or higher. Placeholders for now: none are drawn yet",
-		position = 6,
+		name = "Challenger rank glows (locked)",
+		description = "Locked: Challenger League requirements to be announced soon",
+		position = 7,
 		closedByDefault = true
 	)
 	String challengerGlowSection = "challengerGlow";
@@ -172,9 +172,10 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowSoul",
 		name = "Soul glow",
-		description = "Placeholder, not drawn yet. Needs the Soul rank or higher",
+		description = "Challenger League requirements to be announced soon",
 		position = 0,
-		section = challengerGlowSection
+		section = challengerGlowSection,
+		hidden = true
 	)
 	default boolean glowSoul()
 	{
@@ -184,9 +185,10 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowAchiever",
 		name = "Achiever glow",
-		description = "Placeholder, not drawn yet. Needs the Achiever rank or higher",
+		description = "Challenger League requirements to be announced soon",
 		position = 1,
-		section = challengerGlowSection
+		section = challengerGlowSection,
+		hidden = true
 	)
 	default boolean glowAchiever()
 	{
@@ -196,9 +198,10 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowBeast",
 		name = "Beast glow",
-		description = "Placeholder, not drawn yet. Needs the Beast rank or higher",
+		description = "Challenger League requirements to be announced soon",
 		position = 2,
-		section = challengerGlowSection
+		section = challengerGlowSection,
+		hidden = true
 	)
 	default boolean glowBeast()
 	{
@@ -208,9 +211,10 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowCompetitor",
 		name = "Competitor glow",
-		description = "Placeholder, not drawn yet. Needs the Competitor rank or higher",
+		description = "Challenger League requirements to be announced soon",
 		position = 3,
-		section = challengerGlowSection
+		section = challengerGlowSection,
+		hidden = true
 	)
 	default boolean glowCompetitor()
 	{
@@ -220,9 +224,10 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowDragon",
 		name = "Dragon glow",
-		description = "Placeholder, not drawn yet. Needs the Dragon rank or higher",
+		description = "Challenger League requirements to be announced soon",
 		position = 4,
-		section = challengerGlowSection
+		section = challengerGlowSection,
+		hidden = true
 	)
 	default boolean glowDragon()
 	{
@@ -232,9 +237,10 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowElite",
 		name = "Elite glow",
-		description = "Placeholder, not drawn yet. Needs the Elite rank or higher",
+		description = "Challenger League requirements to be announced soon",
 		position = 5,
-		section = challengerGlowSection
+		section = challengerGlowSection,
+		hidden = true
 	)
 	default boolean glowElite()
 	{
@@ -244,9 +250,10 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowGnomeChild",
 		name = "Gnome child glow",
-		description = "Placeholder, not drawn yet. Needs the Gnome child rank or higher",
+		description = "Challenger League requirements to be announced soon",
 		position = 6,
-		section = challengerGlowSection
+		section = challengerGlowSection,
+		hidden = true
 	)
 	default boolean glowGnomeChild()
 	{
@@ -255,8 +262,8 @@ public interface CorClanConfig extends Config
 
 	@ConfigSection(
 		name = "Gem tier glows",
-		description = "The glow other CoR plugin users see on you for your Gem League rank, Opal to Zenyte. Shared through the CoR party. Each needs its gem or higher. Placeholders for now: none are drawn yet",
-		position = 7,
+		description = "The glow other CoR plugin users see on you for your Gem League rank, Opal to Zenyte. Shared through the CoR party. Each needs its gem or higher. You show the highest one you tick",
+		position = 6,
 		closedByDefault = true
 	)
 	String gemGlowSection = "gemGlow";
@@ -264,7 +271,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowZenyte",
 		name = "Zenyte glow",
-		description = "Placeholder, not drawn yet. Needs the Zenyte rank or higher",
+		description = "Needs the Zenyte rank or higher",
 		position = 0,
 		section = gemGlowSection
 	)
@@ -276,7 +283,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowOnyx",
 		name = "Onyx glow",
-		description = "Placeholder, not drawn yet. Needs the Onyx rank or higher",
+		description = "Needs the Onyx rank or higher",
 		position = 1,
 		section = gemGlowSection
 	)
@@ -288,7 +295,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowDragonstone",
 		name = "Dragonstone glow",
-		description = "Placeholder, not drawn yet. Needs the Dragonstone rank or higher",
+		description = "Needs the Dragonstone rank or higher",
 		position = 2,
 		section = gemGlowSection
 	)
@@ -300,7 +307,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowDiamond",
 		name = "Diamond glow",
-		description = "Placeholder, not drawn yet. Needs the Diamond rank or higher",
+		description = "Needs the Diamond rank or higher",
 		position = 3,
 		section = gemGlowSection
 	)
@@ -312,7 +319,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowRuby",
 		name = "Ruby glow",
-		description = "Placeholder, not drawn yet. Needs the Ruby rank or higher",
+		description = "Needs the Ruby rank or higher",
 		position = 4,
 		section = gemGlowSection
 	)
@@ -324,7 +331,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowEmerald",
 		name = "Emerald glow",
-		description = "Placeholder, not drawn yet. Needs the Emerald rank or higher",
+		description = "Needs the Emerald rank or higher",
 		position = 5,
 		section = gemGlowSection
 	)
@@ -336,7 +343,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowSapphire",
 		name = "Sapphire glow",
-		description = "Placeholder, not drawn yet. Needs the Sapphire rank or higher",
+		description = "Needs the Sapphire rank or higher",
 		position = 6,
 		section = gemGlowSection
 	)
@@ -348,11 +355,35 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "glowOpal",
 		name = "Opal glow",
-		description = "Placeholder, not drawn yet. Needs the Opal rank or higher",
+		description = "Needs the Opal rank or higher",
 		position = 7,
 		section = gemGlowSection
 	)
 	default boolean glowOpal()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowGemOutline",
+		name = "Gem outline",
+		description = "Show your gem's glowing outline. Also ::outline [on|off]",
+		position = 8,
+		section = gemGlowSection
+	)
+	default boolean glowGemOutline()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "glowGemSparkles",
+		name = "Gem sparkles",
+		description = "Show your gem's twinkling stars (Diamond and up). Also ::sparkles [on|off]",
+		position = 9,
+		section = gemGlowSection
+	)
+	default boolean glowGemSparkles()
 	{
 		return true;
 	}

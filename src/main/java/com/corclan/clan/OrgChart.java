@@ -15,8 +15,9 @@ import java.util.TreeMap;
  * Lays the clan's rank groups out as the CoR org chart. Two chains of boxes, top to bottom:
  * <ul>
  * <li>staff: three tiers of leadership ranks, matched by title</li>
- * <li>competitive: the letter tiers (S = Soul ... F = Gnome child) above the Gem League entry
- * ranks (Zenyte ... Opal) players start in; players graduate from the gems into the letters</li>
+ * <li>competitive: the Gem League entry ranks (Zenyte ... Opal) players start in, then the letter tiers
+ * (S = Soul ... F = Gnome child) players will graduate into. The letter tiers aren't open yet, so they
+ * come last and are marked {@link Tier#lockedNote locked}</li>
  * </ul>
  * Ranks are matched by their in-game title, since clans rename ranks freely. Every listed rank is
  * shown, vacant if nobody holds it. Anything left over goes into {@link Chart#others}.
@@ -67,6 +68,9 @@ public final class OrgChart
 	static final TierDef LETTER_TIERS = TierDef.graded("Challenger League", "SABCDEF",
 		"Soul", "Achiever", "Beast", "Competitor", "Dragon", "Elite", "Gnome child");
 
+	/** Why the Challenger League is greyed out; set to null once its requirements are announced. */
+	static final String LETTER_TIERS_LOCKED = "Not unlocked yet. Requirements to be announced soon";
+
 	/** One rank slot in a tier: the title as charted, and whoever holds it (empty = vacant). */
 	public static final class Slot
 	{
@@ -92,11 +96,14 @@ public final class OrgChart
 	{
 		public final String name;
 		public final List<Slot> slots;
+		/** why nobody can reach this tier yet (show it greyed out), or null when it is open */
+		public final String lockedNote;
 
-		Tier(String name, List<Slot> slots)
+		Tier(String name, List<Slot> slots, String lockedNote)
 		{
 			this.name = name;
 			this.slots = Collections.unmodifiableList(slots);
+			this.lockedNote = lockedNote;
 		}
 	}
 
@@ -104,7 +111,7 @@ public final class OrgChart
 	{
 		/** leadership tiers, top first */
 		public final List<Tier> staff;
-		/** letter tiers (when Soul and Gnome child are set up) above the Gem League */
+		/** the Gem League, then the (locked) letter tiers */
 		public final List<Tier> competitive;
 		/** rank groups that aren't in any tier, highest rank first */
 		public final List<ClanRoster.RankGroup> others;
@@ -149,9 +156,10 @@ public final class OrgChart
 			staff.add(titledTier(def, ranks, byRank, charted));
 		}
 
-		List<Tier> competitive = Arrays.asList(
-			titledTier(LETTER_TIERS, ranks, byRank, charted),
-			titledTier(GEM_LEAGUE, ranks, byRank, charted));
+		Tier gems = titledTier(GEM_LEAGUE, ranks, byRank, charted);
+		Tier letters = titledTier(LETTER_TIERS, ranks, byRank, charted);
+		List<Tier> competitive = Arrays.asList(gems,
+			new Tier(letters.name, letters.slots, LETTER_TIERS_LOCKED));
 
 		List<ClanRoster.RankGroup> others = new ArrayList<>();
 		for (ClanRoster.RankGroup g : groups)
@@ -190,11 +198,11 @@ public final class OrgChart
 			}
 			slots.add(new Slot(grade, shownTitle, members));
 		}
-		return new Tier(def.name, slots);
+		return new Tier(def.name, slots, null);
 	}
 
 	/** Case, spacing and the common "Marshall" spelling don't matter when matching titles. */
-	static String normalize(String title)
+	public static String normalize(String title)
 	{
 		String t = title == null ? "" : title.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
 		return t.equals("marshall") ? "marshal" : t;

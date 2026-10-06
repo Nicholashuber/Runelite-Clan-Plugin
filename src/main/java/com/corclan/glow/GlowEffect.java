@@ -72,6 +72,7 @@ public enum GlowEffect
 		return null;
 	}
 
+	/** True for any rank glow setting: these effects and the {@link GemGlow}s, which share the same picks. */
 	public static boolean isConfigKey(String key)
 	{
 		for (GlowEffect effect : values())
@@ -81,7 +82,7 @@ public enum GlowEffect
 				return true;
 			}
 		}
-		return false;
+		return GemGlow.isConfigKey(key);
 	}
 
 	/**
