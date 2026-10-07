@@ -11,7 +11,7 @@ import net.runelite.api.clan.ClanRank;
 /**
  * The Gem League rank glows, highest gem first. Each is unlocked by its gem rank or any higher rank.
  * Gem ranks are matched by in-game title (clans renumber and rename ranks freely), so unlocking needs
- * the clan's rank titles. Picks travel through the CoR party in the same message as {@link GlowEffect}'s.
+ * the clan's rank titles. Picks travel through the clan server (clan sync) in the same list as {@link GlowEffect}'s.
  * A player shows at most one gem glow: the highest one they picked and unlocked. Looks: {@link GemStyle}.
  */
 public enum GemGlow
@@ -25,7 +25,7 @@ public enum GemGlow
 	SAPPHIRE("gem_sapphire", "glowSapphire", "Sapphire"),
 	OPAL("gem_opal", "glowOpal", "Opal");
 
-	/** sent to other party members; never change one once released */
+	/** sent to the clan server and on to other plugin users; never change one once released */
 	public final String id;
 	/** the checkbox's key in {@link CorClanConfig} */
 	public final String configKey;
@@ -66,14 +66,14 @@ public enum GemGlow
 
 	/**
 	 * The two halves of a gem glow, each switchable on its own (settings, ::outline, ::sparkles) and shared
-	 * through the CoR party with the gem picks.
+	 * through the clan server with the gem picks.
 	 */
 	public enum Part
 	{
 		OUTLINE("gem_outline", "glowGemOutline", "outline"),
 		SPARKLES("gem_sparkles", "glowGemSparkles", "sparkles");
 
-		/** sent to other party members; never change one once released */
+		/** sent to the clan server and on to other plugin users; never change one once released */
 		public final String id;
 		/** the checkbox's key in {@link CorClanConfig} */
 		public final String configKey;

@@ -19,8 +19,8 @@ import net.runelite.api.gameval.SpotanimID;
  * Lavasockz's aura, built in by name like his founder and dev icons: the Flames of Zamorak burning around him
  * nonstop, restarted the moment each play ends, so it keeps going while he walks, on top of the molten outline
  * drawn by {@link SignatureGlowOverlay}. Every plugin user sees it
- * (no party needed) while "Show clan rank glows" is on. Lavasockz can switch it off ({@link DevGlow}); other
- * players see his choice once it arrives through the CoR party, and the flames until then.
+ * (no clan sync needed) while "Show clan rank glows" is on. Lavasockz can switch it off ({@link DevGlow}); other
+ * players see his choice once it arrives through the clan server (clan sync), and the flames until then.
  * Graphics come from the game cache; drawn on this client only. All methods must run on the client thread.
  */
 @Singleton
@@ -35,10 +35,8 @@ public class LavaAura
 
 	private final Client client;
 	private final CorClanConfig config;
-	/** wearer key -> the parts they shared through the CoR party */
-	private final Map<String, List<String>> partyPicks = new HashMap<>();
-	/** party member id -> wearer key, so picks go when the member leaves */
-	private final Map<Long, String> partyNames = new HashMap<>();
+	/** wearer key -> the parts they shared through the clan server; replaced whole */
+	private Map<String, List<String>> sharedPicks = Collections.emptyMap();
 
 	@Inject
 	LavaAura(Client client, CorClanConfig config)
@@ -73,10 +71,10 @@ public class LavaAura
 			}
 			return mine;
 		}
-		return DevGlow.active(partyPicks.get(MemberCosmetics.key(player.getName())));
+		return DevGlow.active(sharedPicks.get(MemberCosmetics.key(player.getName())));
 	}
 
-	/** The parts this client's player switched on, as ids for the party message. */
+	/** The parts this client's player switched on, as ids for the clan server. */
 	public List<String> localPicks()
 	{
 		List<String> ids = new ArrayList<>();
@@ -90,31 +88,27 @@ public class LavaAura
 		return ids;
 	}
 
-	/** A party member's glow picks arrived; only wearers' are kept. */
-	public void setPartyPicks(long memberId, String name, List<String> glows)
+	/**
+	 * Everyone's glow picks arrived from the clan server; only wearers' are kept.
+	 * @param picks {@link MemberCosmetics#key} -> the glow ids that player shared
+	 */
+	public void setSharedPicks(Map<String, List<String>> picks)
 	{
-		String key = MemberCosmetics.key(name);
-		if (!WEARERS.contains(key))
+		Map<String, List<String>> kept = new HashMap<>();
+		for (String wearer : WEARERS)
 		{
-			return;
+			List<String> glows = picks == null ? null : picks.get(wearer);
+			if (glows != null)
+			{
+				kept.put(wearer, glows);
+			}
 		}
-		partyNames.put(memberId, key);
-		partyPicks.put(key, glows == null ? new ArrayList<>() : new ArrayList<>(glows));
+		sharedPicks = kept;
 	}
 
-	public void removePartyMember(long memberId)
+	public void clearSharedPicks()
 	{
-		String key = partyNames.remove(memberId);
-		if (key != null)
-		{
-			partyPicks.remove(key);
-		}
-	}
-
-	public void clearPartyPicks()
-	{
-		partyPicks.clear();
-		partyNames.clear();
+		sharedPicks = Collections.emptyMap();
 	}
 
 	/**

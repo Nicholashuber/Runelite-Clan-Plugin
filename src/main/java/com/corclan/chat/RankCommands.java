@@ -3,8 +3,8 @@ package com.corclan.chat;
 import com.corclan.icons.ClanIconService;
 import com.corclan.icons.MemberCosmetics;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.ChatMessageType;
@@ -34,7 +34,7 @@ public class RankCommands
 	private final Client client;
 	private final ChatCommandManager chatCommandManager;
 	private final ClanIconService iconService;
-	private Supplier<Map<String, Integer>> gzGiven;
+	private ToIntFunction<String> gzGiven;
 	private Supplier<MemberCosmetics> rankCosmetics;
 
 	@Inject
@@ -46,10 +46,10 @@ public class RankCommands
 	}
 
 	/**
-	 * @param gzGiven       all-time gz given per display name, as the plugin shows them (party-wide in the CoR party)
-	 * @param rankCosmetics the staff's icons per clan rank title
+	 * @param gzGiven       all-time gz given by a player name, as the plugin shows it (the clan server's with clan sync on)
+	 * @param rankCosmetics the local "Clan rank icons" list (empty once the clan server's icons loaded)
 	 */
-	public void startUp(Supplier<Map<String, Integer>> gzGiven, Supplier<MemberCosmetics> rankCosmetics)
+	public void startUp(ToIntFunction<String> gzGiven, Supplier<MemberCosmetics> rankCosmetics)
 	{
 		this.gzGiven = gzGiven;
 		this.rankCosmetics = rankCosmetics;
@@ -84,13 +84,13 @@ public class RankCommands
 			return;
 		}
 		String icons = iconTags(MemberCosmetics.key(title.getName()), member);
-		Integer gz = command(message).equals(RANK) ? gzGiven.get().getOrDefault(sender, 0) : null;
+		Integer gz = command(message).equals(RANK) ? Integer.valueOf(gzGiven.applyAsInt(sender)) : null;
 		MessageNode node = event.getMessageNode();
 		node.setValue(node.getValue() + suffix(title.getName(), icons, gz));
 		client.refreshChat();
 	}
 
-	/** The staff's icons for that rank title, or else the plugin's default rank icon. */
+	/** The local list's icons for that rank title, or else the rank's icon (the clan server's pick, or the default). */
 	private String iconTags(String rankKey, ClanChannelMember member)
 	{
 		List<String> keys = rankCosmetics.get().iconsFor(rankKey);

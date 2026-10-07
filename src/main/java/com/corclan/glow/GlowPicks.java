@@ -21,9 +21,10 @@ import net.runelite.api.clan.ClanTitle;
 import net.runelite.client.config.ConfigManager;
 
 /**
- * Which glow effects each player shows: your own from your glow settings, everyone else's from the
- * CoR party (players outside the party, or who haven't sent picks yet, show their rank's defaults).
- * Always limited to what the wearer's clan rank, as this client sees it, unlocks. Client thread only.
+ * Which glow effects each player shows: your own from your glow settings, everyone else's from the clan
+ * server while clan sync is on (players who never shared picks, and everyone while sync is off, show their
+ * rank's defaults). Always limited to what the wearer's clan rank, as this client sees it, unlocks.
+ * Client thread only.
  */
 @Singleton
 public class GlowPicks
@@ -31,10 +32,8 @@ public class GlowPicks
 	private final Client client;
 	private final CorClanConfig config;
 	private final ConfigManager configManager;
-	/** member key -> picked effect ids, from party messages */
-	private final Map<String, List<String>> partyPicks = new HashMap<>();
-	/** party member id -> member key, so picks go when the member leaves */
-	private final Map<Long, String> partyNames = new HashMap<>();
+	/** member key -> picked effect ids, as the clan server last listed them; replaced whole */
+	private Map<String, List<String>> sharedPicks = Collections.emptyMap();
 
 	@Inject
 	GlowPicks(Client client, CorClanConfig config, ConfigManager configManager)
@@ -114,32 +113,19 @@ public class GlowPicks
 		}
 	}
 
-	/** A party member's picks arrived (replacing any earlier ones). */
-	public void setPartyPicks(long memberId, String name, List<String> glows)
+	/**
+	 * Everyone's picks arrived from the clan server (replacing the earlier ones).
+	 * @param picks {@link MemberCosmetics#key} -> the glow ids that player shared
+	 */
+	public void setSharedPicks(Map<String, List<String>> picks)
 	{
-		String key = MemberCosmetics.key(name);
-		String old = partyNames.put(memberId, key);
-		if (old != null && !old.equals(key))
-		{
-			partyPicks.remove(old);
-		}
-		partyPicks.put(key, glows == null ? new ArrayList<>() : new ArrayList<>(glows));
+		sharedPicks = picks == null ? Collections.emptyMap() : picks;
 	}
 
-	/** A party member left: they show their rank's defaults again. */
-	public void removePartyMember(long memberId)
+	/** Clan sync went off: everyone shows their rank's defaults again. */
+	public void clearSharedPicks()
 	{
-		String key = partyNames.remove(memberId);
-		if (key != null)
-		{
-			partyPicks.remove(key);
-		}
-	}
-
-	public void clearPartyPicks()
-	{
-		partyPicks.clear();
-		partyNames.clear();
+		sharedPicks = Collections.emptyMap();
 	}
 
 	/** Your own clan rank, or null when not in a clan (or not loaded yet). */
@@ -215,6 +201,6 @@ public class GlowPicks
 	{
 		return player == client.getLocalPlayer()
 			? localPicks()
-			: partyPicks.get(MemberCosmetics.key(player.getName()));
+			: sharedPicks.get(MemberCosmetics.key(player.getName()));
 	}
 }

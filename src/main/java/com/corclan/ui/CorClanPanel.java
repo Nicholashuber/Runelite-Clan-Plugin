@@ -54,7 +54,7 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
 /**
- * The CoR sidebar: links, gz leaderboards (this client's counts, or the CoR party's), recent clan broadcasts,
+ * The CoR sidebar: links, gz leaderboards (clan-wide with clan sync on, otherwise this client's counts), recent clan broadcasts,
  * the gz podiums and weekly #1 streaks.
  */
 public class CorClanPanel extends PluginPanel
@@ -95,6 +95,7 @@ public class CorClanPanel extends PluginPanel
 	private final IconTextField allGiversSearch = new IconTextField();
 	private final JPanel allGiversList = new JPanel();
 	private List<Map.Entry<String, Integer>> allGivers = Collections.emptyList();
+	private boolean clanWide;
 	// clan members by in-game rank; collapsible like All gz givers
 	private final JLabel clanHeader = new JLabel();
 	private final JPanel clanPanel = new JPanel();
@@ -161,7 +162,7 @@ public class CorClanPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 
 		partyButton.setFocusable(false);
-		partyButton.setToolTipText("RuneLite party for CoR members: shared gz totals, the clan map, staff icons and glows");
+		partyButton.setToolTipText("RuneLite party for CoR members, used for the clan map");
 		partyButton.addActionListener(e ->
 		{
 			if (!inCorParty)
@@ -410,7 +411,7 @@ public class CorClanPanel extends PluginPanel
 
 	private void updateAllGiversHeader()
 	{
-		allGiversHeader.setText(marker(allGiversPanel) + "All gz givers (this client, " + allGivers.size() + ")");
+		allGiversHeader.setText(marker(allGiversPanel) + "All gz givers (" + (clanWide ? "clan, " : "this client, ") + allGivers.size() + ")");
 	}
 
 	private void updateClanHeader()
@@ -423,7 +424,7 @@ public class CorClanPanel extends PluginPanel
 
 	/**
 	 * Rebuilds the chart only when something it shows changed; a big clan is hundreds of rows.
-	 * @param gzGiven all-time gz's given per player on this client, shown in the competitive trees
+	 * @param gzGiven all-time gz's given per player, shown in the competitive trees
 	 */
 	private void fillClanRoster(List<ClanRoster.RankGroup> roster, Map<Integer, String> rankTitles, Map<String, Integer> gzGiven)
 	{
@@ -716,9 +717,10 @@ public class CorClanPanel extends PluginPanel
 	{
 		inCorParty = data.inCorParty;
 		partyButton.setText(data.inCorParty ? "Leave CoR party" : "Join CoR party");
-		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.partyStatus) + "<br>" + escape(data.mapStatus) + "</html>");
+		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.syncStatus) + "<br>" + escape(data.partyStatus) + "<br>" + escape(data.mapStatus) + "</html>");
 
-		String scope = data.scope;
+		clanWide = data.clanWide;
+		String scope = clanWide ? " (clan)" : " (this client)";
 		giversTitle.setText("Top gz givers" + scope);
 		receiversTitle.setText("Most gz'd" + scope);
 		fillLeaderboard(giversPanel, data.givers.subList(0, Math.min(GIVERS_SIZE, data.givers.size())), "No gz's counted yet");

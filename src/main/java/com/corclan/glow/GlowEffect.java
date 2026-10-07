@@ -10,7 +10,7 @@ import net.runelite.api.clan.ClanRank;
  * Every glow effect a clan member can show on themselves. Each needs a clan rank: that rank or any
  * higher one unlocks it. The Owner's effects are hidden settings, switched in the side panel (shown only
  * to the Owner) or with ::myglow, so the rest of the clan never sees them. Picks are shared through the
- * CoR party so other plugin users see them. The viewer always checks the wearer's real clan rank, so
+ * clan server (clan sync) so other plugin users see them. The viewer always checks the wearer's real clan rank, so
  * picking a locked effect (or a forged pick) shows nothing.
  */
 public enum GlowEffect
@@ -21,7 +21,7 @@ public enum GlowEffect
 	SHOCKS("shocks", "glowShocks", "shocks", "Shocks", ClanRank.OWNER),
 	BIG_STRIKE("big_strike", "glowBigStrike", "bigstrike", "Big strike", ClanRank.OWNER);
 
-	/** sent to other party members; never change one once released */
+	/** sent to the clan server and on to other plugin users; never change one once released */
 	public final String id;
 	/** the checkbox's key in {@link com.corclan.CorClanConfig} */
 	public final String configKey;
@@ -87,8 +87,8 @@ public enum GlowEffect
 
 	/**
 	 * What a player of rank {@code wearer} shows.
-	 * @param picks the effect ids they picked, or null if they never shared any picks (not in the CoR
-	 *              party, older plugin, not received yet): then they show their own rank's effects
+	 * @param picks the effect ids they picked, or null if they never shared any picks (clan sync
+	 *              off, older plugin, not received yet): then they show their own rank's effects
 	 */
 	public static Set<GlowEffect> active(ClanRank wearer, Collection<String> picks)
 	{

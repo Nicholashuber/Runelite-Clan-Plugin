@@ -21,9 +21,9 @@ import net.runelite.api.gameval.SpotanimID;
 /**
  * DAYLlGHT's founder aura, built in by name like {@link LavaAura}: a Tormented Demon's fire turned red and a
  * black swirl climbing up them (both {@link TintedFx}), a smoke cloud playing on them nonstop (restarted the
- * moment each play ends), and red gem sparkles drawn by {@link SignatureGlowOverlay}. Every plugin user sees it (no party needed) while "Show clan rank glows" is on.
+ * moment each play ends), and red gem sparkles drawn by {@link SignatureGlowOverlay}. Every plugin user sees it (no clan sync needed) while "Show clan rank glows" is on.
  * DAYLlGHT can switch each part off ({@link FounderGlow}); other players see their choice once it arrives through
- * the CoR party, and everything until then. Drawn on this client only. All methods must run on the client thread.
+ * the clan server (clan sync), and everything until then. Drawn on this client only. All methods must run on the client thread.
  */
 @Singleton
 public class DaylightAura
@@ -53,10 +53,8 @@ public class DaylightAura
 
 	private final Client client;
 	private final CorClanConfig config;
-	/** wearer key -> the parts they shared through the CoR party */
-	private final Map<String, List<String>> partyPicks = new HashMap<>();
-	/** party member id -> wearer key, so picks go when the member leaves */
-	private final Map<Long, String> partyNames = new HashMap<>();
+	/** wearer key -> the parts they shared through the clan server; replaced whole */
+	private Map<String, List<String>> sharedPicks = Collections.emptyMap();
 
 	private final TintedFx flames;
 	private final TintedFx swirl;
@@ -100,10 +98,10 @@ public class DaylightAura
 			}
 			return mine;
 		}
-		return FounderGlow.active(partyPicks.get(MemberCosmetics.key(player.getName())));
+		return FounderGlow.active(sharedPicks.get(MemberCosmetics.key(player.getName())));
 	}
 
-	/** The parts this client's player switched on, as ids for the party message. */
+	/** The parts this client's player switched on, as ids for the clan server. */
 	public List<String> localPicks()
 	{
 		List<String> ids = new ArrayList<>();
@@ -117,31 +115,27 @@ public class DaylightAura
 		return ids;
 	}
 
-	/** A party member's glow picks arrived; only wearers' are kept. */
-	public void setPartyPicks(long memberId, String name, List<String> glows)
+	/**
+	 * Everyone's glow picks arrived from the clan server; only wearers' are kept.
+	 * @param picks {@link MemberCosmetics#key} -> the glow ids that player shared
+	 */
+	public void setSharedPicks(Map<String, List<String>> picks)
 	{
-		String key = MemberCosmetics.key(name);
-		if (!WEARERS.contains(key))
+		Map<String, List<String>> kept = new HashMap<>();
+		for (String wearer : WEARERS)
 		{
-			return;
+			List<String> glows = picks == null ? null : picks.get(wearer);
+			if (glows != null)
+			{
+				kept.put(wearer, glows);
+			}
 		}
-		partyNames.put(memberId, key);
-		partyPicks.put(key, glows == null ? new ArrayList<>() : new ArrayList<>(glows));
+		sharedPicks = kept;
 	}
 
-	public void removePartyMember(long memberId)
+	public void clearSharedPicks()
 	{
-		String key = partyNames.remove(memberId);
-		if (key != null)
-		{
-			partyPicks.remove(key);
-		}
-	}
-
-	public void clearPartyPicks()
-	{
-		partyPicks.clear();
-		partyNames.clear();
+		sharedPicks = Collections.emptyMap();
 	}
 
 	/**

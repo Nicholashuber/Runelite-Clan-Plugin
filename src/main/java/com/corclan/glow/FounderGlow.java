@@ -8,7 +8,7 @@ import java.util.Set;
 /**
  * The parts of DAYLlGHT's aura ({@link DaylightAura}), each switchable by DAYLlGHT only: hidden settings, set
  * from the "Founder glow" section of the CoR side panel (shown only to DAYLlGHT) or with ::founderglow. Picks
- * travel through the CoR party inside the same message as the rank glow picks, like {@link DevGlow}.
+ * travel through the clan server (clan sync) in the same list as the rank glow picks, like {@link DevGlow}.
  */
 public enum FounderGlow
 {
@@ -17,7 +17,7 @@ public enum FounderGlow
 	SMOKE_CLOUD("founder_smoke_cloud", "founderGlowSmoke", "smoke", "Smoke cloud"),
 	GEM_SPARKLE("founder_gem_sparkle", "founderGlowSparkle", "sparkle", "Gem sparkle");
 
-	/** sent to other party members; never change one once released */
+	/** sent to the clan server and on to other plugin users; never change one once released */
 	public final String id;
 	/** the hidden checkbox's key in {@link CorClanConfig} */
 	public final String configKey;
@@ -78,7 +78,7 @@ public enum FounderGlow
 
 	/**
 	 * What the wearer shows.
-	 * @param picks the ids they shared through the party (other glow ids mixed in are ignored), or null if they
+	 * @param picks the ids they shared through the clan server (other glow ids mixed in are ignored), or null if they
 	 *              shared none: then everything shows
 	 */
 	public static Set<FounderGlow> active(Collection<String> picks)

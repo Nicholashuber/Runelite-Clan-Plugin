@@ -34,15 +34,22 @@ public interface CorClanConfig extends Config
 	String gzSection = "gz";
 
 	@ConfigSection(
+		name = "Clan sync",
+		description = "Optional: report your own gz's, rank and glow picks to the CoR clan server and get clan-wide leaderboards, icons, titles and glows from it",
+		position = 3
+	)
+	String syncSection = "sync";
+
+	@ConfigSection(
 		name = "CoR party",
-		description = "Optional: join the clan's RuneLite party with the Join CoR party button in the CoR side panel, to share gz counts, staff icon settings, your rank glow and (if you choose) your map position",
+		description = "Optional: join the clan's RuneLite party with the Join CoR party button in the CoR side panel, to show clanmates on the world map (if you choose to share your position)",
 		position = 3
 	)
 	String partySection = "party";
 
 	@ConfigSection(
 		name = "Staff",
-		description = "Clan icon settings managed by staff and shared through the CoR party",
+		description = "Clan icon lists kept on this client only. Used while Clan sync is off; with it on, the clan server's icons and titles replace them",
 		position = 5,
 		closedByDefault = true
 	)
@@ -59,9 +66,28 @@ public interface CorClanConfig extends Config
 	String glowSection = "glow";
 
 	@ConfigItem(
+		keyName = "syncEnabled",
+		name = "Sync with clan server",
+		description = "Sends the gz's you say in clan chat, clan broadcasts about you, your clan rank, your glow picks, your clan's "
+			+ "rank names (no player names), your character name, your clan's name and your RuneLite account hash to the CoR clan "
+			+ "server, and loads the clan-wide gz counts, chat icons, titles and glow picks from it. Nothing about other "
+			+ "players and nothing else from chat is sent.",
+		warning = "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers. "
+			+ "It sends the gz's you say in clan chat, clan broadcasts about you, your clan rank, your glow picks, your clan's "
+			+ "rank names, your character name, your clan's name and your RuneLite account hash to the CoR clan server. "
+			+ "Turn it on?",
+		position = 0,
+		section = syncSection
+	)
+	default boolean syncEnabled()
+	{
+		return false;
+	}
+
+	@ConfigItem(
 		keyName = "rankGlow",
 		name = "Show clan rank glows",
-		description = "Show the glows clan members picked for themselves. Turn off to see none",
+		description = "Show the glows clan members picked for themselves (their picks arrive through Clan sync; without it everyone shows their rank's default). Turn off to see none",
 		position = 0,
 		section = glowSection
 	)
@@ -314,7 +340,7 @@ public interface CorClanConfig extends Config
 
 	@ConfigSection(
 		name = "Gem tier glows",
-		description = "The glow other CoR plugin users see on you for your Gem League rank, Opal to Zenyte. Shared through the CoR party. Each needs its gem or higher. You show the highest one you tick",
+		description = "The glow other CoR plugin users see on you for your Gem League rank, Opal to Zenyte. Your picks reach them through Clan sync. Each needs its gem or higher. You show the highest one you tick",
 		position = 6,
 		closedByDefault = true
 	)
@@ -484,8 +510,8 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "clanMemberIcons",
 		name = "Clan member icons",
-		description = "Same format as 'Member icons'. Edited by clan staff (Administrator rank or higher) and sent to "
-			+ "everyone in the CoR party; this box shows the clan's current list and is overwritten by staff updates.",
+		description = "Same format as 'Member icons'. Kept on this client only and no longer shared. Used while Clan sync "
+			+ "is off; with it on, the icons and titles set on the clan server replace this list.",
 		position = 0,
 		section = staffSection
 	)
@@ -498,8 +524,8 @@ public interface CorClanConfig extends Config
 		keyName = "clanRankIcons",
 		name = "Clan rank icons",
 		description = "One per line: in-game rank title=icon or icon,icon|Title, e.g. Gnome child=gem|Gnome. Gives everyone "
-			+ "holding that clan rank the icons and title, so promoting someone in game changes their icon. Edited by "
-			+ "staff and shared like 'Clan member icons'.",
+			+ "holding that clan rank the icons and title, so promoting someone in game changes their icon. Kept on "
+			+ "this client only; with Clan sync on, the icon picked per rank on the clan server replaces this list.",
 		position = 1,
 		section = staffSection
 	)
@@ -547,7 +573,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "memberIcons",
 		name = "Member icons",
-		description = "Your own additions, only on your client; they win over the clan staff's list. One per line: name=icon or name=icon,icon|Title. Icons: crown, trophy, star, skull, gem, fire, founder, dev. Example: Zezima=crown,star|Event Host",
+		description = "Your own additions, only on your client; they win over the clan's list. One per line: name=icon or name=icon,icon|Title. Icons: crown, trophy, star, skull, gem, fire, founder, dev. Example: Zezima=crown,star|Event Host",
 		position = 1,
 		section = iconsSection
 	)
@@ -559,7 +585,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "gzKingIcon",
 		name = "GZ King icon",
-		description = "Give the member who has given the most gz's (all time, on this client) a special icon",
+		description = "Give the member who has given the most gz's (all time; clan-wide with Clan sync on, otherwise on this client) a special icon",
 		position = 2,
 		section = iconsSection
 	)
@@ -571,7 +597,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "weeklyTrophies",
 		name = "Weekly top 3 trophies",
-		description = "Give this week's top 3 gz givers (resets Sunday 00:00 UTC) a gold, silver or bronze trophy. Counted on this client, or across the CoR party when you are in it",
+		description = "Give this week's top 3 gz givers (resets Sunday 00:00 UTC) a gold, silver or bronze trophy. Counted on this client, or clan-wide with Clan sync on",
 		position = 3,
 		section = iconsSection
 	)
@@ -645,7 +671,7 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "showGzCount",
 		name = "Show [GZ count] on gz lines",
-		description = "Append the sender's all-time gz total to their chat line when they say gz (only you see it)",
+		description = "Append the sender's all-time gz total (clan-wide with Clan sync on) to their chat line when they say gz (only you see it)",
 		position = 5,
 		section = gzSection
 	)

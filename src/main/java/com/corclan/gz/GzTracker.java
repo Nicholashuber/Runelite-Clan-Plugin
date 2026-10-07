@@ -40,7 +40,7 @@ public class GzTracker
 	private String lastGzGiver;
 	private String lastGzSubject;
 
-	/** Weeks start Sunday 00:00 UTC, so every CoR member's week lines up and party counts can be merged. */
+	/** Weeks start Sunday 00:00 UTC, so every CoR member's week lines up with the clan server's. */
 	public static final ZoneId WEEK_ZONE = ZoneId.of("UTC");
 
 	public GzTracker()

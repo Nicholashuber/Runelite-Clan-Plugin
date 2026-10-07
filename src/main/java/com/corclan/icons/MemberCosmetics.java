@@ -1,6 +1,8 @@
 package com.corclan.icons;
 
+import com.corclan.sync.SyncModels;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +14,8 @@ import java.util.function.Predicate;
  * Which member icons and title each player gets. Immutable, so chat rendering on the client thread can
  * read it while a new one is built on another thread.
  *
- * Layers, later ones win per player: built-in defaults, then the player's own "Member icons" config lines.
+ * Layers, later ones win per player: built-in defaults, then the clan server (admin page), then the
+ * config lines (the local "Clan member icons" list and the player's own "Member icons").
  */
 public final class MemberCosmetics
 {
@@ -58,11 +61,24 @@ public final class MemberCosmetics
 	public static MemberCosmetics build(
 		Map<String, List<String>> builtinIcons,
 		Map<String, String> builtinTitles,
+		Collection<SyncModels.ClanPlayer> server,
 		String configLines,
 		Predicate<String> isIconKey)
 	{
 		Map<String, List<String>> icons = new HashMap<>(builtinIcons);
 		Map<String, String> titles = new HashMap<>(builtinTitles);
+
+		for (SyncModels.ClanPlayer c : server)
+		{
+			String key = key(c.getRsn());
+			List<String> iconList = cleanIcons(c.getIcons(), isIconKey);
+			String title = cleanTitle(c.getTitle());
+			// the server lists everyone with a gz count too; only its icons and titles are a layer
+			if (!key.isEmpty() && (!iconList.isEmpty() || title != null))
+			{
+				apply(icons, titles, key, iconList, title);
+			}
+		}
 
 		if (configLines != null)
 		{

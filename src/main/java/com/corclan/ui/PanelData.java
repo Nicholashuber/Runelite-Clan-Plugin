@@ -11,22 +11,24 @@ public final class PanelData
 {
 	final String mine;
 	final String summary;
+	/** one line about clan sync */
+	final String syncStatus;
 	/** one line about the CoR party */
 	final String partyStatus;
 	/** one line about the clan map */
 	final String mapStatus;
-	/** " (this client)" or " (CoR party)", after leaderboard titles */
-	final String scope;
+	/** the gz numbers are the clan server's (clan sync on and loaded), not this client's own counts */
+	final boolean clanWide;
 	final List<Map.Entry<String, Integer>> givers;
 	final List<Map.Entry<String, Integer>> receivers;
 	final List<BroadcastRecord> recent;
-	/** this client's gz givers since {@link #weekStart} (Sunday 00:00 local time) */
+	/** gz givers since {@link #weekStart} (Sunday 00:00 UTC) */
 	final List<Map.Entry<String, Integer>> weeklyGivers;
 	final long weekStart;
 	/** consecutive weekly #1 runs; null when there are none */
 	final Streaks.Streak longestStreak;
 	final Streaks.Streak currentStreak;
-	/** every giver this client has counted, highest first */
+	/** every giver counted, highest first */
 	final List<Map.Entry<String, Integer>> allGivers;
 	/** clan members by in-game rank, highest first; null when not logged in or not in a clan */
 	final List<ClanRoster.RankGroup> clanRoster;
@@ -41,7 +43,7 @@ public final class PanelData
 	/** in the CoR party: the panel button says Leave instead of Join */
 	final boolean inCorParty;
 
-	public PanelData(String mine, String summary, String partyStatus, String mapStatus, String scope,
+	public PanelData(String mine, String summary, String syncStatus, String partyStatus, String mapStatus, boolean clanWide,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
@@ -56,9 +58,10 @@ public final class PanelData
 		this.allGivers = allGivers;
 		this.mine = mine;
 		this.summary = summary;
+		this.syncStatus = syncStatus;
 		this.partyStatus = partyStatus;
 		this.mapStatus = mapStatus;
-		this.scope = scope;
+		this.clanWide = clanWide;
 		this.givers = givers;
 		this.receivers = receivers;
 		this.recent = recent;

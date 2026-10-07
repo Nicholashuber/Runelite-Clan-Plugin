@@ -8,15 +8,15 @@ import java.util.Set;
 /**
  * The parts of Lavasockz's aura ({@link LavaAura}), each switchable by Lavasockz only: hidden settings, set
  * from the "Dev glow" section of the CoR side panel (shown only to Lavasockz) or with ::devglow. Picks travel
- * through the CoR party inside the same message as the rank glow picks, so other plugin users see what he
- * chose. Separate from {@link GlowEffect}, which is unlocked by clan rank, not by name.
+ * through the clan server (clan sync) in the same list as the rank glow picks, so other plugin users see
+ * what he chose. Separate from {@link GlowEffect}, which is unlocked by clan rank, not by name.
  */
 public enum DevGlow
 {
 	MOLTEN_OUTLINE("dev_molten_outline", "devGlowOutline", "lava", "Molten outline"),
 	ZAMORAK_FLAMES("dev_zamorak_flames", "devGlowFlames", "flames", "Flames of Zamorak");
 
-	/** sent to other party members; never change one once released */
+	/** sent to the clan server and on to other plugin users; never change one once released */
 	public final String id;
 	/** the hidden checkbox's key in {@link CorClanConfig} */
 	public final String configKey;
@@ -73,7 +73,7 @@ public enum DevGlow
 
 	/**
 	 * What the wearer shows.
-	 * @param picks the ids they shared through the party (rank glow ids mixed in are ignored), or null if they
+	 * @param picks the ids they shared through the clan server (rank glow ids mixed in are ignored), or null if they
 	 *              shared none: then everything shows
 	 */
 	public static Set<DevGlow> active(Collection<String> picks)
