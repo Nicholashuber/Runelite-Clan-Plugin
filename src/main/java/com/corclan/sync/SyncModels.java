@@ -2,15 +2,19 @@ package com.corclan.sync;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-/** JSON shapes exchanged with the CoR clan server. Serialized with RuneLite's Gson (nulls are omitted). */
+/**
+ * JSON shapes exchanged with the CoR clan server (see the cor-clan-api README, "API for the plugins").
+ * Serialized with RuneLite's Gson (nulls are omitted). Everything a client sends is about its own player.
+ */
 public final class SyncModels
 {
 	private SyncModels()
 	{
 	}
 
-	/** Who is reporting. The account hash lets the server merge reports from the same client. */
+	/** Who is reporting: RuneLite's account hash, the character's name and the clan it is in. */
 	public static final class Reporter
 	{
 		private final String accountHash;
@@ -24,38 +28,55 @@ public final class SyncModels
 			this.clan = clan;
 		}
 
-		public String getAccountHash()
+		public String getRsn()
 		{
-			return accountHash;
+			return rsn;
+		}
+
+		@Override
+		public boolean equals(Object o)
+		{
+			if (!(o instanceof Reporter))
+			{
+				return false;
+			}
+			Reporter other = (Reporter) o;
+			return Objects.equals(accountHash, other.accountHash) && Objects.equals(rsn, other.rsn)
+				&& Objects.equals(clan, other.clan);
+		}
+
+		@Override
+		public int hashCode()
+		{
+			return Objects.hash(accountHash, rsn, clan);
 		}
 	}
 
-	/** A clan broadcast or a gz line seen in clan chat. Only one of subject / giver is set. */
+	/**
+	 * A gz the reporter said, or a clan broadcast about the reporter. The server takes the player from the
+	 * reporter, so no name is sent with the event.
+	 */
 	public static final class Event
 	{
 		private final String type;
-		private final String subject;
-		private final String giver;
 		private final String text;
 		private final long at;
 
-		private Event(String type, String subject, String giver, String text, long at)
+		private Event(String type, String text, long at)
 		{
 			this.type = type;
-			this.subject = subject;
-			this.giver = giver;
 			this.text = text;
 			this.at = at;
 		}
 
-		public static Event broadcast(String subject, String text, long at)
+		public static Event broadcast(String text, long at)
 		{
-			return new Event("broadcast", subject, null, text, at);
+			return new Event("broadcast", text, at);
 		}
 
-		public static Event gz(String giver, String text, long at)
+		public static Event gz(String text, long at)
 		{
-			return new Event("gz", null, giver, text, at);
+			return new Event("gz", text, at);
 		}
 
 		public String getType()
@@ -84,20 +105,128 @@ public final class SyncModels
 		}
 	}
 
+	/** The reporter's own clan rank and glow picks. A null field is left out, which keeps what the server has. */
+	public static final class ProfilePayload
+	{
+		private final Reporter reporter;
+		private final Integer rank;
+		private final List<String> glows;
+
+		public ProfilePayload(Reporter reporter, Integer rank, List<String> glows)
+		{
+			this.reporter = reporter;
+			this.rank = rank;
+			this.glows = glows;
+		}
+	}
+
+	/** A clan rank number and the clan's own name for it. No player names. */
+	public static final class RankTitle
+	{
+		private final int rank;
+		private final String title;
+
+		public RankTitle(int rank, String title)
+		{
+			this.rank = rank;
+			this.title = title;
+		}
+	}
+
+	public static final class RanksPayload
+	{
+		private final Reporter reporter;
+		private final List<RankTitle> ranks;
+
+		public RanksPayload(Reporter reporter, List<RankTitle> ranks)
+		{
+			this.reporter = reporter;
+			this.ranks = ranks;
+		}
+	}
+
+	/** The body of a refused request, e.g. {@code { "error": "name_taken" }}. */
+	public static final class ErrorBody
+	{
+		private String error;
+
+		public String getError()
+		{
+			return error;
+		}
+	}
+
+	/** One player in {@code GET /v1/clan}: what their own client reported, plus what admins gave them. */
+	public static final class ClanPlayer
+	{
+		private String rsn;
+		/** null until that player's own client has reported it */
+		private Integer rank;
+		private int given;
+		private int received;
+		private int weeklyGiven;
+		private int weeklyReceived;
+		private List<String> icons;
+		private String title;
+		private List<String> glows;
+
+		public ClanPlayer()
+		{
+		}
+
+		public ClanPlayer(String rsn, List<String> icons, String title)
+		{
+			this.rsn = rsn;
+			this.icons = icons;
+			this.title = title;
+		}
+
+		public String getRsn()
+		{
+			return rsn;
+		}
+
+		public Integer getRank()
+		{
+			return rank;
+		}
+
+		public int getGiven()
+		{
+			return given;
+		}
+
+		public int getReceived()
+		{
+			return received;
+		}
+
+		public int getWeeklyGiven()
+		{
+			return weeklyGiven;
+		}
+
+		public List<String> getIcons()
+		{
+			return icons == null ? Collections.emptyList() : icons;
+		}
+
+		public String getTitle()
+		{
+			return title;
+		}
+
+		/** @return the glow ids they picked, or null when the server sent none */
+		public List<String> getGlows()
+		{
+			return glows;
+		}
+	}
+
 	public static final class Entry
 	{
 		private String rsn;
 		private int count;
-
-		public Entry()
-		{
-		}
-
-		public Entry(String rsn, int count)
-		{
-			this.rsn = rsn;
-			this.count = count;
-		}
 
 		public String getRsn()
 		{
@@ -110,52 +239,44 @@ public final class SyncModels
 		}
 	}
 
-	public static final class Leaderboard
+	/** A closed week and its top three gz givers, in order. */
+	public static final class Week
 	{
-		private List<Entry> givers;
-		private List<Entry> receivers;
+		/** ISO-8601 instant of the Sunday 00:00 UTC that began the week */
+		private String weekStart;
+		private List<Entry> top;
 
-		public List<Entry> getGivers()
+		public String getWeekStart()
 		{
-			return givers == null ? Collections.emptyList() : givers;
+			return weekStart;
 		}
 
-		public List<Entry> getReceivers()
+		public List<Entry> getTop()
 		{
-			return receivers == null ? Collections.emptyList() : receivers;
+			return top == null ? Collections.emptyList() : top;
 		}
 	}
 
-	public static final class Cosmetic
+	public static final class ClanResponse
 	{
-		private String rsn;
-		private List<String> icons;
-		private String title;
+		/** ISO-8601 instant of the Sunday 00:00 UTC that began the week the weekly counts belong to */
+		private String weekStart;
+		private List<ClanPlayer> players;
+		private List<Week> weeks;
 
-		public Cosmetic()
+		public String getWeekStart()
 		{
+			return weekStart;
 		}
 
-		public Cosmetic(String rsn, List<String> icons, String title)
+		public List<ClanPlayer> getPlayers()
 		{
-			this.rsn = rsn;
-			this.icons = icons;
-			this.title = title;
+			return players == null ? Collections.emptyList() : players;
 		}
 
-		public String getRsn()
+		public List<Week> getWeeks()
 		{
-			return rsn;
-		}
-
-		public List<String> getIcons()
-		{
-			return icons == null ? Collections.emptyList() : icons;
-		}
-
-		public String getTitle()
-		{
-			return title;
+			return weeks == null ? Collections.emptyList() : weeks;
 		}
 	}
 
@@ -233,41 +354,6 @@ public final class SyncModels
 		public List<RankIcon> getRankIcons()
 		{
 			return rankIcons == null ? Collections.emptyList() : rankIcons;
-		}
-	}
-
-	/** A clan rank number and the clan's own name for it. No player names. */
-	public static final class RankTitle
-	{
-		private final int rank;
-		private final String title;
-
-		public RankTitle(int rank, String title)
-		{
-			this.rank = rank;
-			this.title = title;
-		}
-	}
-
-	public static final class RanksPayload
-	{
-		private final Reporter reporter;
-		private final List<RankTitle> ranks;
-
-		public RanksPayload(Reporter reporter, List<RankTitle> ranks)
-		{
-			this.reporter = reporter;
-			this.ranks = ranks;
-		}
-	}
-
-	public static final class CosmeticsResponse
-	{
-		private List<Cosmetic> players;
-
-		public List<Cosmetic> getPlayers()
-		{
-			return players == null ? Collections.emptyList() : players;
 		}
 	}
 }

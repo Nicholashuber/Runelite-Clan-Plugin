@@ -9,7 +9,7 @@ public class SyncQueueTest
 {
 	private static SyncModels.Event gz(long at)
 	{
-		return SyncModels.Event.gz("Bob", "gz", at);
+		return SyncModels.Event.gz("gz", at);
 	}
 
 	@Test
@@ -50,6 +50,19 @@ public class SyncQueueTest
 		}
 		assertEquals(SyncQueue.MAX_PENDING, q.size());
 		assertEquals(50L, q.drain(1).get(0).getAt());
+	}
+
+	@Test
+	public void dropsEventsTheServerWouldRefuseAsTooOld()
+	{
+		SyncQueue q = new SyncQueue();
+		q.add(gz(100));
+		q.add(gz(200));
+		q.add(gz(300));
+		q.dropOlderThan(200);
+		List<SyncModels.Event> left = q.drain(10);
+		assertEquals(2, left.size());
+		assertEquals(200L, left.get(0).getAt());
 	}
 
 	@Test

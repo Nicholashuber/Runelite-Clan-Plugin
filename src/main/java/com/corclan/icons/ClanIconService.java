@@ -43,7 +43,7 @@ public class ClanIconService
 	public static final String KEY_FOUNDER = "founder";
 	public static final String KEY_DEV = "dev";
 
-	/** Built-in keys a clan admin can give to players. Server icons with new names are added to these. */
+	/** Built-in keys that can be given to players. Server icons with new names are added to these. */
 	public static final List<String> MEMBER_KEYS = Collections.unmodifiableList(Arrays.asList(
 		"crown", "trophy", "star", "skull", "gem", "fire", KEY_FOUNDER, KEY_DEV));
 
@@ -91,6 +91,10 @@ public class ClanIconService
 			register(key, "member_" + key + ".png");
 		}
 		register(KEY_GZ_KING, "member_gzking.png");
+		for (String key : WeeklyTrophies.KEYS)
+		{
+			register(key, key + ".png");
+		}
 		log.debug("Registered {} CoR chat icons", iconIds.size());
 	}
 

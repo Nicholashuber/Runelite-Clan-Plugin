@@ -6,9 +6,9 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Events waiting to be sent to the clan server. Bounded so a long outage cannot grow memory; the
- * oldest events are dropped first (the server refuses events older than 10 minutes anyway).
- * Thread-safe: filled on the client thread, drained on the scheduler, re-filled from OkHttp callbacks.
+ * The player's own gz's and broadcasts waiting to be sent to the clan server. Bounded so a long outage
+ * cannot grow memory; the oldest events are dropped first (the server refuses events older than 10 minutes
+ * anyway). Thread-safe: filled on the client thread, drained on the scheduler, re-filled from OkHttp callbacks.
  */
 public final class SyncQueue
 {
@@ -42,6 +42,12 @@ public final class SyncQueue
 			pending.addFirst(batch.get(i));
 		}
 		trim();
+	}
+
+	/** Forgets events from before {@code cutoff} (epoch millis): the server would refuse them as too old. */
+	public synchronized void dropOlderThan(long cutoff)
+	{
+		pending.removeIf(event -> event.getAt() < cutoff);
 	}
 
 	public synchronized void clear()

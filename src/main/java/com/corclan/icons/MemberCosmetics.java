@@ -15,7 +15,7 @@ import java.util.function.Predicate;
  * read it while a new one is built on another thread.
  *
  * Layers, later ones win per player: built-in defaults, then the clan server (admin page), then the
- * player's own "Member icons" config lines.
+ * config lines (the local "Clan member icons" list and the player's own "Member icons").
  */
 public final class MemberCosmetics
 {
@@ -61,19 +61,22 @@ public final class MemberCosmetics
 	public static MemberCosmetics build(
 		Map<String, List<String>> builtinIcons,
 		Map<String, String> builtinTitles,
-		Collection<SyncModels.Cosmetic> server,
+		Collection<SyncModels.ClanPlayer> server,
 		String configLines,
 		Predicate<String> isIconKey)
 	{
 		Map<String, List<String>> icons = new HashMap<>(builtinIcons);
 		Map<String, String> titles = new HashMap<>(builtinTitles);
 
-		for (SyncModels.Cosmetic c : server)
+		for (SyncModels.ClanPlayer c : server)
 		{
 			String key = key(c.getRsn());
-			if (!key.isEmpty())
+			List<String> iconList = cleanIcons(c.getIcons(), isIconKey);
+			String title = cleanTitle(c.getTitle());
+			// the server lists everyone with a gz count too; only its icons and titles are a layer
+			if (!key.isEmpty() && (!iconList.isEmpty() || title != null))
 			{
-				apply(icons, titles, key, cleanIcons(c.getIcons(), isIconKey), cleanTitle(c.getTitle()));
+				apply(icons, titles, key, iconList, title);
 			}
 		}
 

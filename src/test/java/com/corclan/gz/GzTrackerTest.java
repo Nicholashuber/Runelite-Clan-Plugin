@@ -217,6 +217,34 @@ public class GzTrackerTest
 	}
 
 	@Test
+	public void hourlyCapSurvivesARestart()
+	{
+		GzTracker before = new GzTracker(ZoneOffset.UTC);
+		long start = utc("2026-09-29T12:00:00Z");
+		for (int i = 0; i < GzTracker.MAX_GZ_PER_HOUR; i++)
+		{
+			before.onClanChat("Spammer", "gz", start + i * 1_000L, UNLIMITED);
+		}
+		long restart = start + 10 * 60_000L;
+
+		GzTracker after = new GzTracker(ZoneOffset.UTC);
+		after.loadRecentGz(before.getRecentGz(restart), restart);
+		assertFalse(after.onClanChat("Spammer", "gz", restart, UNLIMITED));
+		// the saved times still expire an hour after they were counted
+		assertTrue(after.onClanChat("Spammer", "gz", start + GzTracker.HOUR_MILLIS, UNLIMITED));
+	}
+
+	@Test
+	public void savedCapTimesOlderThanAnHourAreDropped()
+	{
+		GzTracker t = new GzTracker(ZoneOffset.UTC);
+		long start = utc("2026-09-29T12:00:00Z");
+		t.onClanChat("Bob", "gz", start, UNLIMITED);
+		assertTrue(t.getRecentGz(start + GzTracker.HOUR_MILLIS).isEmpty());
+		assertEquals(1, t.getRecentGz(start + 1_000L).get("bob").size());
+	}
+
+	@Test
 	public void hourlyCapIsPerPlayerAndIgnoresNameCase()
 	{
 		GzTracker t = new GzTracker(ZoneOffset.UTC);
