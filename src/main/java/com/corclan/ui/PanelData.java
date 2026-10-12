@@ -1,7 +1,9 @@
 package com.corclan.ui;
 
 import com.corclan.clan.ClanRoster;
+import com.corclan.glow.GemGlow;
 import com.corclan.gz.BroadcastRecord;
+import com.corclan.sync.Announcement;
 import com.corclan.gz.Streaks;
 import java.util.List;
 import java.util.Map;
@@ -40,19 +42,49 @@ public final class PanelData
 	final boolean dev;
 	/** you are DAYLlGHT: show the Founder glow section */
 	final boolean founder;
+	/** the banner clan leaders set, or null when there is none (or clan sync is off) */
+	final Announcement announcement;
+	/** the banner's line while there is no announcement (sync off, not loaded yet, nothing posted) */
+	final String announcementHint;
+	/** you are a clan leader with clan sync on: the banner has an Edit button */
+	final boolean canEditAnnouncement;
 	/** in the CoR party: the panel button says Leave instead of Join */
 	final boolean inCorParty;
+	/** your character name, or null when not logged in */
+	final String myName;
+	/** your clan rank title (or "Rank N" when it has none), or null when not in a clan or not loaded yet */
+	final String myRankTitle;
+	/** the highest Gem League glow your rank unlocks, or null */
+	final GemGlow myGem;
+	/** your gz counts: given and received, all time and this session (0 when not logged in) */
+	final int myGiven, myGivenToday, myReceived, myReceivedToday;
+	/** you are JoeBoob: show the Nature glow section */
+	final boolean nature;
 
 	public PanelData(String mine, String summary, String syncStatus, String partyStatus, String mapStatus, boolean clanWide,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
 		List<Map.Entry<String, Integer>> weeklyGivers, long weekStart, Streaks.Streak longestStreak, Streaks.Streak currentStreak,
 		List<Map.Entry<String, Integer>> allGivers, List<ClanRoster.RankGroup> clanRoster,
-		Map<Integer, String> clanRankTitles, boolean owner, boolean dev, boolean founder, boolean inCorParty)
+		Map<Integer, String> clanRankTitles, boolean owner, boolean dev, boolean founder, boolean inCorParty,
+		Announcement announcement, String announcementHint, boolean canEditAnnouncement, String myName, String myRankTitle,
+		GemGlow myGem, int myGiven, int myGivenToday, int myReceived, int myReceivedToday,
+		boolean nature)
 	{
+		this.nature = nature;
+		this.myGiven = myGiven;
+		this.myGivenToday = myGivenToday;
+		this.myReceived = myReceived;
+		this.myReceivedToday = myReceivedToday;
+		this.myName = myName;
+		this.myRankTitle = myRankTitle;
+		this.myGem = myGem;
 		this.owner = owner;
 		this.dev = dev;
 		this.founder = founder;
 		this.inCorParty = inCorParty;
+		this.announcement = announcement;
+		this.announcementHint = announcementHint;
+		this.canEditAnnouncement = canEditAnnouncement;
 		this.clanRoster = clanRoster;
 		this.clanRankTitles = clanRankTitles;
 		this.allGivers = allGivers;

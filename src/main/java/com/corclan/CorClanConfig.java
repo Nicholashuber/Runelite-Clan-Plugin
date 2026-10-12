@@ -239,6 +239,70 @@ public interface CorClanConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "legionLogins",
+		name = "Legion login alerts",
+		description = "A chat line when one of the CoR leaders (the legionnaires) logs in, and a golden one when the Spartan"
+			+ " lands. Not for world hops",
+		position = 0
+	)
+	default boolean legionLogins()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "natureGlowFairyRing",
+		name = "Zanaris fairy ring and leaves (JoeBoob)",
+		description = "A fairy ring and leaves springing up around you nonstop. JoeBoob only: set in the CoR side panel (Nature glow) or with ::natureglow",
+		position = 16,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean natureGlowFairyRing()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "natureGlowSwirl",
+		name = "Leaf green swirl (JoeBoob)",
+		description = "A green swirl spiralling up you nonstop. JoeBoob only: set in the CoR side panel (Nature glow) or with ::natureglow",
+		position = 17,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean natureGlowSwirl()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "natureGlowBloom",
+		name = "Druid bloom (JoeBoob)",
+		description = "The Druidic spirit's bloom springing up around you nonstop. JoeBoob only: set in the CoR side panel (Nature glow) or with ::natureglow",
+		position = 18,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean natureGlowBloom()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "natureGlowSparkle",
+		name = "Emerald sparkle (JoeBoob)",
+		description = "Green gem sparkles, matching the flames, twinkling over you. JoeBoob only: set in the CoR side panel (Nature glow) or with ::natureglow",
+		position = 19,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean natureGlowSparkle()
+	{
+		return true;
+	}
+
 	@ConfigSection(
 		name = "Challenger rank glows (locked)",
 		description = "Locked: Challenger League requirements to be announced soon",

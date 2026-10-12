@@ -145,6 +145,103 @@ public final class SyncModels
 		}
 	}
 
+	/** A clan leader sets the announcement banner; an empty text clears it. */
+	public static final class AnnouncementPayload
+	{
+		private final Reporter reporter;
+		private final String text;
+
+		public AnnouncementPayload(Reporter reporter, String text)
+		{
+			this.reporter = reporter;
+			this.text = text;
+		}
+	}
+
+	/** The banner in {@code GET /v1/clan}, as the clan server sends it. */
+	public static final class AnnouncementData
+	{
+		private String text;
+		private String by;
+		/** ISO-8601 instant */
+		private String updatedAt;
+
+		public String getText()
+		{
+			return text;
+		}
+
+		public String getBy()
+		{
+			return by;
+		}
+
+		public String getUpdatedAt()
+		{
+			return updatedAt;
+		}
+	}
+
+	/** ::shame (or with {@code clear}, ::unshame) from one of the clan leaders, naming the clanmate to shame. */
+	public static final class ShamePayload
+	{
+		private final Reporter reporter;
+		private final String target;
+		private final boolean clear;
+
+		public ShamePayload(Reporter reporter, String target, boolean clear)
+		{
+			this.reporter = reporter;
+			this.target = target;
+			this.clear = clear;
+		}
+	}
+
+	/** One player wearing the Kephri dung in {@code GET /v1/shames}. */
+	public static final class ActiveShame
+	{
+		private String rsn;
+		private String by;
+		/** counted down from when the answer arrived, so this client's clock does not matter */
+		private int secondsLeft;
+
+		public ActiveShame()
+		{
+		}
+
+		public ActiveShame(String rsn, String by, int secondsLeft)
+		{
+			this.rsn = rsn;
+			this.by = by;
+			this.secondsLeft = secondsLeft;
+		}
+
+		public String getRsn()
+		{
+			return rsn;
+		}
+
+		public String getBy()
+		{
+			return by;
+		}
+
+		public int getSecondsLeft()
+		{
+			return secondsLeft;
+		}
+	}
+
+	public static final class ShamesResponse
+	{
+		private List<ActiveShame> shames;
+
+		public List<ActiveShame> getShames()
+		{
+			return shames == null ? Collections.emptyList() : shames;
+		}
+	}
+
 	/** The body of a refused request, e.g. {@code { "error": "name_taken" }}. */
 	public static final class ErrorBody
 	{
@@ -263,6 +360,13 @@ public final class SyncModels
 		private String weekStart;
 		private List<ClanPlayer> players;
 		private List<Week> weeks;
+		/** the banner clan leaders set, or null */
+		private AnnouncementData announcement;
+
+		public AnnouncementData getAnnouncement()
+		{
+			return announcement;
+		}
 
 		public String getWeekStart()
 		{

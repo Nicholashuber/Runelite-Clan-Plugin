@@ -1,15 +1,23 @@
 package com.corclan;
 
 import com.corclan.chat.RankCommands;
+import com.corclan.clan.ClanLeaders;
+import com.corclan.clan.InfernoReminder;
+import com.corclan.clan.Legion;
 import com.corclan.clan.ClanRoster;
 import com.corclan.glow.DaylightAura;
 import com.corclan.glow.DevGlow;
 import com.corclan.glow.FounderGlow;
+import com.corclan.glow.GemGlow;
 import com.corclan.glow.GlowEffect;
 import com.corclan.glow.GlowPicks;
 import com.corclan.glow.HolyAura;
 import com.corclan.glow.LavaAura;
+import com.corclan.glow.NatureAura;
+import com.corclan.glow.NatureGlow;
 import com.corclan.glow.RankGlowOverlay;
+import com.corclan.glow.ShameAura;
+import com.corclan.glow.Shames;
 import com.corclan.glow.SignatureGlowOverlay;
 import com.corclan.gz.BroadcastParser;
 import com.corclan.gz.BroadcastRecord;
@@ -38,6 +46,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +66,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.MessageNode;
 import net.runelite.api.Player;
+import net.runelite.api.SoundEffectID;
 import java.util.TreeMap;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.VarbitID;
@@ -113,11 +123,14 @@ public class CorClanPlugin extends Plugin
 	static final String WEEK_RESULTS_KEY = "gzWeekResults";
 	/** recent gz times per player, so the hourly cap survives a restart */
 	static final String RECENT_GZ_KEY = "gzRecent";
+	/** JoeBoob's Infernal cape reminder count: on his own client, and on Ray's as he sees him log in ("date|count") */
+	static final String INFERNO_SELF_KEY = "infernoReminderSelf";
+	static final String INFERNO_SEEN_KEY = "infernoReminderSeen";
 	private static final Type RECENT_GZ_TYPE = new TypeToken<Map<String, List<Long>>>(){}.getType();
 	private static final Type WEEK_RESULTS_TYPE = new TypeToken<List<WeekResult>>(){}.getType();
 	/** Saved stats, not settings: changing them must not trigger a config refresh. */
 	private static final List<String> STATS_KEYS = Arrays.asList(STATS_KEY, WEEKLY_KEY, WEEK_START_KEY, WEEK_RESULTS_KEY,
-		RECENT_GZ_KEY);
+		RECENT_GZ_KEY, INFERNO_SELF_KEY, INFERNO_SEEN_KEY);
 	/** Saved by the build that shared gz counts and staff lists through the party; removed on start. */
 	private static final List<String> RETIRED_KEYS = Arrays.asList("partyGz", "clanSettingsUpdatedAt");
 	private static final String CHAT_BUILD_CALLBACK = "chatMessageBuilding";
@@ -138,6 +151,10 @@ public class CorClanPlugin extends Plugin
 	private static final long PROFILE_RETRY_MILLIS = 60_000L;
 	/** Logging in loads the clan data right away, unless it was loaded this recently (world hops log in too). */
 	private static final long PULL_MIN_MILLIS = 60_000L;
+	/** joins this soon after the clan channel loads are it filling in, not people logging in */
+	private static final long CHANNEL_SETTLE_MILLIS = 10_000L;
+	/** how long "A Spartan has landed!" stays over his head, in client cycles (20 ms) */
+	private static final int SPARTAN_OVERHEAD_CYCLES = 250;
 
 	// CoR party
 	/** Position updates at most every 5 game ticks (~3s), slower in big parties to spare RuneLite's party server. */
@@ -200,6 +217,12 @@ public class CorClanPlugin extends Plugin
 
 	@Inject
 	private DaylightAura daylightAura;
+
+	@Inject
+	private NatureAura natureAura;
+
+	@Inject
+	private ShameAura shameAura;
 
 	@Inject
 	private SignatureGlowOverlay signatureGlowOverlay;
@@ -269,6 +292,20 @@ public class CorClanPlugin extends Plugin
 	private boolean panelShowsDev;
 	/** the side panel currently shows the Founder glow section (you are DAYLlGHT) */
 	private boolean panelShowsFounder;
+	/** the side panel currently shows the Nature glow section (you are JoeBoob) */
+	private boolean panelShowsNature;
+	/** the side panel currently offers the announcement's Edit button (you are a clan leader with sync on) */
+	private boolean panelShowsLeader;
+	/** leaders' login alerts: tells a real login from a world hop */
+	private final Legion legion = new Legion();
+	/** when the clan channel last (re)loaded; joins right after are the channel filling in, not logins */
+	private long clanChannelAt;
+	/** the last game state, to tell a login (from the login screen) from a world hop */
+	private GameState lastGameState;
+	/** we just logged in from the login screen; announce ourselves once our name is known */
+	private boolean ownLoginPending;
+	/** the clan rank title on the panel's rank card, to redraw it when your rank loads or changes */
+	private String panelShowsRank;
 	private int locationTick;
 	/** what the clan map is doing; announced in chat when it changes */
 	private MapState mapState = MapState.OFF;
@@ -321,7 +358,9 @@ public class CorClanPlugin extends Plugin
 			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
 			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
 			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
-			this::toggleCorParty);
+			this::toggleCorParty,
+			this::editAnnouncement,
+			(key, on) -> configManager.setConfiguration(CorClanConfig.GROUP, key, on));
 		navButton = NavigationButton.builder()
 			.tooltip("CoR Clan")
 			.icon(ImageUtil.loadImageResource(CorClanPlugin.class, "panel_icon.png"))
@@ -362,6 +401,8 @@ public class CorClanPlugin extends Plugin
 		clientThread.invoke(holyAura::clear);
 		clientThread.invoke(lavaAura::clear);
 		clientThread.invoke(daylightAura::clear);
+		clientThread.invoke(natureAura::clear);
+		clientThread.invoke(shameAura::clearShames);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
@@ -415,7 +456,9 @@ public class CorClanPlugin extends Plugin
 		{
 			clientThread.invoke(lavaAura::clear);
 			clientThread.invoke(daylightAura::clear);
+			clientThread.invoke(natureAura::clear);
 			clientThread.invoke(holyAura::clear);
+			clientThread.invoke(shameAura::clear);
 		}
 		rebuildCosmetics();
 		clientThread.invokeLater(client::refreshChat);
@@ -629,6 +672,75 @@ public class CorClanPlugin extends Plugin
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + glow.shortName + (on ? " on" : " off"), null);
 	}
 
+	/**
+	 * ::shame &lt;name&gt; drops the Kephri dung on a clanmate's head for five minutes, for every plugin user with clan
+	 * sync on; ::unshame &lt;name&gt; takes it off. Only the shamers can, and the clan server checks it is really them.
+	 * For anyone else the command does nothing. Client thread.
+	 */
+	private void shame(String[] args, boolean clear)
+	{
+		String me = localPlayerName();
+		if (!ClanLeaders.isLeader(me))
+		{
+			return;
+		}
+		String command = clear ? "::unshame" : "::shame";
+		String target = displayName(String.join(" ", args));
+		if (target.isEmpty())
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Usage: " + command + " <player name>", null);
+			return;
+		}
+		if (!config.syncEnabled())
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + command + " needs Sync with clan server turned on", null);
+			return;
+		}
+		if (clanRankOf(target) == null)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + target + " is not in the clan", null);
+			return;
+		}
+		SyncModels.Reporter r = currentReporter();
+		if (r == null || r.equals(refusedReporter))
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: the clan server isn't taking anything from you right now", null);
+			return;
+		}
+		clanApi.sendShame(new SyncModels.ShamePayload(r, target, clear), outcome -> clientThread.invokeLater(() ->
+		{
+			if (!started || !config.syncEnabled())
+			{
+				return;
+			}
+			String done;
+			if (outcome == ClanApi.Outcome.OK)
+			{
+				// show it right away; the next refresh confirms it for everyone else
+				long now = System.currentTimeMillis();
+				shameAura.setShames(clear ? shameAura.getShames().without(target) : shameAura.getShames().with(target, now));
+				if (clear)
+				{
+					shameAura.clear();
+				}
+				done = clear ? "CoR: " + target + " is unshamed" : "CoR: " + target + " has been shamed";
+			}
+			else if (outcome == ClanApi.Outcome.RETRY)
+			{
+				done = "CoR: the clan server isn't answering, try " + command + " again";
+			}
+			else
+			{
+				done = "CoR: the clan server refused " + command;
+				if (outcome.blocksReporter())
+				{
+					onRefused(r, outcome);
+				}
+			}
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", done, null);
+		}));
+	}
+
 	/** True when you are logged in as a wearer of the founder aura (DAYLlGHT). Client thread. */
 	private boolean isFounder()
 	{
@@ -667,6 +779,72 @@ public class CorClanPlugin extends Plugin
 		boolean on = state.isEmpty() ? !FounderGlow.picked(config, glow) : state.equals("on");
 		configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on);
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + glow.shortName + (on ? " on" : " off"), null);
+	}
+
+	/** True when you are logged in as a wearer of the nature aura (JoeBoob). Client thread. */
+	private boolean isNature()
+	{
+		String me = localPlayerName();
+		return me != null && NatureAura.WEARERS.contains(MemberCosmetics.key(me));
+	}
+
+	/**
+	 * ::natureglow lists JoeBoob's aura parts; ::natureglow &lt;name&gt; [on|off] switches one (toggles
+	 * without on/off). The settings are hidden, and for anyone else the command does nothing.
+	 */
+	private void natureGlow(String[] args)
+	{
+		if (!isNature())
+		{
+			return;
+		}
+		if (args.length == 0)
+		{
+			StringBuilder list = new StringBuilder("CoR: your nature glow -");
+			for (NatureGlow glow : NatureGlow.values())
+			{
+				list.append(' ').append(glow.shortName).append(NatureGlow.picked(config, glow) ? " on," : " off,");
+			}
+			list.setLength(list.length() - 1);
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", list + ". ::natureglow <name> [on|off]", null);
+			return;
+		}
+		NatureGlow glow = NatureGlow.byShortName(args[0]);
+		String state = args.length > 1 ? args[1].toLowerCase() : "";
+		if (glow == null || !(state.isEmpty() || state.equals("on") || state.equals("off")))
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Usage: ::natureglow <name> [on|off]. ::natureglow lists the names", null);
+			return;
+		}
+		boolean on = state.isEmpty() ? !NatureGlow.picked(config, glow) : state.equals("on");
+		configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on);
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + glow.shortName + (on ? " on" : " off"), null);
+	}
+
+	/**
+	 * ::naturefx ring|leaves|swirl|bloom &lt;spot anim id&gt; [rise or height] switches a part of JoeBoob's aura to another
+	 * game graphic this session, like ::dayfx. Local only.
+	 */
+	private void previewNatureFx(String[] args)
+	{
+		try
+		{
+			int id = Integer.parseInt(args.length > 1 ? args[1] : "");
+			boolean swirl = NatureGlow.LEAF_SWIRL.shortName.equalsIgnoreCase(args[0]);
+			int extra = args.length > 2 ? Integer.parseInt(args[2]) : swirl ? DaylightAura.DEFAULT_SWIRL_RISE : 0;
+			String done = natureAura.preview(args[0], id, extra);
+			if (done != null)
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", done, null);
+				return;
+			}
+		}
+		catch (NumberFormatException e)
+		{
+			// fall through to the usage line
+		}
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+			"Usage: ::naturefx ring|leaves|swirl|bloom <spot anim id> [swirl rise / bloom height], e.g. ::naturefx ring 2540", null);
 	}
 
 	/**
@@ -727,6 +905,16 @@ public class CorClanPlugin extends Plugin
 			previewDaylightFx(event.getArguments());
 			return;
 		}
+		if (cmd.equals("naturefx"))
+		{
+			previewNatureFx(event.getArguments());
+			return;
+		}
+		if (cmd.equals("natureglow"))
+		{
+			natureGlow(event.getArguments());
+			return;
+		}
 		if (cmd.equals("founderglow"))
 		{
 			founderGlow(event.getArguments());
@@ -735,6 +923,17 @@ public class CorClanPlugin extends Plugin
 		if (cmd.equals("myglow"))
 		{
 			myGlow(event.getArguments());
+			return;
+		}
+		if (cmd.equals("dungfx"))
+		{
+			// local preview of the Kephri dung on your own character
+			shameAura.preview();
+			return;
+		}
+		if (cmd.equals("shame") || cmd.equals("unshame"))
+		{
+			shame(event.getArguments(), cmd.equals("unshame"));
 			return;
 		}
 		if (glowPicks.gemPartCommand(cmd, event.getArguments()))
@@ -1163,11 +1362,55 @@ public class CorClanPlugin extends Plugin
 		panelShowsOwner = ClanRank.OWNER.equals(glowPicks.localRank());
 		panelShowsDev = isDev();
 		panelShowsFounder = isFounder();
+		panelShowsNature = isNature();
+		panelShowsLeader = config.syncEnabled() && ClanLeaders.isLeader(me);
+		panelShowsRank = myRankTitle();
 		return new PanelData(mine, summary, syncStatus(), partyStatus(), mapState.status(partyLocations.size()), view.clanWide,
 			givers, receivers, recent, weeklyGivers, tracker.getWeekStart(),
 			Streaks.longest(view.weekResults, GzTracker.WEEK_ZONE),
 			Streaks.current(view.weekResults, tracker.getWeekStart(), GzTracker.WEEK_ZONE), allGivers,
-			clanRoster(), clanRankTitles(), panelShowsOwner, panelShowsDev, panelShowsFounder, inCorParty());
+			clanRoster(), clanRankTitles(), panelShowsOwner, panelShowsDev, panelShowsFounder, inCorParty(),
+			config.syncEnabled() && serverClan != null ? serverClan.getAnnouncement() : null,
+			announcementHint(),
+			panelShowsLeader, me, myRankTitle(), myGem(),
+			me == null ? 0 : view.givenOf(me), me == null ? 0 : session.getGiven().getOrDefault(me, 0),
+			me == null ? 0 : view.receivedOf(me), me == null ? 0 : session.getReceived().getOrDefault(me, 0),
+			panelShowsNature);
+	}
+
+	/** The banner's line while there is no announcement to show. Client thread. */
+	/** Your clan rank's title ("Rank N" when it has none), or null when not in a clan or not loaded yet. Client thread. */
+	private String myRankTitle()
+	{
+		ClanRank rank = glowPicks.localRank();
+		if (rank == null)
+		{
+			return null;
+		}
+		String title = clanRankTitles().get(rank.getRank());
+		return title == null ? "Rank " + rank.getRank() : title;
+	}
+
+	/** The highest Gem League glow your rank unlocks, or null. Client thread. */
+	private GemGlow myGem()
+	{
+		ClanRank rank = glowPicks.localRank();
+		return rank == null ? null : GemGlow.highestUnlocked(rank, clanRankTitles());
+	}
+
+	private String announcementHint()
+	{
+		if (!config.syncEnabled())
+		{
+			return "Turn on Sync with clan server in the CoR Clan settings to see clan announcements.";
+		}
+		if (serverClan == null)
+		{
+			return client.getGameState() == GameState.LOGGED_IN
+				? "Loading clan announcements..."
+				: "Clan announcements load when you log in.";
+		}
+		return "No announcements right now.";
 	}
 
 	/** One line for the panel about clan sync. Client thread. */
@@ -1254,6 +1497,10 @@ public class CorClanPlugin extends Plugin
 	@Subscribe
 	public void onClanChannelChanged(ClanChannelChanged event)
 	{
+		if (!event.isGuest())
+		{
+			clanChannelAt = System.currentTimeMillis();
+		}
 		refreshPanel();
 	}
 
@@ -1261,12 +1508,76 @@ public class CorClanPlugin extends Plugin
 	public void onClanMemberJoined(ClanMemberJoined event)
 	{
 		refreshPanel();
+		String name = event.getClanMember() == null ? null : event.getClanMember().getName();
+		long now = System.currentTimeMillis();
+		// our own clan only, not the channel filling in as we arrive, and never ourselves (that is ownLoginPending)
+		if (event.getClanChannel() != client.getClanChannel() || now - clanChannelAt < CHANNEL_SETTLE_MILLIS
+			|| name == null || MemberCosmetics.key(name).equals(MemberCosmetics.key(localPlayerName())))
+		{
+			return;
+		}
+		if (legion.isLogin(name, now))
+		{
+			announceLegion(name);
+			if (InfernoReminder.isTarget(name) && InfernoReminder.isWatcher(localPlayerName()))
+			{
+				remindInferno(name, false);
+			}
+		}
 	}
 
 	@Subscribe
 	public void onClanMemberLeft(ClanMemberLeft event)
 	{
 		refreshPanel();
+		if (event.getClanChannel() == client.getClanChannel() && event.getClanMember() != null)
+		{
+			legion.left(event.getClanMember().getName(), System.currentTimeMillis());
+		}
+	}
+
+	/**
+	 * JoeBoob's Infernal cape reminder (an inside joke between him and Ray): on every login, with the number of days he
+	 * has been reminded, raised once per day. Each client counts on its own. Client thread.
+	 * @param own true on JoeBoob's own client, false on Ray's
+	 */
+	private void remindInferno(String name, boolean own)
+	{
+		String key = own ? INFERNO_SELF_KEY : INFERNO_SEEN_KEY;
+		LocalDate today = LocalDate.now();
+		int day = InfernoReminder.countAfter(configManager.getConfiguration(CorClanConfig.GROUP, key), today);
+		configManager.setConfiguration(CorClanConfig.GROUP, key, InfernoReminder.store(today, day));
+		String icon = iconService.tagFor("fire");
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+			own ? InfernoReminder.targetLine(icon, day) : InfernoReminder.watcherLine(icon, name, day), null);
+	}
+
+	/**
+	 * A leader logged in: a line in chat on this client. The Spartan (Ray) lands in gold with a crown on each side,
+	 * a fanfare and the words over his head if he is in view. Client thread.
+	 */
+	private void announceLegion(String name)
+	{
+		if (!config.legionLogins())
+		{
+			return;
+		}
+		boolean spartan = Legion.isSpartan(name);
+		String icon = iconService.tagFor(spartan ? "crown" : "star");
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", Legion.line(name, icon), null);
+		if (!spartan)
+		{
+			return;
+		}
+		client.playSoundEffect(SoundEffectID.GE_ADD_OFFER_DINGALING);
+		for (Player p : client.getTopLevelWorldView().players())
+		{
+			if (p != null && p.getName() != null && Legion.isSpartan(p.getName()))
+			{
+				p.setOverheadText("A Spartan has landed!");
+				p.setOverheadCycle(SPARTAN_OVERHEAD_CYCLES);
+			}
+		}
 	}
 
 	// ---------------------------------------------------------------- clan sync (opt-in)
@@ -1329,6 +1640,21 @@ public class CorClanPlugin extends Plugin
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
 	{
+		GameState state = event.getGameState();
+		if (state == GameState.LOGGING_IN)
+		{
+			// from the login screen it is a real login; a world hop goes through HOPPING instead
+			ownLoginPending = lastGameState == GameState.LOGIN_SCREEN || lastGameState == GameState.LOGIN_SCREEN_AUTHENTICATOR;
+		}
+		else if (state == GameState.HOPPING || state == GameState.LOGIN_SCREEN)
+		{
+			ownLoginPending = false;
+		}
+		if (state == GameState.LOGIN_SCREEN)
+		{
+			legion.clear();
+		}
+		lastGameState = state;
 		if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
 			// the next login reports its rank names and profile again, and gets one more try if it was refused
@@ -1467,6 +1793,10 @@ public class CorClanPlugin extends Plugin
 		{
 			glows.addAll(daylightAura.localPicks());
 		}
+		if (isNature())
+		{
+			glows.addAll(natureAura.localPicks());
+		}
 		List<Object> profile = Arrays.asList(r, rank.getRank(), glows);
 		if (profile.equals(sentProfile))
 		{
@@ -1549,31 +1879,43 @@ public class CorClanPlugin extends Plugin
 		});
 	}
 
+	/** Every 10 seconds while logged in: who wears the Kephri dung, so a ::shame shows up fast. */
+	@Schedule(period = 10, unit = ChronoUnit.SECONDS)
+	public void shameTimer()
+	{
+		if (config.syncEnabled())
+		{
+			clientThread.invokeLater(() ->
+			{
+				if (client.getGameState() == GameState.LOGGED_IN)
+				{
+					pullShames();
+				}
+			});
+		}
+	}
+
+	private void pullShames()
+	{
+		clanApi.fetchShames(response ->
+		{
+			Shames shames = Shames.of(response, System.currentTimeMillis());
+			clientThread.invokeLater(() ->
+			{
+				if (started && config.syncEnabled())
+				{
+					shameAura.setShames(shames);
+				}
+			});
+		});
+	}
+
 	/** Asks the clan server for everyone's data and its chat icons. The answers arrive on OkHttp threads. */
 	private void pullFromServer()
 	{
 		lastPull = System.currentTimeMillis();
-		clanApi.fetchClan(response ->
-		{
-			ClanSnapshot snapshot = ClanSnapshot.of(response);
-			clientThread.invokeLater(() ->
-			{
-				if (!started || !config.syncEnabled())
-				{
-					return;
-				}
-				serverClan = snapshot;
-				serverClanAt = System.currentTimeMillis();
-				// other players' picks; each is still only drawn as far as their clan rank, as we see it, allows
-				glowPicks.setSharedPicks(snapshot.getGlows());
-				lavaAura.setSharedPicks(snapshot.getGlows());
-				daylightAura.setSharedPicks(snapshot.getGlows());
-				rebuildCosmetics();
-				updateGzView();
-				client.refreshChat();
-				refreshPanel();
-			});
-		});
+		pullShames();
+		clanApi.fetchClan(this::onClanResponse);
 		clanApi.fetchIcons(response -> clientThread.invokeLater(() ->
 		{
 			if (!started || !config.syncEnabled())
@@ -1591,6 +1933,77 @@ public class CorClanPlugin extends Plugin
 				client.refreshChat();
 			}
 		}));
+	}
+
+	/** {@code GET /v1/clan} answered (on an OkHttp thread): everyone's counts, icons, glows and the announcement. */
+	private void onClanResponse(SyncModels.ClanResponse response)
+	{
+		ClanSnapshot snapshot = ClanSnapshot.of(response);
+		clientThread.invokeLater(() ->
+		{
+			if (!started || !config.syncEnabled())
+			{
+				return;
+			}
+			serverClan = snapshot;
+			serverClanAt = System.currentTimeMillis();
+			// other players' picks; each is still only drawn as far as their clan rank, as we see it, allows
+			glowPicks.setSharedPicks(snapshot.getGlows());
+			lavaAura.setSharedPicks(snapshot.getGlows());
+			daylightAura.setSharedPicks(snapshot.getGlows());
+			natureAura.setSharedPicks(snapshot.getGlows());
+			rebuildCosmetics();
+			updateGzView();
+			client.refreshChat();
+			refreshPanel();
+		});
+	}
+
+	/**
+	 * Panel Edit button (clan leaders only): sends the new announcement banner, or clears it when {@code text} is
+	 * empty, then reloads the clan data so it shows straight away. Everyone else gets it on their next refresh.
+	 */
+	private void editAnnouncement(String text)
+	{
+		clientThread.invokeLater(() ->
+		{
+			if (!ClanLeaders.isLeader(localPlayerName()) || !config.syncEnabled())
+			{
+				return;
+			}
+			SyncModels.Reporter r = currentReporter();
+			if (r == null || r.equals(refusedReporter))
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: the clan server isn't taking anything from you right now", null);
+				return;
+			}
+			clanApi.sendAnnouncement(new SyncModels.AnnouncementPayload(r, text), outcome -> clientThread.invokeLater(() ->
+			{
+				if (!started || !config.syncEnabled())
+				{
+					return;
+				}
+				String done;
+				if (outcome == ClanApi.Outcome.OK)
+				{
+					clanApi.fetchClanNow(this::onClanResponse);
+					done = text.isEmpty() ? "CoR: announcement taken down" : "CoR: announcement posted";
+				}
+				else if (outcome == ClanApi.Outcome.RETRY)
+				{
+					done = "CoR: the clan server isn't answering, try posting the announcement again";
+				}
+				else
+				{
+					done = "CoR: the clan server refused the announcement";
+					if (outcome.blocksReporter())
+					{
+						onRefused(r, outcome);
+					}
+				}
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", done, null);
+			}));
+		});
 	}
 
 	/** Clan sync was turned off (or the plugin stopped): forgets the server's data and puts the bundled icons back. */
@@ -1615,6 +2028,8 @@ public class CorClanPlugin extends Plugin
 			glowPicks.clearSharedPicks();
 			lavaAura.clearSharedPicks();
 			daylightAura.clearSharedPicks();
+			natureAura.clearSharedPicks();
+			shameAura.clearShames();
 			iconService.clearServerIcons();
 			rebuildCosmetics();
 			updateGzView();
@@ -1794,17 +2209,33 @@ public class CorClanPlugin extends Plugin
 		holyAura.onClientTick();
 		lavaAura.onClientTick();
 		daylightAura.onClientTick();
+		natureAura.onClientTick();
 	}
 
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
 		holyAura.onGameTick();
+		shameAura.onGameTick();
+		if (ownLoginPending && localPlayerName() != null)
+		{
+			ownLoginPending = false;
+			if (Legion.isLegionnaire(localPlayerName()))
+			{
+				announceLegion(localPlayerName());
+			}
+			if (InfernoReminder.isTarget(localPlayerName()))
+			{
+				remindInferno(localPlayerName(), true);
+			}
+		}
 		tickLocation();
 		reportRanks();
 		// the Owner glow section appears once your clan rank has loaded (and goes if it changes)
 		if (panelShowsOwner != ClanRank.OWNER.equals(glowPicks.localRank()) || panelShowsDev != isDev()
-			|| panelShowsFounder != isFounder())
+			|| panelShowsFounder != isFounder() || panelShowsNature != isNature()
+			|| panelShowsLeader != (config.syncEnabled() && ClanLeaders.isLeader(localPlayerName()))
+			|| !Objects.equals(panelShowsRank, myRankTitle()))
 		{
 			refreshPanel();
 		}

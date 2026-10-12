@@ -11,6 +11,8 @@ Two optional features, both off until you turn them on, talk to something outsid
 
 ## Features
 
+- **Announcement banner** at the top of the CoR side panel (with Clan sync on): events and news from the clan
+  leaders (uimfartqueef, joeboob, Lavasockz and DAYLlGHT), who get an **Edit** button on it.
 - **Clan sidebar** with the clan logo, Discord and website buttons, gz leaderboards, an all-time and a
   weekly gz podium, weekly #1 streaks and an org chart of clan members by rank.
 - **Custom clan chat icons** (only on your client): CoR's own icons replace the default clan rank icon
@@ -26,6 +28,19 @@ Two optional features, both off until you turn them on, talk to something outsid
   and the Flames of Zamorak burning around him nonstop, following him as he walks. `::lavafx` plays it once on your own character. Lavasockz can
   switch it off in the CoR side panel (Dev glow, shown only to him) or with `::devglow`; with Clan sync on,
   other plugin users see his choice.
+- **JoeBoob's nature aura** (only on your client, while Show clan rank glows is on): a green take on DAYLlGHT's,
+  with a Zanaris fairy ring and leaves springing up around him, a leaf green swirl, the Druidic spirit's bloom and
+  emerald sparkles. JoeBoob switches
+  each part in the CoR side panel (Nature glow) or with `::natureglow`; `::naturefx` tries other graphics.
+- **Rank card** in the CoR side panel: your clan rank with its emblem, your gz counts and one big **Glow** switch
+  that turns your own rank glow on or off (the same settings as the glow checkboxes further down).
+- **Legion login alerts** (setting, on by default): a chat line when one of the clan leaders logs in, and a golden
+  "A Spartan has landed!" with a fanfare when uimfartqueef does. World hops are not announced. Worked out on your
+  client from the clan channel; nothing is sent anywhere.
+- **Kephri dung** (only on your client, while Show clan rank glows is on): when a clan leader (uimfartqueef,
+  joeboob, Lavasockz or DAYLlGHT) types `::shame <name>`, Kephri's dung keeps dropping on that clanmate's head for 5 minutes.
+  Everyone with Clan sync on sees it, the shamed player too, and it can't be switched off on its own: only the
+  Show clan rank glows master switch hides it. `::unshame <name>` takes it off early. `::dungfx` drops it once on your own character.
 - **Clan sync** (optional, off by default): clan-wide gz leaderboards, podiums, GZ King, weekly trophies and
   streaks, plus the chat icons, member icons, titles and rank icons clan staff set on the clan server, and
   everyone's glow picks.
@@ -38,13 +53,16 @@ Clan sync is **off by default**. Turning it on shows RuneLite's warning that it 
 3rd-party server not controlled or verified by RuneLite developers.
 
 **Your client only ever reports about your own character.** It never sends anything another player said or
-did. While sync is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
+did (the one other name it can send is the clanmate a clan leader types after `::shame`). While sync is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
 
 - the gz's (gz / grats / congrats) **you** say in your clan's chat,
 - clan broadcasts **about you** (for example "Lavasockz has received a drop: ..."),
 - your own clan rank and the glows you picked for yourself, on login and when they change,
 - your clan's rank names with their rank numbers (for example 126 "Owner", 5 "Captain"), once per login, so
   clan staff can pick a chat icon per rank. No player names are sent with them,
+- only if you are one of the four clan leaders (uimfartqueef, joeboob, Lavasockz, DAYLlGHT): the name of the
+  clanmate you `::shame` or `::unshame`, and the announcement text you save with the banner's Edit button, when
+  you do it,
 - your character name, your clan's name and your RuneLite account hash with each of those, so the server
   knows whose they are.
 
@@ -52,8 +70,9 @@ Nothing else from chat is sent: no other messages, nobody else's gz's or broadca
 chat. Gz's and broadcasts go out in small batches about every 30 seconds.
 
 About every 2 minutes while you are logged in it downloads everyone's gz counts, clan ranks, icons, titles
-and glow picks (as their own clients reported them or clan staff set them), the past weekly podiums, and the
-chat icon images from the clan's admin page (small PNGs, at most 32x16 pixels).
+and glow picks (as their own clients reported them or clan staff set them), the past weekly podiums, the
+announcement banner, and the chat icon images from the clan's admin page (small PNGs, at most 32x16 pixels). About every 10 seconds it
+downloads the short list of who is shamed with the Kephri dung right now.
 
 While the server's data is loaded, the leaderboards, podiums, GZ King, weekly trophies, streaks, `!rank` and
 `[GZ count]` show the server's numbers, which only include players who have sync on. Your client keeps
@@ -103,7 +122,8 @@ on the clan server replace them. Your own **Member icons** always win on your cl
 ## Commands
 
 Type `::cor` (or `::test`) in the chatbox to print a local CoR banner with the GZ King, the most gz'd
-members and your own counts. Double-colon commands are handled inside RuneLite and are never sent to
+members and your own counts. The four clan leaders can type `::shame <name>` and `::unshame <name>` (needs Clan
+sync on); for anyone else they do nothing. Double-colon commands are handled inside RuneLite and are never sent to
 the game server; only you see the output.
 
 ## Config

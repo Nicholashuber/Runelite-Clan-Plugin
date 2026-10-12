@@ -32,6 +32,10 @@ public class GlowIdsTest
 		{
 			ids.add(glow.id);
 		}
+		for (NatureGlow glow : NatureGlow.values())
+		{
+			ids.add(glow.id);
+		}
 		return ids;
 	}
 

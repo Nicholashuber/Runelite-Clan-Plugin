@@ -7,8 +7,10 @@ import com.corclan.glow.DevGlow;
 import com.corclan.glow.FounderGlow;
 import com.corclan.glow.GlowEffect;
 import com.corclan.glow.GlowPicks;
+import com.corclan.glow.NatureGlow;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.Streaks;
+import com.corclan.sync.Announcement;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -17,6 +19,7 @@ import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.Dimension;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
 import java.text.SimpleDateFormat;
@@ -29,6 +32,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.TimeZone;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -40,6 +44,8 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
@@ -63,8 +69,14 @@ public class CorClanPanel extends PluginPanel
 	private static final int GIVERS_SIZE = 10;
 	/** wrap width of a locked tier's note, inside the org chart's box */
 	private static final int LOCKED_NOTE_WIDTH = 170;
+	/** text width inside the announcement plaque, which has a wider frame than other boxes */
+	private static final int ANNOUNCEMENT_WIDTH = 160;
 	private static final SimpleDateFormat TIME = new SimpleDateFormat("HH:mm");
 	private static final SimpleDateFormat WEEK_DAY = new SimpleDateFormat("EEE d MMM");
+	/** when the announcement was posted, in the viewer's own time zone */
+	private static final SimpleDateFormat ANNOUNCED = new SimpleDateFormat("d MMM HH:mm");
+	/** an announcement younger than this gets a NEW tag */
+	private static final long NEW_ANNOUNCEMENT_MILLIS = 24L * 60 * 60 * 1000;
 
 	static
 	{
@@ -117,8 +129,23 @@ public class CorClanPanel extends PluginPanel
 	private final JPanel founderGlowPanel = new JPanel();
 	private final Map<FounderGlow, JCheckBox> founderGlowBoxes = new EnumMap<>(FounderGlow.class);
 	private JPanel founderGlowSection;
+	// JoeBoob's nature aura; the section is shown only while you are JoeBoob
+	private final JLabel natureGlowHeader = new JLabel();
+	private final JPanel natureGlowPanel = new JPanel();
+	private final Map<NatureGlow, JCheckBox> natureGlowBoxes = new EnumMap<>(NatureGlow.class);
+	private JPanel natureGlowSection;
 
-	private final JLabel summaryLabel = new JLabel();
+	// the announcement banner at the very top; hidden when there is nothing to show
+	private final JPanel announcementBanner = new JPanel(new BorderLayout(0, 4));
+	private final JLabel announcementText = new JLabel();
+	private final JLabel announcementFooter = new JLabel();
+	private final JButton announcementEdit = new JButton("Edit");
+	private final ArtPlaque announcementBox = new ArtPlaque(new BorderLayout(0, 6));
+	private final JLabel announcementNew = new JLabel("NEW");
+	// your own rank and the big Glow switch, right under the banner
+	private final RankCard rankCard;
+	private Announcement announcement;
+
 	/** joins or leaves the CoR party; the plugin never joins on its own */
 	private final JButton partyButton = new JButton("Join CoR party");
 	private boolean inCorParty;
@@ -133,9 +160,14 @@ public class CorClanPanel extends PluginPanel
 	 * @param onDevToggle called on the Swing thread when Lavasockz switches part of his aura
 	 * @param onFounderToggle called on the Swing thread when DAYLlGHT switches part of their aura
 	 * @param onPartyToggle called on the Swing thread when the player presses Join / Leave CoR party
+	 * @param onAnnouncementEdit called on the Swing thread with the new banner text ("" clears it) when a clan
+	 *                           leader saves it
+	 * @param onGlowSetting called on the Swing thread with a glow setting's config key and new value when the rank
+	 *                      card's Glow switch is flipped
 	 */
 	public CorClanPanel(CorClanConfig config, ItemManager itemManager, Runnable onReset, BiConsumer<GlowEffect, Boolean> onGlowToggle,
-		BiConsumer<DevGlow, Boolean> onDevToggle, BiConsumer<FounderGlow, Boolean> onFounderToggle, Runnable onPartyToggle)
+		BiConsumer<DevGlow, Boolean> onDevToggle, BiConsumer<FounderGlow, Boolean> onFounderToggle, Runnable onPartyToggle,
+		Consumer<String> onAnnouncementEdit, BiConsumer<String, Boolean> onGlowSetting)
 	{
 		super();
 		this.config = config;
@@ -152,14 +184,12 @@ public class CorClanPanel extends PluginPanel
 		content.setBorder(new EmptyBorder(0, 0, 0, 0));
 
 		content.add(buildHeader());
+		content.add(buildAnnouncement(onAnnouncementEdit));
+		rankCard = new RankCard(config, onGlowSetting);
+		content.add(rankCard);
 		content.add(Box.createVerticalStrut(8));
 		content.add(buildLinks());
 		content.add(Box.createVerticalStrut(12));
-
-		summaryLabel.setForeground(Color.WHITE);
-		summaryLabel.setFont(FontManager.getRunescapeSmallFont());
-		content.add(section("GZ tracker", summaryLabel));
-		content.add(Box.createVerticalStrut(8));
 
 		partyButton.setFocusable(false);
 		partyButton.setToolTipText("RuneLite party for CoR members, used for the clan map");
@@ -203,6 +233,8 @@ public class CorClanPanel extends PluginPanel
 		content.add(reset);
 		content.add(Box.createVerticalStrut(12));
 
+		content.add(buildFeatures());
+		content.add(Box.createVerticalStrut(8));
 		content.add(section(podiumTitle, podiumPanel));
 		content.add(Box.createVerticalStrut(8));
 		content.add(section("Weekly GZ podium", weeklyPanel));
@@ -219,8 +251,127 @@ public class CorClanPanel extends PluginPanel
 		content.add(devGlowSection);
 		founderGlowSection = buildFounderGlow(onFounderToggle);
 		content.add(founderGlowSection);
+		natureGlowSection = buildNatureGlow(onGlowSetting);
+		content.add(natureGlowSection);
 
 		add(content, BorderLayout.NORTH);
+	}
+
+	/**
+	 * The announcement banner: events and such, set by the clan leaders, for everyone with clan sync on. Leaders get
+	 * an Edit button. Always shown, with a status line while there is no announcement.
+	 */
+	private JPanel buildAnnouncement(Consumer<String> onAnnouncementEdit)
+	{
+		ArtPlaque box = announcementBox;
+
+		JPanel titleRow = new JPanel(new BorderLayout(6, 0));
+		titleRow.setOpaque(false);
+		JLabel title = new JLabel("Clan news", new ImageIcon(PanelArt.megaphone()), SwingConstants.LEFT);
+		title.setIconTextGap(6);
+		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(20f));
+		title.setForeground(PanelArt.GOLD);
+		titleRow.add(title, BorderLayout.CENTER);
+		announcementNew.setFont(FontManager.getRunescapeSmallFont());
+		announcementNew.setForeground(Color.BLACK);
+		announcementNew.setBackground(ColorScheme.BRAND_ORANGE);
+		announcementNew.setOpaque(true);
+		announcementNew.setBorder(new EmptyBorder(1, 4, 1, 4));
+		announcementNew.setToolTipText("Posted in the last day");
+		JPanel newHolder = new JPanel(new GridBagLayout());
+		newHolder.setOpaque(false);
+		newHolder.add(announcementNew);
+		titleRow.add(newHolder, BorderLayout.EAST);
+		box.add(titleRow, BorderLayout.NORTH);
+
+		announcementText.setFont(FontManager.getRunescapeFont());
+		announcementText.setForeground(Color.WHITE);
+		announcementText.setBorder(new EmptyBorder(2, 0, 2, 0));
+		box.add(announcementText, BorderLayout.CENTER);
+
+		JPanel footer = new JPanel(new BorderLayout(4, 0));
+		footer.setOpaque(false);
+		announcementFooter.setFont(FontManager.getRunescapeSmallFont());
+		announcementFooter.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		footer.add(announcementFooter, BorderLayout.CENTER);
+		announcementEdit.setFocusable(false);
+		announcementEdit.setToolTipText("Change the announcement every CoR plugin user sees");
+		announcementEdit.addActionListener(e -> editAnnouncement(onAnnouncementEdit));
+		footer.add(announcementEdit, BorderLayout.EAST);
+		box.add(footer, BorderLayout.SOUTH);
+
+		announcementBanner.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		announcementBanner.add(box, BorderLayout.CENTER);
+		announcementBanner.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
+		announcementText.setText(wrapped("Clan announcements show here."));
+		return announcementBanner;
+	}
+
+	/** Leaders only: a text box with the current banner; Save sends it, Clear takes the banner down. */
+	private void editAnnouncement(Consumer<String> onAnnouncementEdit)
+	{
+		JTextArea area = new JTextArea(announcement == null ? "" : announcement.text, 6, 24);
+		area.setLineWrap(true);
+		area.setWrapStyleWord(true);
+		Object[] options = {"Save", "Clear", "Cancel"};
+		int choice = JOptionPane.showOptionDialog(this,
+			new Object[]{"Shown at the top of every CoR plugin user's panel (up to " + Announcement.MAX_LENGTH
+				+ " characters, " + Announcement.MAX_LINES + " lines):", new JScrollPane(area)},
+			"CoR announcement", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+		if (choice == 1)
+		{
+			onAnnouncementEdit.accept("");
+		}
+		else if (choice == 0)
+		{
+			String text = Announcement.clean(area.getText());
+			if (area.getText().trim().length() > Announcement.MAX_LENGTH)
+			{
+				JOptionPane.showMessageDialog(this, "That is longer than " + Announcement.MAX_LENGTH
+					+ " characters, so it would be cut off. Shorten it and try again.", "CoR announcement", JOptionPane.WARNING_MESSAGE);
+				return;
+			}
+			onAnnouncementEdit.accept(text);
+		}
+	}
+
+	private void fillAnnouncement(PanelData data)
+	{
+		announcement = data.announcement;
+		announcementEdit.setVisible(data.canEditAnnouncement);
+		if (data.announcement != null)
+		{
+			announcementText.setText(wrapped(data.announcement.text));
+			announcementFooter.setText(data.announcement.updatedAt == 0
+				? data.announcement.by
+				: data.announcement.by + ", " + ANNOUNCED.format(new Date(data.announcement.updatedAt)));
+		}
+		else
+		{
+			announcementText.setText(wrapped(data.canEditAnnouncement
+				? "No announcement. Press Edit to post one for the clan."
+				: data.announcementHint == null ? "" : data.announcementHint));
+			announcementFooter.setText("");
+		}
+		// animated only while there is something to read; a still plaque otherwise
+		announcementBox.setLive(data.announcement != null);
+		announcementText.setForeground(data.announcement != null ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		announcementNew.setVisible(data.announcement != null && data.announcement.updatedAt != 0
+			&& System.currentTimeMillis() - data.announcement.updatedAt < NEW_ANNOUNCEMENT_MILLIS);
+		// always on the landing screen, so everyone knows where clan news shows up
+		announcementBanner.setVisible(true);
+	}
+
+	/** Lines wrapped to the panel's width. Escaped, so a line can never be read as Swing markup. */
+	private static String wrapped(String text)
+	{
+		StringBuilder html = new StringBuilder("<html><div style='width:" + ANNOUNCEMENT_WIDTH + "px'>");
+		String[] lines = text.split("\n");
+		for (int i = 0; i < lines.length; i++)
+		{
+			html.append(i > 0 ? "<br>" : "").append(escape(lines[i]));
+		}
+		return html.append("</div></html>").toString();
 	}
 
 	private JPanel buildHeader()
@@ -246,6 +397,37 @@ public class CorClanPanel extends PluginPanel
 		sub.setAlignmentX(CENTER_ALIGNMENT);
 		header.add(sub);
 		return header;
+	}
+
+	/** What the plugin does, in a few lines, plus a pointer to the clan's card game plugin. */
+	private static JPanel buildFeatures()
+	{
+		JPanel body = new JPanel();
+		String[] features = {
+			"GZ tracker: gz's given and received, weekly podium and streaks",
+			"Chat icons and titles for clan ranks; !rank and !tier in clan chat",
+			"Rank glows: Gem League, Owner storm and signature auras",
+			"Clan news from the leaders, right at the top",
+			"Clan map with the CoR party",
+			"Clan sync (opt-in): clan-wide leaderboards and everyone's glows",
+		};
+		StringBuilder html = new StringBuilder("<html><div style='width:" + LOCKED_NOTE_WIDTH + "px'>");
+		for (String f : features)
+		{
+			html.append("- ").append(escape(f)).append("<br>");
+		}
+		html.append("</div></html>");
+		body.add(muted(html.toString()));
+
+		JLabel tcg = new JLabel("<html><div style='width:" + (LOCKED_NOTE_WIDTH - 32) + "px'><b>Also try CoR TCG</b>: the clan's own"
+			+ " trading cards. Your gz's earn points to open card packs. A separate plugin; search \"CoR TCG\".</div></html>",
+			new ImageIcon(PanelArt.cardFan()), SwingConstants.LEFT);
+		tcg.setFont(FontManager.getRunescapeSmallFont());
+		tcg.setForeground(PanelArt.GOLD);
+		tcg.setIconTextGap(6);
+		tcg.setBorder(new EmptyBorder(6, 0, 2, 0));
+		body.add(tcg);
+		return section("What CoR Clan does", body);
 	}
 
 	private JPanel buildLinks()
@@ -364,6 +546,33 @@ public class CorClanPanel extends PluginPanel
 		JPanel body = collapsible(founderGlowHeader, founderGlowPanel, updateHeader);
 		updateHeader.run();
 		founderGlowPanel.add(muted("What other CoR plugin users see on you"), 0);
+
+		JPanel section = new JPanel(new BorderLayout());
+		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		section.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
+		section.add(body, BorderLayout.CENTER);
+		section.setVisible(false);
+		return section;
+	}
+
+	/** JoeBoob's nature aura parts, one checkbox each. Hidden until {@link #refresh} says you are JoeBoob. */
+	private JPanel buildNatureGlow(BiConsumer<String, Boolean> onGlowSetting)
+	{
+		for (NatureGlow glow : NatureGlow.values())
+		{
+			JCheckBox box = new JCheckBox(glow.label);
+			box.setFont(FontManager.getRunescapeSmallFont());
+			box.setForeground(Color.WHITE);
+			box.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+			box.setFocusable(false);
+			box.addActionListener(e -> onGlowSetting.accept(glow.configKey, box.isSelected()));
+			natureGlowBoxes.put(glow, box);
+			natureGlowPanel.add(box);
+		}
+		Runnable updateHeader = () -> natureGlowHeader.setText(marker(natureGlowPanel) + "Nature glow (only you see this)");
+		JPanel body = collapsible(natureGlowHeader, natureGlowPanel, updateHeader);
+		updateHeader.run();
+		natureGlowPanel.add(muted("What other CoR plugin users see on you"), 0);
 
 		JPanel section = new JPanel(new BorderLayout());
 		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -715,9 +924,10 @@ public class CorClanPanel extends PluginPanel
 	/** Must be called on the Swing thread with a snapshot built on the client thread. */
 	public void refresh(PanelData data)
 	{
+		fillAnnouncement(data);
+		rankCard.fill(data);
 		inCorParty = data.inCorParty;
 		partyButton.setText(data.inCorParty ? "Leave CoR party" : "Join CoR party");
-		summaryLabel.setText("<html>" + escape(data.mine) + "<br>" + escape(data.summary) + "<br>" + escape(data.syncStatus) + "<br>" + escape(data.partyStatus) + "<br>" + escape(data.mapStatus) + "</html>");
 
 		clanWide = data.clanWide;
 		String scope = clanWide ? " (clan)" : " (this client)";
@@ -743,13 +953,15 @@ public class CorClanPanel extends PluginPanel
 		devGlowBoxes.forEach((glow, box) -> box.setSelected(DevGlow.picked(config, glow)));
 		founderGlowSection.setVisible(data.founder);
 		founderGlowBoxes.forEach((glow, box) -> box.setSelected(FounderGlow.picked(config, glow)));
+		natureGlowSection.setVisible(data.nature);
+		natureGlowBoxes.forEach((glow, box) -> box.setSelected(NatureGlow.picked(config, glow)));
 
 		revalidate();
 		repaint();
 	}
 
 	/** Player names go into an HTML label; never let them inject markup. */
-	private static String escape(String s)
+	static String escape(String s)
 	{
 		return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}

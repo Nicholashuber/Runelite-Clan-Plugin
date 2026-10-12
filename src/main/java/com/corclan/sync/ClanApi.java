@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.CacheControl;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
@@ -105,16 +106,40 @@ public class ClanApi
 		post("v1/ranks", payload, done);
 	}
 
-	/** Everyone's gz counts, icons, titles and glow picks, plus the past weekly podiums. */
+	/** Shames a clanmate with the Kephri dung, or takes it off. Only the shamers' own accounts are taken. */
+	public void sendShame(SyncModels.ShamePayload payload, Consumer<Outcome> done)
+	{
+		post("v1/shame", payload, done);
+	}
+
+	/** Who wears the Kephri dung right now. */
+	public void fetchShames(Consumer<SyncModels.ShamesResponse> onSuccess)
+	{
+		get("v1/shames", SyncModels.ShamesResponse.class, null, onSuccess);
+	}
+
+	/** A clan leader sets the announcement banner (an empty text clears it). */
+	public void sendAnnouncement(SyncModels.AnnouncementPayload payload, Consumer<Outcome> done)
+	{
+		post("v1/announcement", payload, done);
+	}
+
+	/** Everyone's gz counts, icons, titles and glow picks, the past weekly podiums and the announcement banner. */
 	public void fetchClan(Consumer<SyncModels.ClanResponse> onSuccess)
 	{
-		get("v1/clan", SyncModels.ClanResponse.class, onSuccess);
+		get("v1/clan", SyncModels.ClanResponse.class, null, onSuccess);
+	}
+
+	/** {@link #fetchClan}, skipping RuneLite's HTTP cache: right after our own change, so it shows at once. */
+	public void fetchClanNow(Consumer<SyncModels.ClanResponse> onSuccess)
+	{
+		get("v1/clan", SyncModels.ClanResponse.class, CacheControl.FORCE_NETWORK, onSuccess);
 	}
 
 	/** Chat icon images set on the admin page (small PNGs, base64) and the icon picked per clan rank. */
 	public void fetchIcons(Consumer<SyncModels.IconsResponse> onSuccess)
 	{
-		get("v1/icons", SyncModels.IconsResponse.class, onSuccess);
+		get("v1/icons", SyncModels.IconsResponse.class, null, onSuccess);
 	}
 
 	private void post(String path, Object payload, Consumer<Outcome> done)
@@ -161,9 +186,15 @@ public class ClanApi
 		}
 	}
 
-	private <T> void get(String path, Class<T> type, Consumer<T> onSuccess)
+	/** @param cache null for the usual caching */
+	private <T> void get(String path, Class<T> type, CacheControl cache, Consumer<T> onSuccess)
 	{
-		Request request = new Request.Builder().url(BASE_URL.resolve(path)).get().build();
+		Request.Builder builder = new Request.Builder().url(BASE_URL.resolve(path)).get();
+		if (cache != null)
+		{
+			builder.cacheControl(cache);
+		}
+		Request request = builder.build();
 		http.newCall(request).enqueue(new Callback()
 		{
 			@Override
