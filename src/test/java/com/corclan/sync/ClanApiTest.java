@@ -52,4 +52,13 @@ public class ClanApiTest
 	{
 		assertEquals("https://cor-clan-api-production.up.railway.app/v1/clan", ClanApi.BASE_URL.resolve("v1/clan").toString());
 	}
+
+	@Test
+	public void pingProblemsReadWell()
+	{
+		assertEquals("you can ping Discord again in 10 minutes", ClanApi.pingProblem("ping_cooldown", 600));
+		assertEquals("you can ping Discord again in 1 minute", ClanApi.pingProblem("ping_cooldown", 5));
+		assertEquals("put your group up first", ClanApi.pingProblem("no_group", 0));
+		assertEquals("the clan server refused the ping", ClanApi.pingProblem(null, 0));
+	}
 }

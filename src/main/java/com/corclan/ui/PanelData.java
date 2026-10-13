@@ -1,9 +1,13 @@
 package com.corclan.ui;
 
 import com.corclan.clan.ClanRoster;
+import com.corclan.clan.Promotions;
+import com.corclan.raid.RaidAd;
+import com.corclan.raid.RaidListing;
 import com.corclan.glow.GemGlow;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.sync.Announcement;
+import com.corclan.sync.RecentPromotion;
 import com.corclan.gz.Streaks;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +64,18 @@ public final class PanelData
 	final int myGiven, myGivenToday, myReceived, myReceivedToday;
 	/** you are JoeBoob: show the Nature glow section */
 	final boolean nature;
+	/** you are clan staff: the rank card's Glow switch also covers the gold twinkle */
+	final boolean staff;
+	/** the Gem League promotion assistant; null unless you are clan staff (rank 100 up to the Owner) */
+	final Promotions.Result promotions;
+	/** the clan's latest promotions for everyone (clan sync on), newest first; empty otherwise */
+	final List<RecentPromotion> recentPromotions;
+	/** every open raid finder group, newest first (empty with clan sync off) */
+	final List<RaidListing> raidBoard;
+	/** our own raid finder group as last posted, or null */
+	final RaidAd myRaid;
+	/** why we can't post a raid group right now (clan sync off, logged out), or null */
+	final String raidProblem;
 
 	public PanelData(String mine, String summary, String syncStatus, String partyStatus, String mapStatus, boolean clanWide,
 		List<Map.Entry<String, Integer>> givers, List<Map.Entry<String, Integer>> receivers, List<BroadcastRecord> recent,
@@ -68,9 +84,16 @@ public final class PanelData
 		Map<Integer, String> clanRankTitles, boolean owner, boolean dev, boolean founder, boolean inCorParty,
 		Announcement announcement, String announcementHint, boolean canEditAnnouncement, String myName, String myRankTitle,
 		GemGlow myGem, int myGiven, int myGivenToday, int myReceived, int myReceivedToday,
-		boolean nature)
+		boolean nature, boolean staff, Promotions.Result promotions,
+		List<RecentPromotion> recentPromotions, List<RaidListing> raidBoard, RaidAd myRaid, String raidProblem)
 	{
+		this.raidBoard = raidBoard;
+		this.myRaid = myRaid;
+		this.raidProblem = raidProblem;
+		this.recentPromotions = recentPromotions;
+		this.promotions = promotions;
 		this.nature = nature;
+		this.staff = staff;
 		this.myGiven = myGiven;
 		this.myGivenToday = myGivenToday;
 		this.myReceived = myReceived;

@@ -10,7 +10,7 @@ import net.runelite.api.gameval.SpotanimID;
 
 /**
  * The Kephri dung: ::shame &lt;name&gt; from one of the {@link ClanLeaders} drops Kephri's dung on that clanmate's head
- * over and over for {@link Shames#DURATION_MILLIS}. Shames travel through the clan server (clan sync), so every
+ * over and over until a leader takes it off with ::unshame. Shames travel through the clan server (clan sync), so every
  * plugin user with sync on sees it, the shamed player included. Only the master switch "Show clan rank glows"
  * hides it: unlike the other auras, the wearer cannot switch their dung off. Drawn on this client only.
  * All methods must run on the client thread.
@@ -62,29 +62,57 @@ public class ShameAura
 			return;
 		}
 		long now = System.currentTimeMillis();
+		Player me = client.getLocalPlayer();
+		boolean previewing = now < previewUntil;
+		if (previewing && me != null)
+		{
+			me.createSpotAnim(SLOT, DUNG, 0, 0);
+		}
 		if (shames.isEmpty(now))
 		{
 			return;
 		}
-		Player me = client.getLocalPlayer();
 		for (Player player : client.getTopLevelWorldView().players())
 		{
 			if (player != null && player.getName() != null && (player == me || player.isClanMember())
-				&& shames.isShamed(player.getName(), now))
+				&& !(previewing && player == me) && shames.isShamed(player.getName(), now))
 			{
 				player.createSpotAnim(SLOT, DUNG, 0, 0);
 			}
 		}
 	}
 
-	/** ::dungfx: drops the dung on your own character once, to see how it looks. Local only. */
-	public void preview()
+	/** How long ::dungfx keeps dropping the dung on you. */
+	static final long PREVIEW_MILLIS = 30_000L;
+	/** when the ::dungfx preview ends, epoch millis; 0 = not previewing */
+	private long previewUntil;
+
+	/**
+	 * ::dungfx: drops the dung on your own character the way a real shame does, every {@link #DROP_TICKS} ticks, for
+	 * 30 seconds; typed again it stops. Local only.
+	 * @return true if the preview started, false if it was stopped
+	 */
+	public boolean preview()
 	{
+		long now = System.currentTimeMillis();
+		if (now < previewUntil)
+		{
+			previewUntil = 0;
+			Player me = client.getLocalPlayer();
+			if (me != null)
+			{
+				me.removeSpotAnim(SLOT);
+			}
+			return false;
+		}
+		previewUntil = now + PREVIEW_MILLIS;
+		ticks = 0;
 		Player me = client.getLocalPlayer();
 		if (me != null)
 		{
 			me.createSpotAnim(SLOT, DUNG, 0, 0);
 		}
+		return true;
 	}
 
 	/** Removes our dung from everyone (glows turned off or plugin stopped). */

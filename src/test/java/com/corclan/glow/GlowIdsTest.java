@@ -36,6 +36,7 @@ public class GlowIdsTest
 		{
 			ids.add(glow.id);
 		}
+		ids.add(GlowPicks.STAFF_TWINKLE_ID);
 		return ids;
 	}
 

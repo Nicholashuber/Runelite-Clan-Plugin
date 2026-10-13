@@ -15,16 +15,16 @@ import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 
 /**
- * The side panel's art frame (announcement banner, rank card): a dark bronze plaque with a gold rim and rivets.
- * While live it comes alive: the rim and an outer glow in the plaque's accent colour pulse, a light sweep crosses it
+ * The side panel's art frame (announcement banner, rank card), in the rhino logo's colours: a charcoal plaque with a
+ * steel rim and rivets. While live it comes alive: the rim brightens and an outer glow in horn red pulses, a light sweep crosses it
  * now and then and sparkles twinkle in the corners. It only repaints while on screen, and stays still when not live.
  */
 final class ArtPlaque extends JPanel
 {
-	private static final Color DIM_GOLD = PanelArt.DIM_GOLD;
-	private static final Color PLAQUE_TOP = new Color(66, 44, 24);
-	private static final Color PLAQUE_BOTTOM = new Color(28, 24, 22);
-	private static final Color RIVET = new Color(120, 86, 40);
+	private static final Color RIM = PanelArt.STEEL_DIM;
+	private static final Color PLAQUE_TOP = new Color(46, 46, 46);
+	private static final Color PLAQUE_BOTTOM = PanelArt.IRON_BOTTOM;
+	private static final Color RIVET = new Color(130, 130, 130);
 
 	/** room around the plaque for the glow */
 	private static final int MARGIN = 4;
@@ -53,8 +53,8 @@ final class ArtPlaque extends JPanel
 	});
 	private final long start = System.currentTimeMillis();
 	private boolean live;
-	private Color accent = PanelArt.EMBER;
-	private Color sparkle = PanelArt.GOLD;
+	private Color accent = PanelArt.HORN;
+	private Color sparkle = PanelArt.mix(PanelArt.HORN, Color.WHITE, 0.45f);
 
 	ArtPlaque(LayoutManager layout)
 	{
@@ -78,11 +78,11 @@ final class ArtPlaque extends JPanel
 		repaint();
 	}
 
-	/** The colour of the outer glow; the sparkles get a gold-tinted version of it. */
+	/** The colour of the outer glow; the sparkles get a lighter version of it. */
 	void setAccent(Color accent)
 	{
 		this.accent = accent;
-		this.sparkle = PanelArt.mix(accent, PanelArt.GOLD, 0.45f);
+		this.sparkle = PanelArt.mix(accent, Color.WHITE, 0.45f);
 		repaint();
 	}
 
@@ -141,9 +141,9 @@ final class ArtPlaque extends JPanel
 				paintSweep(g2, plaque, t);
 			}
 
-			// gold rim, a darker inner line and a rivet in each corner
+			// steel rim, a darker inner line and a rivet in each corner
 			g2.setStroke(new BasicStroke(2f));
-			g2.setColor(live ? PanelArt.mix(DIM_GOLD, PanelArt.GOLD, 0.4f + 0.6f * pulse) : DIM_GOLD);
+			g2.setColor(live ? PanelArt.mix(RIM, PanelArt.STEEL_LIGHT, 0.3f + 0.7f * pulse) : RIM);
 			g2.draw(plaque);
 			g2.setStroke(new BasicStroke(1f));
 			g2.setColor(PanelArt.alpha(Color.BLACK, 110));
@@ -180,7 +180,7 @@ final class ArtPlaque extends JPanel
 		float top = (float) plaque.getY();
 		LinearGradientPaint light = new LinearGradientPaint(left, top, left + band, top + band * 0.6f,
 			new float[]{0f, 0.5f, 1f},
-			new Color[]{PanelArt.alpha(Color.WHITE, 0), PanelArt.alpha(new Color(255, 236, 190), 55), PanelArt.alpha(Color.WHITE, 0)});
+			new Color[]{PanelArt.alpha(Color.WHITE, 0), PanelArt.alpha(new Color(235, 235, 235), 50), PanelArt.alpha(Color.WHITE, 0)});
 		g2.setPaint(light);
 		g2.fill(plaque);
 	}

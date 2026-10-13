@@ -4,6 +4,12 @@ import com.corclan.chat.RankCommands;
 import com.corclan.clan.ClanLeaders;
 import com.corclan.clan.InfernoReminder;
 import com.corclan.clan.Legion;
+import com.corclan.clan.Promotions;
+import com.corclan.raid.RaidAd;
+import com.corclan.raid.RaidLines;
+import com.corclan.raid.RaidListing;
+import com.corclan.fun.BossBanter;
+import com.corclan.fun.RaidSounds;
 import com.corclan.clan.ClanRoster;
 import com.corclan.glow.DaylightAura;
 import com.corclan.glow.DevGlow;
@@ -20,6 +26,7 @@ import com.corclan.glow.ShameAura;
 import com.corclan.glow.Shames;
 import com.corclan.glow.SignatureGlowOverlay;
 import com.corclan.gz.BroadcastParser;
+import com.corclan.gz.DailyGm;
 import com.corclan.gz.BroadcastRecord;
 import com.corclan.gz.GzStats;
 import com.corclan.gz.GzTracker;
@@ -39,6 +46,7 @@ import com.corclan.sync.SyncModels;
 import com.corclan.sync.SyncQueue;
 import com.corclan.ui.CorClanOverlay;
 import com.corclan.ui.CorClanPanel;
+import com.corclan.ui.RaidFinderCard;
 import com.corclan.ui.PanelData;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -47,25 +55,36 @@ import com.google.inject.Provides;
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatLineBuffer;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.MessageNode;
+import net.runelite.api.Actor;
+import net.runelite.api.NPC;
 import net.runelite.api.Player;
+import net.runelite.api.Projectile;
 import net.runelite.api.SoundEffectID;
 import java.util.TreeMap;
 import net.runelite.api.coords.WorldPoint;
@@ -79,6 +98,9 @@ import net.runelite.api.clan.ClanTitle;
 import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.ClanMemberJoined;
 import net.runelite.api.events.ClanMemberLeft;
+import net.runelite.api.events.ActorDeath;
+import net.runelite.api.events.ProjectileMoved;
+import net.runelite.client.audio.AudioPlayer;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.CommandExecuted;
@@ -219,6 +241,12 @@ public class CorClanPlugin extends Plugin
 	private DaylightAura daylightAura;
 
 	@Inject
+	private AudioPlayer audioPlayer;
+
+	@Inject
+	private ScheduledExecutorService executor;
+
+	@Inject
 	private NatureAura natureAura;
 
 	@Inject
@@ -296,8 +324,43 @@ public class CorClanPlugin extends Plugin
 	private boolean panelShowsNature;
 	/** the side panel currently offers the announcement's Edit button (you are a clan leader with sync on) */
 	private boolean panelShowsLeader;
+	/** the UTC day our daily gm was last answered by the clan server; it is sent at most once a day. Client thread. */
+	private long gmAnsweredDay = -1;
+	/** a gm is on its way to the clan server */
+	private boolean gmInFlight;
+	/** our own raid finder group is sent again this often, so it stays up while we play (the server drops it after 15 min) */
+	private static final long RAID_RESEND_MILLIS = 5 * 60_000L;
+	private static final String RAID_ALERT_COLOR = "4fb06e";
+	/** every open raid finder group, newest first; swapped whole (read by the panel snapshot) */
+	private volatile List<RaidListing> raidBoard = Collections.emptyList();
+	/** our own raid finder group as last posted, and who posted it; null when we have none. Client thread. */
+	private RaidAd myRaid;
+	private SyncModels.Reporter myRaidReporter;
+	private long raidSentAt;
+	/** when we last took our group down; the board may still list it for a moment, so it is not taken back */
+	private long raidStoppedAt;
+	private static final long RAID_ADOPT_PAUSE_MILLIS = 90_000L;
+	private int raidSentWorld;
+	/** our group was last sent as raiding (we were inside the raid) */
+	private boolean raidSentRaiding;
+	/** groups already seen (so each new one is announced once), and whether this login has looked at the board yet */
+	private final Set<String> seenRaids = new HashSet<>();
+	/** groups seen raiding on their current trip, so each trip is announced once */
+	private final Set<String> raidingSeen = new HashSet<>();
+	private boolean raidBoardSeen;
+	/** the open groups are advertised in the clan chat tab this often */
+	private static final long RAID_AD_MILLIS = 5 * 60_000L;
+	/** our latest raid finder line in the clan chat tab, and when it was shown; null when there is none */
+	private MessageNode raidLine;
+	private long raidLineAt;
+	/** someone said or broadcast something in the clan chat since our raid line: the next one is a new line */
+	private boolean clanChatSinceRaidLine;
+	/** we are adding our own raid line: our own chat handler must not read it as a clan broadcast */
+	private boolean addingRaidLine;
 	/** leaders' login alerts: tells a real login from a world hop */
 	private final Legion legion = new Legion();
+	/** bosses' overhead lines, e.g. the Maiden's "She's tensings!" */
+	private final BossBanter bossBanter = new BossBanter();
 	/** when the clan channel last (re)loaded; joins right after are the channel filling in, not logins */
 	private long clanChannelAt;
 	/** the last game state, to tell a login (from the login screen) from a world hop */
@@ -360,7 +423,27 @@ public class CorClanPlugin extends Plugin
 			(glow, on) -> configManager.setConfiguration(CorClanConfig.GROUP, glow.configKey, on),
 			this::toggleCorParty,
 			this::editAnnouncement,
-			(key, on) -> configManager.setConfiguration(CorClanConfig.GROUP, key, on));
+			(key, on) -> configManager.setConfiguration(CorClanConfig.GROUP, key, on),
+			new RaidFinderCard.Actions()
+			{
+				@Override
+				public void post(RaidAd ad)
+				{
+					postRaid(ad);
+				}
+
+				@Override
+				public void stop()
+				{
+					stopRaid("CoR: your raid group is taken down");
+				}
+
+				@Override
+				public void ping()
+				{
+					pingRaid();
+				}
+			});
 		navButton = NavigationButton.builder()
 			.tooltip("CoR Clan")
 			.icon(ImageUtil.loadImageResource(CorClanPlugin.class, "panel_icon.png"))
@@ -470,12 +553,29 @@ public class CorClanPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
+		ChatMessageType type = event.getType();
+		if (addingRaidLine)
+		{
+			return;
+		}
+		if (type == ChatMessageType.CLAN_CHAT || type == ChatMessageType.CLAN_MESSAGE)
+		{
+			clanChatSinceRaidLine = true;
+		}
+		long now = System.currentTimeMillis();
+		// the daily gm bonus works whether or not the gz tracker is on; only our own line is ever sent
+		if (type == ChatMessageType.CLAN_CHAT && isMe(displayName(event.getName())))
+		{
+			String said = Text.removeTags(event.getMessage());
+			if (DailyGm.isGm(said))
+			{
+				claimDailyGm(said, now);
+			}
+		}
 		if (!config.gzTrackingEnabled())
 		{
 			return;
 		}
-		ChatMessageType type = event.getType();
-		long now = System.currentTimeMillis();
 
 		if (type == ChatMessageType.CLAN_MESSAGE || (config.trackGuestClan() && type == ChatMessageType.CLAN_GUEST_MESSAGE))
 		{
@@ -927,8 +1027,10 @@ public class CorClanPlugin extends Plugin
 		}
 		if (cmd.equals("dungfx"))
 		{
-			// local preview of the Kephri dung on your own character
-			shameAura.preview();
+			// local preview of the Kephri dung on your own character, dropping like a real shame for 30 seconds
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", shameAura.preview()
+				? "CoR: dropping the Kephri dung on you for 30 seconds, like a shame. ::dungfx again stops it"
+				: "CoR: dung preview stopped", null);
 			return;
 		}
 		if (cmd.equals("shame") || cmd.equals("unshame"))
@@ -1375,7 +1477,41 @@ public class CorClanPlugin extends Plugin
 			panelShowsLeader, me, myRankTitle(), myGem(),
 			me == null ? 0 : view.givenOf(me), me == null ? 0 : session.getGiven().getOrDefault(me, 0),
 			me == null ? 0 : view.receivedOf(me), me == null ? 0 : session.getReceived().getOrDefault(me, 0),
-			panelShowsNature);
+			panelShowsNature, GlowPicks.isStaff(glowPicks.localRank()), promotions(),
+			config.syncEnabled() && serverClan != null ? serverClan.getRecentPromotions() : Collections.emptyList(),
+			config.syncEnabled() ? raidBoard : Collections.emptyList(), myRaid, raidProblem());
+	}
+
+	/**
+	 * The Gem League promotion assistant, for clan staff only (administrators up to the Owner, by your in-game rank).
+	 * Join dates and titles come from the game's clan data; gz's given from the same numbers the panel shows (the clan
+	 * server's with clan sync on). Client thread.
+	 * @return null when you are not staff or not in a clan
+	 */
+	private Promotions.Result promotions()
+	{
+		ClanRank myRank = glowPicks.localRank();
+		ClanSettings settings = client.getClanSettings();
+		if (settings == null || !(GlowPicks.isStaff(myRank) || ClanRank.OWNER.equals(myRank)))
+		{
+			return null;
+		}
+		ClanChannel channel = client.getClanChannel();
+		List<Promotions.Member> members = new ArrayList<>();
+		for (ClanMember member : settings.getMembers())
+		{
+			ClanRank rank = member.getRank();
+			if (member.getName() == null || rank == null)
+			{
+				continue;
+			}
+			ClanTitle title = settings.titleForRank(rank);
+			members.add(new Promotions.Member(displayName(member.getName()), title != null ? title.getName() : null,
+				member.getJoinDate(), channel != null && channel.findMember(member.getName()) != null));
+		}
+		Map<String, Integer> gz = new HashMap<>();
+		view.given.forEach((name, count) -> gz.merge(MemberCosmetics.key(name), count, Integer::sum));
+		return Promotions.check(members, LocalDate.now(ZoneOffset.UTC), gz);
 	}
 
 	/** The banner's line while there is no announcement to show. Client thread. */
@@ -1553,6 +1689,103 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
+	 * Our first gm of the day (UTC) in clan chat earns a pack's worth of TCG points from the clan server, with clan sync
+	 * on. Asked once a day; after a network error the next gm asks again. Gm's are not counted anywhere. Client thread.
+	 */
+	private void claimDailyGm(String said, long now)
+	{
+		long day = DailyGm.utcDay(now);
+		SyncModels.Reporter r = currentReporter();
+		if (!config.syncEnabled() || gmInFlight || day == gmAnsweredDay || r == null || r.equals(refusedReporter))
+		{
+			return;
+		}
+		gmInFlight = true;
+		clanApi.sendGm(new SyncModels.GmPayload(r, said), (outcome, result) -> clientThread.invokeLater(() ->
+		{
+			gmInFlight = false;
+			if (!started || !config.syncEnabled())
+			{
+				return;
+			}
+			if (outcome == ClanApi.Outcome.RETRY)
+			{
+				return;
+			}
+			gmAnsweredDay = day;
+			if (outcome.blocksReporter())
+			{
+				onRefused(r, outcome);
+				return;
+			}
+			if (outcome == ClanApi.Outcome.OK && result != null && result.isAwarded())
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ffc832>gm! +" + String.format("%,d", result.getPointsEarned())
+					+ " TCG points for your daily gm. Next one after 00:00 UTC.</col>", null);
+			}
+		}));
+	}
+
+	/**
+	 * A player in view died in the Chambers of Xeric: "Olm Sacrifice" plays on this client, if we are in a clan.
+	 * Every CoR plugin user in the raid sees the death too, so they all hear it; nothing is sent anywhere.
+	 */
+	@Subscribe
+	public void onActorDeath(ActorDeath event)
+	{
+		if (!config.coxDeathSound() || !(event.getActor() instanceof Player)
+			|| client.getVarbitValue(VarbitID.RAIDS_CLIENT_INDUNGEON) != 1 || client.getClanChannel() == null)
+		{
+			return;
+		}
+		float gain = RaidSounds.gainDb(config.coxDeathVolume());
+		// off the client thread: opening the sound device can take a moment
+		executor.execute(() ->
+		{
+			try
+			{
+				audioPlayer.play(CorClanPlugin.class, RaidSounds.OLM_SACRIFICE, gain);
+			}
+			catch (IOException | UnsupportedAudioFileException | LineUnavailableException e)
+			{
+				log.debug("CoR: could not play the CoX death sound", e);
+			}
+		});
+	}
+
+	/**
+	 * The Maiden of Sugadinti throws her blood pools: she says "She's tensings!" over her head, on this client only.
+	 * Her throw sends several projectiles; {@link BossBanter} lets the first one through.
+	 */
+	@Subscribe
+	public void onProjectileMoved(ProjectileMoved event)
+	{
+		Projectile projectile = event.getProjectile();
+		if (!config.bossBanter() || projectile == null || !bossBanter.saysLine(projectile.getId(), client.getGameCycle()))
+		{
+			return;
+		}
+		Actor maiden = projectile.getSourceActor();
+		if (!(maiden instanceof NPC) || !BossBanter.isMaiden(maiden.getName()))
+		{
+			maiden = null;
+			for (NPC npc : client.getTopLevelWorldView().npcs())
+			{
+				if (npc != null && BossBanter.isMaiden(npc.getName()))
+				{
+					maiden = npc;
+					break;
+				}
+			}
+		}
+		if (maiden != null)
+		{
+			maiden.setOverheadText(BossBanter.MAIDEN_LINE);
+			maiden.setOverheadCycle(BossBanter.SHOW_CYCLES);
+		}
+	}
+
+	/**
 	 * A leader logged in: a line in chat on this client. The Spartan (Ray) lands in gold with a crown on each side,
 	 * a fanfare and the words over his head if he is in view. Client thread.
 	 */
@@ -1652,7 +1885,15 @@ public class CorClanPlugin extends Plugin
 		}
 		if (state == GameState.LOGIN_SCREEN)
 		{
+			// our raid group stays up (the server drops it an hour after our last resend); the next login looks at
+			// the board quietly first
+			raidBoardSeen = false;
+			// the next login advertises what is open straight away, on a fresh line
+			raidLine = null;
+			raidLineAt = 0;
 			legion.clear();
+			// another account may log in next; it gets its own daily gm
+			gmAnsweredDay = -1;
 		}
 		lastGameState = state;
 		if (event.getGameState() == GameState.LOGIN_SCREEN)
@@ -1879,6 +2120,363 @@ public class CorClanPlugin extends Plugin
 		});
 	}
 
+	/** Why we can't post a raid finder group right now, or null. Client thread. */
+	private String raidProblem()
+	{
+		if (!config.syncEnabled())
+		{
+			return "Turn on Clan sync in the plugin settings to see and post groups.";
+		}
+		if (client.getGameState() != GameState.LOGGED_IN || client.getClanChannel() == null)
+		{
+			return "Log in and join the clan chat to post a group.";
+		}
+		return null;
+	}
+
+	/** Puts up (or updates) our own raid finder group. From the panel, so it hops to the client thread. */
+	private void postRaid(RaidAd ad)
+	{
+		clientThread.invokeLater(() ->
+		{
+			SyncModels.Reporter r = currentReporter();
+			if (raidProblem() != null || r == null || r.equals(refusedReporter))
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: can't post a raid group right now", null);
+				return;
+			}
+			sendRaid(r, ad, true);
+		});
+	}
+
+	/** @param tell print a chat line with the result (a click), not for the quiet resends */
+	private void sendRaid(SyncModels.Reporter r, RaidAd ad, boolean tell)
+	{
+		int world = client.getWorld();
+		raidSentAt = System.currentTimeMillis();
+		raidSentWorld = world;
+		boolean raiding = inRaid();
+		raidSentRaiding = raiding;
+		clanApi.sendRaid(new SyncModels.RaidPayload(r, ad.raid.id, ad.filled, ad.size, world > 0 ? world : null, ad.note, raiding),
+			outcome -> clientThread.invokeLater(() ->
+			{
+				if (!started || !config.syncEnabled())
+				{
+					return;
+				}
+				if (outcome == ClanApi.Outcome.OK)
+				{
+					myRaid = ad;
+					myRaidReporter = r;
+					pullRaids();
+					if (tell)
+					{
+						client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: your " + ad.raid.shortName + " group ("
+							+ ad.slots() + ") is up on the raid finder", null);
+					}
+					refreshPanel();
+					return;
+				}
+				if (outcome.blocksReporter())
+				{
+					onRefused(r, outcome);
+				}
+				if (tell)
+				{
+					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", outcome == ClanApi.Outcome.RETRY
+						? "CoR: the clan server isn't answering, try posting your raid group again"
+						: "CoR: the clan server refused the raid group", null);
+				}
+			}));
+	}
+
+	/**
+	 * Takes our raid finder group down: from the panel, or when we enter the raid.
+	 * Runs at once on the client thread (so a tick never queues it twice), else hops there.
+	 * @param done the chat line once the server took it down
+	 */
+	private void stopRaid(String done)
+	{
+		clientThread.invoke(() ->
+		{
+			SyncModels.Reporter r = myRaidReporter;
+			myRaid = null;
+			myRaidReporter = null;
+			raidStoppedAt = System.currentTimeMillis();
+			refreshPanel();
+			if (r == null || !config.syncEnabled())
+			{
+				return;
+			}
+			clanApi.stopRaid(new SyncModels.RaidStopPayload(r), outcome -> clientThread.invokeLater(() ->
+			{
+				if (started && config.syncEnabled())
+				{
+					pullRaids();
+					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", outcome == ClanApi.Outcome.OK
+						? done
+						: "CoR: couldn't reach the clan server to take your raid group down; it goes by itself within the hour", null);
+				}
+			}));
+		});
+	}
+
+	/** "Ping Discord": the clan server posts our open group in the Discord's looking-for-group channel. */
+	private void pingRaid()
+	{
+		clientThread.invokeLater(() ->
+		{
+			SyncModels.Reporter r = currentReporter();
+			if (myRaid == null || raidProblem() != null || r == null || !r.equals(myRaidReporter))
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: put your raid group up first", null);
+				return;
+			}
+			clanApi.pingRaid(new SyncModels.RaidStopPayload(r), problem -> clientThread.invokeLater(() ->
+			{
+				if (started)
+				{
+					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", problem == null
+						? "CoR: your " + myRaidName() + " group is posted in the clan Discord"
+						: "CoR: " + problem, null);
+				}
+			}));
+		});
+	}
+
+	private String myRaidName()
+	{
+		return myRaid == null ? "raid" : myRaid.raid.shortName;
+	}
+
+	/**
+	 * We are inside a raid: the Chambers (in the dungeon), or the Theatre / Tombs instance with a party. The parties
+	 * are formed outside the instances, so a group only comes down once we are actually in. TFA is not out yet, so
+	 * nothing detects it: a TFA host takes their group down by hand until its check is added here.
+	 */
+	private boolean inRaid()
+	{
+		if (client.getVarbitValue(VarbitID.RAIDS_CLIENT_INDUNGEON) == 1)
+		{
+			return true;
+		}
+		return client.isInInstancedRegion() && (client.getVarbitValue(VarbitID.TOB_CLIENT_PARTYSTATUS) > 0
+			|| client.getVarbitValue(VarbitID.TOA_CLIENT_PARTYSTATUS) > 0);
+	}
+
+	/**
+	 * Every game tick while we have a raid group up: entering or leaving the raid sends it again at once, so the board
+	 * (and everyone's clan chat) shows the party as raiding while we are inside. The group stays listed either way.
+	 */
+	private void checkRaidEntry()
+	{
+		SyncModels.Reporter r = myRaid == null || client.getGameState() != GameState.LOGGED_IN ? null : currentReporter();
+		if (r == null || !r.equals(myRaidReporter) || r.equals(refusedReporter) || inRaid() == raidSentRaiding)
+		{
+			return;
+		}
+		sendRaid(r, myRaid, false);
+		if (raidSentRaiding)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: good luck in there! Your " + myRaidName()
+				+ " group shows as raiding on the raid finder", null);
+		}
+	}
+
+	/**
+	 * Every 30 seconds with clan sync on and logged in: the raid finder board, and our own group sent again every few
+	 * minutes (or at once after a world hop) so it stays up while we play.
+	 */
+	@Schedule(period = 30, unit = ChronoUnit.SECONDS)
+	public void raidTimer()
+	{
+		if (!config.syncEnabled())
+		{
+			return;
+		}
+		clientThread.invokeLater(() ->
+		{
+			if (client.getGameState() != GameState.LOGGED_IN)
+			{
+				return;
+			}
+			pullRaids();
+			SyncModels.Reporter r = currentReporter();
+			if (myRaid != null && r != null && r.equals(myRaidReporter) && !r.equals(refusedReporter)
+				&& (System.currentTimeMillis() - raidSentAt >= RAID_RESEND_MILLIS || client.getWorld() != raidSentWorld))
+			{
+				sendRaid(r, myRaid, false);
+			}
+		});
+	}
+
+	private void pullRaids()
+	{
+		clanApi.fetchRaids(response ->
+		{
+			List<RaidListing> board = RaidListing.board(response);
+			clientThread.invokeLater(() ->
+			{
+				if (!started || !config.syncEnabled())
+				{
+					return;
+				}
+				adoptOwnRaid(board);
+				boolean announced = announceNewRaids(board);
+				if (!board.equals(raidBoard))
+				{
+					raidBoard = board;
+					refreshPanel();
+				}
+				if (!announced && !board.isEmpty() && System.currentTimeMillis() - raidLineAt >= RAID_AD_MILLIS)
+				{
+					showRaidLine(RaidLines.advert(board));
+				}
+			});
+		});
+	}
+
+	/**
+	 * Our group is on the board but this client doesn't know it (RuneLite was restarted while it was up): take it
+	 * back, so it is resent while we play and the panel can update or take it down.
+	 */
+	private void adoptOwnRaid(List<RaidListing> board)
+	{
+		SyncModels.Reporter r = currentReporter();
+		if (r == null || System.currentTimeMillis() - raidStoppedAt < RAID_ADOPT_PAUSE_MILLIS)
+		{
+			return;
+		}
+		if (myRaid != null && !r.equals(myRaidReporter))
+		{
+			// a different account logged in; the old one's group runs out on the server
+			myRaid = null;
+			myRaidReporter = null;
+		}
+		if (myRaid != null)
+		{
+			return;
+		}
+		String me = localPlayerName();
+		for (RaidListing l : board)
+		{
+			if (l.isHost(me))
+			{
+				myRaid = new RaidAd(l.raid, l.filled, l.size, l.note);
+				myRaidReporter = r;
+				raidSentAt = 0;
+				refreshPanel();
+				return;
+			}
+		}
+	}
+
+	/**
+	 * A clan chat line for a group put up since the last look, or a party that just went into the raid (not our own).
+	 * The first look after login is quiet: the advert that follows lists what is already open.
+	 * @return true if a line was shown
+	 */
+	private boolean announceNewRaids(List<RaidListing> board)
+	{
+		String me = localPlayerName();
+		List<RaidListing> fresh = new ArrayList<>();
+		for (RaidListing l : board)
+		{
+			if (seenRaids.add(l.key()) && raidBoardSeen && !l.isHost(me))
+			{
+				fresh.add(l);
+			}
+		}
+		// a party that went into the raid: once per raid trip
+		List<RaidListing> raiding = new ArrayList<>();
+		for (RaidListing l : board)
+		{
+			if (!l.raiding)
+			{
+				raidingSeen.remove(l.key());
+			}
+			else if (raidingSeen.add(l.key()) && raidBoardSeen && !l.isHost(me) && !fresh.contains(l))
+			{
+				raiding.add(l);
+			}
+		}
+		raidBoardSeen = true;
+		if (seenRaids.size() > 500)
+		{
+			seenRaids.clear();
+			board.forEach(l -> seenRaids.add(l.key()));
+		}
+		if (raidingSeen.size() > 500)
+		{
+			raidingSeen.clear();
+		}
+		if (fresh.size() + raiding.size() > 1)
+		{
+			showRaidLine(RaidLines.advert(board));
+		}
+		else if (fresh.size() == 1)
+		{
+			showRaidLine(RaidLines.newGroup(fresh.get(0)));
+		}
+		else if (raiding.size() == 1)
+		{
+			showRaidLine(RaidLines.raiding(raiding.get(0)));
+		}
+		return !fresh.isEmpty() || !raiding.isEmpty();
+	}
+
+	/**
+	 * Shows a raid finder line in the clan chat tab, on this client only (plugins may not send chat). If nothing else
+	 * was said in the clan chat since our last raid line, that line is updated in place instead, so the ads stack
+	 * into one line rather than filling the chat. Client thread.
+	 */
+	private void showRaidLine(String text)
+	{
+		ClanChannel channel = client.getClanChannel();
+		if (!config.raidFinderAlerts() || channel == null)
+		{
+			return;
+		}
+		long now = System.currentTimeMillis();
+		raidLineAt = now;
+		String line = "<col=" + RAID_ALERT_COLOR + ">" + text + "</col>";
+		if (raidLine != null && !clanChatSinceRaidLine && stillInChat(raidLine))
+		{
+			raidLine.setValue(line);
+			raidLine.setTimestamp((int) (now / 1000));
+			client.refreshChat();
+			return;
+		}
+		addingRaidLine = true;
+		try
+		{
+			raidLine = client.addChatMessage(ChatMessageType.CLAN_MESSAGE, "", line, channel.getName());
+		}
+		finally
+		{
+			addingRaidLine = false;
+		}
+		clanChatSinceRaidLine = false;
+	}
+
+	/** The line is still in the game's clan broadcast history (old lines drop out of it). */
+	private boolean stillInChat(MessageNode node)
+	{
+		ChatLineBuffer buffer = client.getChatLineMap().get(ChatMessageType.CLAN_MESSAGE.getType());
+		if (buffer == null)
+		{
+			return false;
+		}
+		for (MessageNode line : buffer.getLines())
+		{
+			if (line == node)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Every 10 seconds while logged in: who wears the Kephri dung, so a ::shame shows up fast. */
 	@Schedule(period = 10, unit = ChronoUnit.SECONDS)
 	public void shameTimer()
@@ -1915,6 +2513,7 @@ public class CorClanPlugin extends Plugin
 	{
 		lastPull = System.currentTimeMillis();
 		pullShames();
+		pullRaids();
 		clanApi.fetchClan(this::onClanResponse);
 		clanApi.fetchIcons(response -> clientThread.invokeLater(() ->
 		{
@@ -2030,6 +2629,10 @@ public class CorClanPlugin extends Plugin
 			daylightAura.clearSharedPicks();
 			natureAura.clearSharedPicks();
 			shameAura.clearShames();
+			raidBoard = Collections.emptyList();
+			raidBoardSeen = false;
+			myRaid = null;
+			myRaidReporter = null;
 			iconService.clearServerIcons();
 			rebuildCosmetics();
 			updateGzView();
@@ -2217,6 +2820,7 @@ public class CorClanPlugin extends Plugin
 	{
 		holyAura.onGameTick();
 		shameAura.onGameTick();
+		checkRaidEntry();
 		if (ownLoginPending && localPlayerName() != null)
 		{
 			ownLoginPending = false;

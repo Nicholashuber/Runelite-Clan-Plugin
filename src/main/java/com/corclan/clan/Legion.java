@@ -1,7 +1,6 @@
 package com.corclan.clan;
 
 import com.corclan.icons.MemberCosmetics;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -16,8 +15,6 @@ public final class Legion
 {
 	/** The one leader whose login is a landing, as a {@link MemberCosmetics#key} name. */
 	public static final String SPARTAN = "uimfartqueef";
-	/** TESTING ONLY: Runny Sharts lands like the Spartan so Ray can try it on that account; remove before merging. */
-	static final Set<String> TEST_SPARTANS = Collections.singleton("runny sharts");
 	/** A join this soon after the same player left the channel is a world hop (or a quick relog), not a login. */
 	static final long HOP_MILLIS = 60_000L;
 
@@ -34,7 +31,7 @@ public final class Legion
 
 	public static boolean isSpartan(String name)
 	{
-		return name != null && (SPARTAN.equals(MemberCosmetics.key(name)) || TEST_SPARTANS.contains(MemberCosmetics.key(name)));
+		return name != null && SPARTAN.equals(MemberCosmetics.key(name));
 	}
 
 	/** A leader left the clan channel (logged out, or the first half of a world hop). */

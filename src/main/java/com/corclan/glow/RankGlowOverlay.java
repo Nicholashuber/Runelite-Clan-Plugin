@@ -27,7 +27,7 @@ import net.runelite.client.ui.overlay.outline.ModelOutlineRenderer;
  * client only; players without the plugin see nothing.
  * One outline per player: the Owner's {@link GlowStyle#holy}, else their {@link GemStyle} gem glow, with
  * twinkling stars from Diamond up. Players wearing a signature outline (drawn by
- * {@link SignatureGlowOverlay}) get no gem glow on top of it.
+ * {@link SignatureGlowOverlay}) get no gem glow on top of it. Clan staff also twinkle gold ({@link GlowPicks#isStaff}).
  */
 public class RankGlowOverlay extends Overlay
 {
@@ -75,6 +75,10 @@ public class RankGlowOverlay extends Overlay
 			{
 				draw(player, GlowStyle.holy(now));
 				continue;
+			}
+			if (picks.staffTwinkleFor(channel, player))
+			{
+				twinkle(graphics, player, GemStyle.STAFF_GOLD, now);
 			}
 			if (lavaAura.effectsFor(player).contains(DevGlow.MOLTEN_OUTLINE))
 			{

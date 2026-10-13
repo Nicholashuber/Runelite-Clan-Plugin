@@ -68,6 +68,10 @@ public class GlowPicks
 				ids.add(part.id);
 			}
 		}
+		if (config.glowStaffTwinkle())
+		{
+			ids.add(STAFF_TWINKLE_ID);
+		}
 		return ids;
 	}
 
@@ -126,6 +130,37 @@ public class GlowPicks
 	public void clearSharedPicks()
 	{
 		sharedPicks = Collections.emptyMap();
+	}
+
+	/** The lowest and highest clan rank numbers that are staff: administrators up to the deputy owner. */
+	static final int STAFF_LOWEST = 100;
+	static final int STAFF_HIGHEST = 125;
+	/** The staff gold twinkle's glow id; sent to the clan server, never change it once released. */
+	public static final String STAFF_TWINKLE_ID = "staff_twinkle";
+
+	/**
+	 * True for clan staff, who get a gold twinkle: administrators (rank 100) up to the deputy owner (125). The Owner
+	 * has the storm instead, and J-Mods (127) nothing. By rank number, so every viewer decides it from the clan rank
+	 * they see, with or without clan sync.
+	 */
+	public static boolean isStaff(ClanRank rank)
+	{
+		return rank != null && rank.getRank() >= STAFF_LOWEST && rank.getRank() <= STAFF_HIGHEST;
+	}
+
+	/**
+	 * True when {@code player} shows the staff gold twinkle: staff by the rank this client sees, unless they switched it
+	 * off ("Staff gold twinkle"). Someone who shared no picks (clan sync off) shows it.
+	 */
+	public boolean staffTwinkleFor(ClanChannel channel, Player player)
+	{
+		ClanChannelMember member = clanMember(channel, player);
+		if (member == null || !isStaff(member.getRank()))
+		{
+			return false;
+		}
+		List<String> shared = picksOf(player);
+		return shared == null || shared.contains(STAFF_TWINKLE_ID);
 	}
 
 	/** Your own clan rank, or null when not in a clan (or not loaded yet). */

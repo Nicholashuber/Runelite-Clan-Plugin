@@ -44,6 +44,9 @@ public final class GemStyle
 		}
 	}
 
+	/** Clan staff's gold twinkle (see {@link GlowPicks#isStaff}): warm gold stars with a pale gold point. */
+	public static final Sparkle STAFF_GOLD = new Sparkle(6, new Color(255, 196, 50), new Color(255, 246, 205), 12);
+
 	private GemStyle()
 	{
 	}

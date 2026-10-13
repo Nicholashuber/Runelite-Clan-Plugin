@@ -182,6 +182,75 @@ public final class SyncModels
 		}
 	}
 
+	/** One of the latest promotions in {@code GET /v1/clan}, as the clan server sends it. */
+	public static final class PromotionData
+	{
+		private String rsn;
+		/** the clan's rank titles */
+		private String from;
+		private String to;
+		/** ISO-8601 instant */
+		private String at;
+
+		public String getRsn()
+		{
+			return rsn;
+		}
+
+		public String getFrom()
+		{
+			return from;
+		}
+
+		public String getTo()
+		{
+			return to;
+		}
+
+		public String getAt()
+		{
+			return at;
+		}
+	}
+
+	/** Our own character's daily gm line, for the gm bonus. */
+	public static final class GmPayload
+	{
+		private final Reporter reporter;
+		private final String text;
+
+		public GmPayload(Reporter reporter, String text)
+		{
+			this.reporter = reporter;
+			this.text = text;
+		}
+	}
+
+	/** The clan server's answer to a daily gm. */
+	public static final class GmResult
+	{
+		private boolean awarded;
+		private int pointsEarned;
+		private int points;
+
+		/** true when this gm earned the day's bonus */
+		public boolean isAwarded()
+		{
+			return awarded;
+		}
+
+		public int getPointsEarned()
+		{
+			return pointsEarned;
+		}
+
+		/** our TCG points afterwards */
+		public int getPoints()
+		{
+			return points;
+		}
+	}
+
 	/** ::shame (or with {@code clear}, ::unshame) from one of the clan leaders, naming the clanmate to shame. */
 	public static final class ShamePayload
 	{
@@ -202,18 +271,15 @@ public final class SyncModels
 	{
 		private String rsn;
 		private String by;
-		/** counted down from when the answer arrived, so this client's clock does not matter */
-		private int secondsLeft;
 
 		public ActiveShame()
 		{
 		}
 
-		public ActiveShame(String rsn, String by, int secondsLeft)
+		public ActiveShame(String rsn, String by)
 		{
 			this.rsn = rsn;
 			this.by = by;
-			this.secondsLeft = secondsLeft;
 		}
 
 		public String getRsn()
@@ -224,11 +290,6 @@ public final class SyncModels
 		public String getBy()
 		{
 			return by;
-		}
-
-		public int getSecondsLeft()
-		{
-			return secondsLeft;
 		}
 	}
 
@@ -242,14 +303,129 @@ public final class SyncModels
 		}
 	}
 
+	/** Our own raid finder listing: one raid, slots filled out of the party size, our world and a short note. */
+	public static final class RaidPayload
+	{
+		private final Reporter reporter;
+		private final String raid;
+		private final int filled;
+		private final int size;
+		/** null when unknown */
+		private final Integer world;
+		private final String note;
+		/** we are inside the raid with our party */
+		private final boolean raiding;
+
+		public RaidPayload(Reporter reporter, String raid, int filled, int size, Integer world, String note, boolean raiding)
+		{
+			this.raiding = raiding;
+			this.reporter = reporter;
+			this.raid = raid;
+			this.filled = filled;
+			this.size = size;
+			this.world = world;
+			this.note = note;
+		}
+	}
+
+	/** Takes our own raid finder listing down. */
+	public static final class RaidStopPayload
+	{
+		private final Reporter reporter;
+
+		public RaidStopPayload(Reporter reporter)
+		{
+			this.reporter = reporter;
+		}
+	}
+
+	/** One open group in {@code GET /v1/raids}. */
+	public static final class RaidListingData
+	{
+		private String rsn;
+		private String raid;
+		private int filled;
+		private int size;
+		private Integer world;
+		private String note;
+		/** ISO-8601 instant the group went up */
+		private String postedAt;
+		/** ISO-8601 instant the host last sent it */
+		private String updatedAt;
+		/** the host is inside the raid with their party */
+		private boolean raiding;
+
+		public boolean isRaiding()
+		{
+			return raiding;
+		}
+
+		public String getRsn()
+		{
+			return rsn;
+		}
+
+		public String getRaid()
+		{
+			return raid;
+		}
+
+		public int getFilled()
+		{
+			return filled;
+		}
+
+		public int getSize()
+		{
+			return size;
+		}
+
+		public Integer getWorld()
+		{
+			return world;
+		}
+
+		public String getNote()
+		{
+			return note;
+		}
+
+		public String getPostedAt()
+		{
+			return postedAt;
+		}
+
+		public String getUpdatedAt()
+		{
+			return updatedAt;
+		}
+	}
+
+	public static final class RaidsResponse
+	{
+		private List<RaidListingData> raids;
+
+		public List<RaidListingData> getRaids()
+		{
+			return raids == null ? Collections.emptyList() : raids;
+		}
+	}
+
 	/** The body of a refused request, e.g. {@code { "error": "name_taken" }}. */
 	public static final class ErrorBody
 	{
 		private String error;
+		/** with {@code ping_cooldown}: how long until the next Discord ping */
+		private Integer retryAfterSeconds;
 
 		public String getError()
 		{
 			return error;
+		}
+
+		public int getRetryAfterSeconds()
+		{
+			return retryAfterSeconds == null ? 0 : retryAfterSeconds;
 		}
 	}
 
@@ -362,10 +538,17 @@ public final class SyncModels
 		private List<Week> weeks;
 		/** the banner clan leaders set, or null */
 		private AnnouncementData announcement;
+		/** the newest few promotions, newest first; missing on older servers */
+		private List<PromotionData> promotions;
 
 		public AnnouncementData getAnnouncement()
 		{
 			return announcement;
+		}
+
+		public List<PromotionData> getPromotions()
+		{
+			return promotions == null ? Collections.emptyList() : promotions;
 		}
 
 		public String getWeekStart()

@@ -11,15 +11,22 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
-import net.runelite.client.ui.ColorScheme;
 
 /** Small pictures for the side panel, drawn in code so there are no image files to ship. */
 final class PanelArt
 {
-	static final Color GOLD = new Color(255, 200, 70);
-	static final Color DIM_GOLD = new Color(150, 110, 45);
-	static final Color EMBER = ColorScheme.BRAND_ORANGE;
-	private static final Color OUTLINE = new Color(40, 24, 8);
+	// the rhino logo's palette: a red horn, steel-grey face plates, black outlines
+	/** the horn */
+	static final Color HORN = new Color(240, 0, 0);
+	static final Color HORN_DARK = new Color(140, 0, 0);
+	/** face plates, light to dark */
+	static final Color STEEL_LIGHT = new Color(205, 205, 205);
+	static final Color STEEL = new Color(150, 150, 150);
+	static final Color STEEL_DIM = new Color(95, 95, 95);
+	/** the dark backgrounds the art sits on */
+	static final Color IRON_TOP = new Color(50, 50, 50);
+	static final Color IRON_BOTTOM = new Color(17, 17, 17);
+	private static final Color OUTLINE = new Color(8, 8, 8);
 
 	/** What the rank card's shield shows. */
 	enum Emblem
@@ -44,7 +51,7 @@ final class PanelArt
 	{
 	}
 
-	/** A small gold megaphone with sound waves, for the announcement banner's title. */
+	/** A small steel megaphone with red sound waves, for the announcement banner's title. */
 	static BufferedImage megaphone()
 	{
 		BufferedImage img = new BufferedImage(22, 22, BufferedImage.TYPE_INT_ARGB);
@@ -52,25 +59,25 @@ final class PanelArt
 		try
 		{
 			// handle
-			g.setColor(DIM_GOLD);
+			g.setColor(STEEL_DIM);
 			g.fillRect(6, 13, 3, 6);
 			g.setColor(OUTLINE);
 			g.drawRect(6, 13, 3, 6);
 
 			// mouthpiece and horn
 			Polygon horn = new Polygon(new int[]{5, 14, 14, 5}, new int[]{8, 3, 18, 13}, 4);
-			g.setPaint(new GradientPaint(0, 3, GOLD, 0, 18, DIM_GOLD));
+			g.setPaint(new GradientPaint(0, 3, STEEL_LIGHT, 0, 18, STEEL_DIM));
 			g.fillRect(1, 8, 5, 5);
 			g.fill(horn);
 			g.setColor(OUTLINE);
 			g.drawRect(1, 8, 5, 5);
 			g.draw(horn);
-			g.setColor(new Color(255, 240, 200));
+			g.setColor(Color.WHITE);
 			g.drawLine(6, 9, 13, 5);
 
 			// sound waves
 			g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-			g.setColor(EMBER);
+			g.setColor(HORN);
 			g.draw(new Arc2D.Float(12, 6, 6, 9, -55, 110, Arc2D.OPEN));
 			g.draw(new Arc2D.Float(12, 3, 9, 15, -55, 110, Arc2D.OPEN));
 		}
@@ -81,7 +88,123 @@ final class PanelArt
 		return img;
 	}
 
-	/** Three fanned trading cards with gold backs, for the CoR TCG mention. */
+	/** parties bigger than this show their slots as text only */
+	static final int MAX_PIPS = 8;
+
+	/** One dot per party slot (up to {@link #MAX_PIPS}): filled ones in the raid's colour, open ones hollow steel. */
+	static BufferedImage pips(int filled, int size, Color color)
+	{
+		int n = Math.max(1, Math.min(MAX_PIPS, size));
+		BufferedImage img = new BufferedImage(n * 8, 8, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = start(img);
+		try
+		{
+			for (int i = 0; i < n; i++)
+			{
+				int x = i * 8 + 1;
+				if (i < filled)
+				{
+					g.setColor(color);
+					g.fillOval(x, 1, 6, 6);
+					g.setColor(mix(color, Color.WHITE, 0.5f));
+					g.fillRect(x + 2, 2, 1, 1);
+				}
+				else
+				{
+					g.setColor(STEEL_DIM);
+					g.drawOval(x, 1, 5, 5);
+				}
+			}
+		}
+		finally
+		{
+			g.dispose();
+		}
+		return img;
+	}
+
+	/** A steel skull with horn-red eyes (22x22), for the raid finder's title. */
+	static BufferedImage skull()
+	{
+		BufferedImage img = new BufferedImage(22, 22, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = start(img);
+		try
+		{
+			java.awt.geom.Area head = new java.awt.geom.Area(new java.awt.geom.Ellipse2D.Float(3, 1, 16, 14));
+			head.add(new java.awt.geom.Area(new java.awt.geom.RoundRectangle2D.Float(6, 10, 10, 9, 3, 3)));
+			g.setPaint(new GradientPaint(0, 1, STEEL_LIGHT, 0, 20, STEEL_DIM));
+			g.fill(head);
+			g.setColor(OUTLINE);
+			g.draw(head);
+			g.setColor(HORN);
+			g.fillOval(6, 7, 4, 4);
+			g.fillOval(12, 7, 4, 4);
+			g.setColor(OUTLINE);
+			g.fillPolygon(new int[]{11, 10, 12}, new int[]{12, 14, 14}, 3);
+			g.drawLine(9, 16, 9, 19);
+			g.drawLine(11, 16, 11, 19);
+			g.drawLine(13, 16, 13, 19);
+		}
+		finally
+		{
+			g.dispose();
+		}
+		return img;
+	}
+
+	/** A small cut gem (18x16) in the gem's colour, for the promotion assistant's rows. */
+	static BufferedImage gemIcon(Color accent)
+	{
+		BufferedImage img = new BufferedImage(18, 16, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = start(img);
+		try
+		{
+			g.scale(0.6, 0.6);
+			gem(g, 15, 12, accent);
+		}
+		finally
+		{
+			g.dispose();
+		}
+		return img;
+	}
+
+	/** Two stacked chevrons pointing up, horn red over steel, for the promotion assistant's title. */
+	static BufferedImage promote()
+	{
+		BufferedImage img = new BufferedImage(22, 22, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = start(img);
+		try
+		{
+			Polygon low = chevron(11, 12);
+			Polygon high = chevron(11, 4);
+			g.setPaint(new GradientPaint(0, 12, STEEL_LIGHT, 0, 21, STEEL_DIM));
+			g.fill(low);
+			g.setColor(OUTLINE);
+			g.draw(low);
+			g.setPaint(new GradientPaint(0, 4, mix(HORN, Color.WHITE, 0.3f), 0, 13, HORN_DARK));
+			g.fill(high);
+			g.setColor(OUTLINE);
+			g.draw(high);
+			g.setColor(Color.WHITE);
+			g.fill(ArtPlaque.star(17, 4, 2));
+		}
+		finally
+		{
+			g.dispose();
+		}
+		return img;
+	}
+
+	/** an upward chevron 18 wide and 8 tall, its tip at (cx, top) */
+	private static Polygon chevron(int cx, int top)
+	{
+		return new Polygon(
+			new int[]{cx, cx + 9, cx + 9, cx, cx - 9, cx - 9},
+			new int[]{top, top + 6, top + 9, top + 3, top + 9, top + 6}, 6);
+	}
+
+	/** Three fanned trading cards in the logo's steel, red and black, for the CoR TCG mention. */
 	static BufferedImage cardFan()
 	{
 		BufferedImage img = new BufferedImage(26, 26, BufferedImage.TYPE_INT_ARGB);
@@ -89,7 +212,7 @@ final class PanelArt
 		try
 		{
 			double[] angles = {-0.35, 0, 0.35};
-			Color[] faces = {new Color(55, 100, 235), new Color(225, 35, 55), new Color(66, 44, 24)};
+			Color[] faces = {STEEL, HORN, IRON_TOP};
 			for (int i = 0; i < angles.length; i++)
 			{
 				Graphics2D c = (Graphics2D) g.create();
@@ -97,12 +220,12 @@ final class PanelArt
 				RoundRectangle2D card = new RoundRectangle2D.Float(7, 4, 12, 17, 3, 3);
 				c.setColor(faces[i]);
 				c.fill(card);
-				c.setColor(GOLD);
+				c.setColor(STEEL_LIGHT);
 				c.setStroke(new BasicStroke(1.2f));
 				c.draw(card);
 				c.dispose();
 			}
-			g.setColor(GOLD);
+			g.setColor(Color.WHITE);
 			g.fill(ArtPlaque.star(13, 12, 4));
 		}
 		finally
@@ -112,7 +235,7 @@ final class PanelArt
 		return img;
 	}
 
-	/** A heraldic shield (44x50) with a gold rim, an accent-coloured inner line and the rank's symbol. */
+	/** A heraldic shield (44x50) with a steel rim, an accent-coloured inner line and the rank's symbol. */
 	static BufferedImage emblem(Emblem kind, Color accent)
 	{
 		int w = 44;
@@ -122,13 +245,13 @@ final class PanelArt
 		try
 		{
 			Path2D shield = shield(2, 2, w - 4, h - 4);
-			g.setPaint(new GradientPaint(0, 2, new Color(58, 46, 38), 0, h, new Color(18, 16, 16)));
+			g.setPaint(new GradientPaint(0, 2, IRON_TOP, 0, h, IRON_BOTTOM));
 			g.fill(shield);
 			g.setColor(PanelArt.alpha(accent, 150));
 			g.setStroke(new BasicStroke(1f));
 			g.draw(shield(5, 5, w - 10, h - 10));
 			g.setStroke(new BasicStroke(2f));
-			g.setColor(kind == Emblem.NONE ? DIM_GOLD : GOLD);
+			g.setColor(kind == Emblem.NONE ? STEEL_DIM : STEEL_LIGHT);
 			g.draw(shield);
 
 			int cx = w / 2;
@@ -168,11 +291,12 @@ final class PanelArt
 	}
 
 	/**
-	 * The glow switch drawn as the checkbox's own box: a big pill that lights up in the accent colour with the knob
-	 * on the right when on, dark with the knob on the left when off.
+	 * The glow switch drawn as the checkbox's own box: a big pill that lights up horn red with the knob on the right
+	 * when on, dark with the knob on the left when off.
 	 */
-	static BufferedImage glowSwitch(boolean on, boolean enabled, Color accent)
+	static BufferedImage glowSwitch(boolean on, boolean enabled)
 	{
+		Color accent = HORN;
 		int w = 50;
 		int h = 26;
 		BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
@@ -192,18 +316,18 @@ final class PanelArt
 			}
 			else
 			{
-				g.setPaint(new GradientPaint(0, 3, new Color(38, 34, 32), 0, h - 3, new Color(22, 20, 20)));
+				g.setPaint(new GradientPaint(0, 3, new Color(40, 40, 40), 0, h - 3, new Color(20, 20, 20)));
 			}
 			g.fill(track);
 			g.setStroke(new BasicStroke(1.5f));
-			g.setColor(on && enabled ? GOLD : DIM_GOLD);
+			g.setColor(on && enabled ? STEEL_LIGHT : STEEL_DIM);
 			g.draw(track);
 
 			int knob = h - 10;
 			int kx = on ? w - 5 - knob : 5;
 			Ellipse2D ball = new Ellipse2D.Float(kx, 5, knob, knob);
-			g.setPaint(new GradientPaint(0, 5, on && enabled ? new Color(255, 248, 225) : new Color(170, 165, 160),
-				0, 5 + knob, on && enabled ? GOLD : new Color(90, 86, 82)));
+			g.setPaint(new GradientPaint(0, 5, on && enabled ? Color.WHITE : new Color(160, 160, 160),
+				0, 5 + knob, on && enabled ? STEEL : new Color(80, 80, 80)));
 			g.fill(ball);
 			g.setColor(OUTLINE);
 			g.setStroke(new BasicStroke(1f));

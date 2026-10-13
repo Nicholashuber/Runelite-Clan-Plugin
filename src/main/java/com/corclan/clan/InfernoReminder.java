@@ -3,9 +3,7 @@ package com.corclan.clan;
 import com.corclan.icons.MemberCosmetics;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -15,13 +13,8 @@ import java.util.Set;
  */
 public final class InfernoReminder
 {
-	/**
-	 * Who gets reminded, as {@link MemberCosmetics#key} names. TESTING ONLY: Runny Sharts too, so Ray can try it
-	 * without JoeBoob's account; remove before merging.
-	 */
-	public static final Set<String> TARGETS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-		"joeboob",
-		"runny sharts")));
+	/** Who gets reminded, as {@link MemberCosmetics#key} names. */
+	public static final Set<String> TARGETS = Collections.singleton("joeboob");
 	/** Who sees him being reminded, besides himself. */
 	public static final String WATCHER = "uimfartqueef";
 

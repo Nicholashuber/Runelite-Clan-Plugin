@@ -21,7 +21,8 @@ Two optional features, both off until you turn them on, talk to something outsid
   latest clan broadcast (drop, level, pet, ...) was about, for a short configurable window. Stats are
   stored in your RuneLite settings.
 - **Rank glow** (only on your client): the clan Owner gets a golden outline and a lightning storm overhead, and
-  Gem League ranks (Opal to Zenyte) get their gem's glow. `::glowzap`, `::glowshock` and `::glowstrike <id>`
+  Gem League ranks (Opal to Zenyte) get their gem's glow, and clan staff (administrators up to the deputy owner) twinkle gold
+  (each can switch theirs off with the **Staff gold twinkle** setting). `::glowzap`, `::glowshock` and `::glowstrike <id>`
   preview the storm effects on your own character. What you pick for yourself reaches other plugin users
   through Clan sync; without it everyone shows their rank's default.
 - **Lavasockz's aura** (only on your client, while Show clan rank glows is on): a flickering molten outline
@@ -37,10 +38,26 @@ Two optional features, both off until you turn them on, talk to something outsid
 - **Legion login alerts** (setting, on by default): a chat line when one of the clan leaders logs in, and a golden
   "A Spartan has landed!" with a fanfare when uimfartqueef does. World hops are not announced. Worked out on your
   client from the clan channel; nothing is sent anywhere.
+- **Boss banter** (setting, on by default, only on your client): bosses say things over their heads. In the Theatre
+  of Blood the Maiden of Sugadinti shouts "She's tensings!" when she throws her blood pools.
+- **Daily gm** (with Clan sync on): your first gm of the day (UTC) in clan chat earns a pack's worth of CoR TCG
+  points from the clan server, once a day. Gm's aren't counted or shown anywhere; it's just a boost for the card game.
+- **Raid finder** (with Clan sync on): a card in the CoR side panel lists clanmates looking for a CoX, ToB, ToA or TFA
+  party, with how many slots are filled (for example ToB 3/5), their world and a short note. Put up your own group
+  there, update it as people join and take it down when you're full. While you are inside the raid it shows as
+  raiding (and clanmates get a "party is raiding now" line); it comes down 30 minutes after you log out (others see
+  you as "away" meanwhile). **Ping Discord** posts your group in the
+  clan Discord's looking-for-group channel (once every 10 minutes). Open groups are advertised in your clan chat tab when one goes up and every
+  5 minutes (setting "Raid finder in clan chat"); while the chat is quiet the ad updates its one line instead of
+  adding more. These lines are shown by your own client only; the plugin never posts in the real clan chat.
+- **CoX death sound** (setting, on by default, with a volume slider): when a player you can see dies in the Chambers
+  of Xeric, "Olm Sacrifice" plays, while you are in a clan. Each plugin user's client plays it for itself.
 - **Kephri dung** (only on your client, while Show clan rank glows is on): when a clan leader (uimfartqueef,
-  joeboob, Lavasockz or DAYLlGHT) types `::shame <name>`, Kephri's dung keeps dropping on that clanmate's head for 5 minutes.
+  joeboob, Lavasockz or DAYLlGHT) types `::shame <name>`, Kephri's dung keeps dropping on that clanmate's head until a
+  leader takes it off with `::unshame <name>` (it stays on, even through server restarts).
   Everyone with Clan sync on sees it, the shamed player too, and it can't be switched off on its own: only the
-  Show clan rank glows master switch hides it. `::unshame <name>` takes it off early. `::dungfx` drops it once on your own character.
+  Show clan rank glows master switch hides it. `::dungfx` drops it on your own character for 30 seconds, the way a shame does (type it
+  again to stop).
 - **Clan sync** (optional, off by default): clan-wide gz leaderboards, podiums, GZ King, weekly trophies and
   streaks, plus the chat icons, member icons, titles and rank icons clan staff set on the clan server, and
   everyone's glow picks.
@@ -57,7 +74,12 @@ did (the one other name it can send is the clanmate a clan leader types after `:
 
 - the gz's (gz / grats / congrats) **you** say in your clan's chat,
 - clan broadcasts **about you** (for example "Lavasockz has received a drop: ..."),
+- your first gm of the day (the line **you** said, for example "gm all"), at most once a day, for the daily gm
+  bonus. The server checks it is a gm and does not keep the text,
 - your own clan rank and the glows you picked for yourself, on login and when they change,
+- only if you put up a raid finder group: the raid, slots filled, party size, your world and your note, sent again
+  every few minutes while it is up, whether you are inside the raid, and a "take it down" when you remove it. Ping Discord asks
+  the clan server to post that same group in the clan Discord,
 - your clan's rank names with their rank numbers (for example 126 "Owner", 5 "Captain"), once per login, so
   clan staff can pick a chat icon per rank. No player names are sent with them,
 - only if you are one of the four clan leaders (uimfartqueef, joeboob, Lavasockz, DAYLlGHT): the name of the

@@ -4,11 +4,9 @@ import com.corclan.CorClanConfig;
 import com.corclan.icons.MemberCosmetics;
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,13 +26,8 @@ import net.runelite.api.gameval.SpotanimID;
 @Singleton
 public class NatureAura
 {
-	/**
-	 * Players who wear the aura, as {@link MemberCosmetics#key} names. TESTING ONLY: Runny Sharts wears it too so
-	 * it can be tried without JoeBoob's account; remove before merging.
-	 */
-	public static final Set<String> WEARERS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-		"joeboob",
-		"runny sharts")));
+	/** Players who wear the aura, as {@link MemberCosmetics#key} names. */
+	public static final Set<String> WEARERS = Collections.singleton("joeboob");
 
 	/** Our own spot-anim slots (storm 3082-3084, Lavasockz 3090, DAYLlGHT 3092, shame 3094). */
 	static final int BLOOM_SLOT = 3096;

@@ -20,38 +20,45 @@ public class ShamesTest
 	}
 
 	@Test
-	public void countsDownFromWhenTheAnswerArrived()
+	public void onWhileTheListIsFreshThenStopsIfNoNewListComes()
 	{
-		Shames shames = Shames.of(response("{\"shames\":[{\"rsn\":\"Runny Sharts\",\"by\":\"Lavasockz\",\"secondsLeft\":60}]}"), NOW);
+		Shames shames = Shames.of(response("{\"shames\":[{\"rsn\":\"Runny Sharts\",\"by\":\"Lavasockz\",\"since\":\"2026-10-12T20:00:00.000Z\"}]}"), NOW);
 		assertTrue(shames.isShamed("Runny Sharts", NOW));
-		assertTrue(shames.isShamed("Runny Sharts", NOW + 59_999));
-		assertFalse(shames.isShamed("Runny Sharts", NOW + 60_000));
+		assertTrue(shames.isShamed("Runny Sharts", NOW + Shames.FRESH_MILLIS - 1));
+		assertFalse(shames.isShamed("Runny Sharts", NOW + Shames.FRESH_MILLIS));
 		assertFalse(shames.isShamed("Bob", NOW));
 		assertFalse(shames.isEmpty(NOW));
-		assertTrue(shames.isEmpty(NOW + 60_000));
+		assertTrue(shames.isEmpty(NOW + Shames.FRESH_MILLIS));
+	}
+
+	@Test
+	public void staysOnForAsLongAsTheServerListsThem()
+	{
+		long later = NOW + 24 * 60 * 60_000L;
+		Shames shames = Shames.of(response("{\"shames\":[{\"rsn\":\"Bob\",\"by\":\"Lavasockz\"}]}"), later);
+		assertTrue(shames.isShamed("Bob", later + 10_000));
+	}
+
+	@Test
+	public void anOlderServerAnswerStillWorks()
+	{
+		// the 5-minute server sent secondsLeft; it is simply ignored
+		assertTrue(Shames.of(response("{\"shames\":[{\"rsn\":\"Bob\",\"secondsLeft\":5}]}"), NOW).isShamed("Bob", NOW + 30_000));
 	}
 
 	@Test
 	public void matchesNamesAsChatSpellsThem()
 	{
-		Shames shames = Shames.of(response("{\"shames\":[{\"rsn\":\"Runny Sharts\",\"secondsLeft\":30}]}"), NOW);
+		Shames shames = Shames.of(response("{\"shames\":[{\"rsn\":\"Runny Sharts\"}]}"), NOW);
 		assertTrue(shames.isShamed("runny sharts", NOW));
 		assertTrue(shames.isShamed("Runny Sharts", NOW));
 		assertTrue(shames.isShamed("Runny_Sharts", NOW));
 	}
 
 	@Test
-	public void neverLastsLongerThanAShameCan()
-	{
-		Shames shames = Shames.of(response("{\"shames\":[{\"rsn\":\"Bob\",\"secondsLeft\":999999}]}"), NOW);
-		assertTrue(shames.isShamed("Bob", NOW + Shames.DURATION_MILLIS - 1));
-		assertFalse(shames.isShamed("Bob", NOW + Shames.DURATION_MILLIS));
-	}
-
-	@Test
 	public void skipsBrokenEntries()
 	{
-		Shames shames = Shames.of(response("{\"shames\":[null,{\"secondsLeft\":30},{\"rsn\":\"Bob\",\"secondsLeft\":-5},{\"rsn\":\"Ann\",\"secondsLeft\":0}]}"), NOW);
+		Shames shames = Shames.of(response("{\"shames\":[null,{\"by\":\"Lavasockz\"},{\"rsn\":\"\"}]}"), NOW);
 		assertTrue(shames.isEmpty(NOW));
 		assertTrue(Shames.of(response("{}"), NOW).isEmpty(NOW));
 	}
@@ -62,7 +69,7 @@ public class ShamesTest
 		List<SyncModels.ActiveShame> list = new ArrayList<>();
 		for (int i = 0; i < Shames.MAX_SHAMES + 10; i++)
 		{
-			list.add(new SyncModels.ActiveShame("P" + i, "Lavasockz", 60));
+			list.add(new SyncModels.ActiveShame("P" + i, "Lavasockz"));
 		}
 		SyncModels.ShamesResponse r = response(new Gson().toJson(java.util.Collections.singletonMap("shames", list)));
 		Shames shames = Shames.of(r, NOW);
@@ -81,8 +88,8 @@ public class ShamesTest
 	public void ownShameShowsBeforeTheNextRefresh()
 	{
 		Shames shamed = Shames.NONE.with("Bob", NOW);
-		assertTrue(shamed.isShamed("bob", NOW + Shames.DURATION_MILLIS - 1));
-		assertFalse(shamed.isShamed("bob", NOW + Shames.DURATION_MILLIS));
+		assertTrue(shamed.isShamed("bob", NOW + Shames.FRESH_MILLIS - 1));
+		assertFalse(shamed.isShamed("bob", NOW + Shames.FRESH_MILLIS));
 		assertFalse(shamed.without("BOB").isShamed("Bob", NOW));
 		// copies: the original is untouched
 		assertTrue(Shames.NONE.isEmpty(NOW));

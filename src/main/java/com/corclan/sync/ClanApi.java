@@ -3,6 +3,7 @@ package com.corclan.sync;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import java.io.IOException;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -112,10 +113,138 @@ public class ClanApi
 		post("v1/shame", payload, done);
 	}
 
+	/**
+	 * Our own daily gm: the server pays the gm bonus for the first one each UTC day.
+	 * @param done the outcome, and on OK the server's answer (null if it could not be read)
+	 */
+	public void sendGm(SyncModels.GmPayload payload, BiConsumer<Outcome, SyncModels.GmResult> done)
+	{
+		Request request = new Request.Builder()
+			.url(BASE_URL.resolve("v1/gm"))
+			.post(RequestBody.create(JSON, gson.toJson(payload)))
+			.build();
+		http.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.debug("CoR sync: POST v1/gm failed", e);
+				done.accept(Outcome.RETRY, null);
+			}
+
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				Outcome outcome;
+				SyncModels.GmResult result = null;
+				try (Response r = response)
+				{
+					outcome = classify(r.code(), r.isSuccessful() ? null : errorCode(r));
+					ResponseBody body = r.body();
+					if (outcome == Outcome.OK && body != null)
+					{
+						result = gson.fromJson(body.charStream(), SyncModels.GmResult.class);
+					}
+				}
+				catch (JsonParseException e)
+				{
+					log.debug("CoR sync: unreadable answer from v1/gm", e);
+					outcome = Outcome.OK;
+				}
+				done.accept(outcome, result);
+			}
+		});
+	}
+
 	/** Who wears the Kephri dung right now. */
 	public void fetchShames(Consumer<SyncModels.ShamesResponse> onSuccess)
 	{
 		get("v1/shames", SyncModels.ShamesResponse.class, null, onSuccess);
+	}
+
+	/** Puts up or updates our own raid finder listing. */
+	public void sendRaid(SyncModels.RaidPayload payload, Consumer<Outcome> done)
+	{
+		post("v1/raids", payload, done);
+	}
+
+	/** Takes our own raid finder listing down. */
+	public void stopRaid(SyncModels.RaidStopPayload payload, Consumer<Outcome> done)
+	{
+		post("v1/raids/stop", payload, done);
+	}
+
+	/**
+	 * Asks the clan server to post our open raid group in the clan Discord's looking-for-group channel.
+	 * @param done on an OkHttp thread: null when Discord took it, else the line to tell the player
+	 */
+	public void pingRaid(SyncModels.RaidStopPayload payload, Consumer<String> done)
+	{
+		Request request = new Request.Builder()
+			.url(BASE_URL.resolve("v1/raids/ping"))
+			.post(RequestBody.create(JSON, gson.toJson(payload)))
+			.build();
+		http.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.debug("CoR sync: POST v1/raids/ping failed", e);
+				done.accept("couldn't reach the clan server, try again");
+			}
+
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				try (Response r = response)
+				{
+					if (r.isSuccessful())
+					{
+						done.accept(null);
+						return;
+					}
+					SyncModels.ErrorBody body = null;
+					try
+					{
+						body = gson.fromJson(r.peekBody(MAX_ERROR_BYTES).string(), SyncModels.ErrorBody.class);
+					}
+					catch (IOException | JsonParseException e)
+					{
+						log.debug("CoR sync: unreadable answer from v1/raids/ping", e);
+					}
+					done.accept(pingProblem(body == null ? null : body.getError(), body == null ? 0 : body.getRetryAfterSeconds()));
+				}
+			}
+		});
+	}
+
+	/** What to tell the player when a Discord ping is refused. */
+	static String pingProblem(String error, int retryAfterSeconds)
+	{
+		if ("ping_cooldown".equals(error))
+		{
+			int minutes = Math.max(1, (retryAfterSeconds + 59) / 60);
+			return "you can ping Discord again in " + minutes + (minutes == 1 ? " minute" : " minutes");
+		}
+		if ("no_group".equals(error))
+		{
+			return "put your group up first";
+		}
+		if ("discord_off".equals(error))
+		{
+			return "Discord pings aren't set up on the clan server yet";
+		}
+		if ("discord_failed".equals(error))
+		{
+			return "Discord didn't take the ping, try again in a moment";
+		}
+		return "the clan server refused the ping";
+	}
+
+	/** Every open raid finder listing; skips RuneLite's HTTP cache, since the board changes by the minute. */
+	public void fetchRaids(Consumer<SyncModels.RaidsResponse> onSuccess)
+	{
+		get("v1/raids", SyncModels.RaidsResponse.class, CacheControl.FORCE_NETWORK, onSuccess);
 	}
 
 	/** A clan leader sets the announcement banner (an empty text clears it). */

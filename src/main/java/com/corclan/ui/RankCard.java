@@ -10,10 +10,7 @@ import com.corclan.glow.NatureGlow;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.GridLayout;
-import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -21,9 +18,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
@@ -33,8 +32,8 @@ import net.runelite.client.ui.FontManager;
 
 /**
  * The player's own clan rank on a plaque, with their rank's emblem and one big glow switch. The switch flips the same
- * settings as the per-effect checkboxes further down (Owner, Dev, Founder, Nature glow, gem outline + sparkles), so it is a
- * shortcut, not a new setting. The plaque animates in the rank's colour while the glow is on.
+ * settings as the per-effect checkboxes further down (Owner, Dev, Founder, Nature glow, staff gold twinkle, gem outline + sparkles), so it is a
+ * shortcut, not a new setting. The plaque animates (in the logo's horn red) while the glow is on.
  */
 final class RankCard extends JPanel
 {
@@ -43,8 +42,6 @@ final class RankCard extends JPanel
 	private static final Color MOLTEN = new Color(235, 70, 20);
 	private static final Color FOUNDER = new Color(220, 40, 60);
 	private static final Color NATURE = new Color(50, 205, 80);
-	/** the status lines' wrap width inside the plaque */
-	private static final int STATUS_WIDTH = 165;
 
 	private final CorClanConfig config;
 	/** config key, new value: the same setter the per-effect checkboxes use */
@@ -56,11 +53,13 @@ final class RankCard extends JPanel
 	private final JLabel title = new JLabel();
 	private final JLabel name = new JLabel();
 	private final JCheckBox glow = new JCheckBox("Glow");
-	private final JLabel glowNote = new JLabel();
+	private final WrapText glowNote = new WrapText(FontManager.getRunescapeSmallFont(), ColorScheme.LIGHT_GRAY_COLOR);
 	private final StatTile given = new StatTile("GZ GIVEN");
 	private final StatTile received = new StatTile("GZ'D");
 	/** this client's totals, then clan sync, the CoR party and the clan map, one line each */
-	private final JLabel status = new JLabel();
+	private final WrapText status = new WrapText(FontManager.getRunescapeSmallFont(), ColorScheme.LIGHT_GRAY_COLOR);
+	/** what the side panel puts under the glow switch: trophies, links, the party button */
+	private final JPanel extras = new JPanel();
 
 	/** config key to its current value, for every glow setting this player's switch controls */
 	private Map<String, Boolean> controlled = new LinkedHashMap<>();
@@ -80,7 +79,7 @@ final class RankCard extends JPanel
 		words.setLayout(new BoxLayout(words, BoxLayout.Y_AXIS));
 		words.setOpaque(false);
 		caption.setFont(FontManager.getRunescapeSmallFont());
-		caption.setForeground(PanelArt.DIM_GOLD);
+		caption.setForeground(PanelArt.STEEL);
 		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(22f));
 		name.setFont(FontManager.getRunescapeSmallFont());
 		name.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
@@ -94,8 +93,6 @@ final class RankCard extends JPanel
 		glow.setIconTextGap(8);
 		glow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		glow.addActionListener(e -> flip(glow.isSelected()));
-		glowNote.setFont(FontManager.getRunescapeSmallFont());
-		glowNote.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		JPanel switchRow = new JPanel(new BorderLayout(0, 2));
 		switchRow.setOpaque(false);
 		switchRow.add(glow, BorderLayout.NORTH);
@@ -106,23 +103,45 @@ final class RankCard extends JPanel
 		tiles.setOpaque(false);
 		tiles.add(given);
 		tiles.add(received);
-		status.setFont(FontManager.getRunescapeSmallFont());
-		status.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		JPanel gz = new JPanel(new BorderLayout(0, 6));
 		gz.setOpaque(false);
 		gz.add(tiles, BorderLayout.NORTH);
 		gz.add(status, BorderLayout.CENTER);
 
+		extras.setLayout(new BoxLayout(extras, BoxLayout.Y_AXIS));
+		extras.setOpaque(false);
+
 		JPanel lower = new JPanel(new BorderLayout(0, 8));
 		lower.setOpaque(false);
 		lower.add(gz, BorderLayout.NORTH);
 		lower.add(switchRow, BorderLayout.CENTER);
+		lower.add(extras, BorderLayout.SOUTH);
 
 		plaque.add(emblem, BorderLayout.WEST);
 		plaque.add(words, BorderLayout.CENTER);
 		plaque.add(lower, BorderLayout.SOUTH);
 		add(plaque, BorderLayout.CENTER);
 		setBorder(new EmptyBorder(8, 0, 0, 0));
+	}
+
+	/** Adds something under the glow switch, inside the art. */
+	void addExtra(JComponent component)
+	{
+		if (extras.getComponentCount() > 0)
+		{
+			extras.add(Box.createVerticalStrut(8));
+		}
+		component.setAlignmentX(LEFT_ALIGNMENT);
+		extras.add(component);
+	}
+
+	/** A horn-red heading inside the art, for a group of extras. */
+	static JLabel heading(String text)
+	{
+		JLabel label = new JLabel(text);
+		label.setFont(FontManager.getRunescapeBoldFont());
+		label.setForeground(PanelArt.HORN);
+		return label;
 	}
 
 	void fill(PanelData data)
@@ -154,9 +173,7 @@ final class RankCard extends JPanel
 		boolean in = data.myName != null;
 		given.set(in ? String.valueOf(data.myGiven) : "-", in ? "+" + data.myGivenToday + " today" : "log in");
 		received.set(in ? String.valueOf(data.myReceived) : "-", in ? "+" + data.myReceivedToday + " today" : "log in");
-		status.setText("<html><div style='width:" + STATUS_WIDTH + "px'>" + CorClanPanel.escape(data.summary)
-			+ "<br>" + CorClanPanel.escape(data.syncStatus) + "<br>" + CorClanPanel.escape(data.partyStatus)
-			+ "<br>" + CorClanPanel.escape(data.mapStatus) + "</div></html>");
+		status.setText(data.summary + "\n" + data.syncStatus + "\n" + data.partyStatus + "\n" + data.mapStatus);
 
 		Color newAccent = accentOf(kind, data.myGem);
 		if (kind != shownEmblem || !newAccent.equals(accent))
@@ -164,9 +181,6 @@ final class RankCard extends JPanel
 			shownEmblem = kind;
 			accent = newAccent;
 			emblem.setIcon(new ImageIcon(PanelArt.emblem(kind, accent)));
-			plaque.setAccent(accent);
-			given.setAccent(accent);
-			received.setAccent(accent);
 		}
 		title.setForeground(kind == PanelArt.Emblem.NONE ? ColorScheme.LIGHT_GRAY_COLOR : PanelArt.mix(accent, Color.WHITE, 0.35f));
 
@@ -178,10 +192,10 @@ final class RankCard extends JPanel
 		glow.setEnabled(!controlled.isEmpty());
 		glow.setSelected(shown);
 		glow.setText(controlled.isEmpty() ? "Glow" : shown ? "Glow ON" : "Glow OFF");
-		glow.setForeground(shown ? PanelArt.GOLD : ColorScheme.LIGHT_GRAY_COLOR);
-		glow.setIcon(new ImageIcon(PanelArt.glowSwitch(false, !controlled.isEmpty(), accent)));
-		glow.setSelectedIcon(new ImageIcon(PanelArt.glowSwitch(true, true, accent)));
-		glow.setDisabledIcon(new ImageIcon(PanelArt.glowSwitch(false, false, accent)));
+		glow.setForeground(shown ? PanelArt.HORN : ColorScheme.LIGHT_GRAY_COLOR);
+		glow.setIcon(new ImageIcon(PanelArt.glowSwitch(false, !controlled.isEmpty())));
+		glow.setSelectedIcon(new ImageIcon(PanelArt.glowSwitch(true, true)));
+		glow.setDisabledIcon(new ImageIcon(PanelArt.glowSwitch(false, false)));
 		glow.setToolTipText(controlled.isEmpty() ? null
 			: "Switches your " + String.join(", ", labels(data)).toLowerCase() + ". Fine-tune each part further down");
 		glowNote.setText(controlled.isEmpty() ? "No glow at your rank yet"
@@ -259,6 +273,10 @@ final class RankCard extends JPanel
 				keys.put(e.configKey, NatureGlow.picked(config, e));
 			}
 		}
+		if (data.staff)
+		{
+			keys.put("glowStaffTwinkle", config.glowStaffTwinkle());
+		}
 		// a molten-outline wearer shows no gem glow on top, so the gem parts are not theirs to switch
 		if (data.myGem != null && !data.dev)
 		{
@@ -289,6 +307,10 @@ final class RankCard extends JPanel
 		{
 			out.add("Nature glow");
 		}
+		if (data.staff)
+		{
+			out.add("Staff gold twinkle");
+		}
 		if (data.myGem != null && !data.dev)
 		{
 			out.add(data.myGem.title + " glow");
@@ -317,23 +339,21 @@ final class RankCard extends JPanel
 		}
 	}
 
-	/** A gz counter: a dark inset with a thin rim in the rank's colour, a big gold number, a caption and today's gain. */
-	private static final class StatTile extends JPanel
+	/** A gz counter: a dark inset with a thin steel rim, a big white number, a caption and today's gain. */
+	private static final class StatTile extends InsetPanel
 	{
 		private final JLabel number = new JLabel("-", SwingConstants.CENTER);
 		private final JLabel today = new JLabel(" ", SwingConstants.CENTER);
-		private Color accent = STEEL;
 
 		StatTile(String caption)
 		{
 			super(new BorderLayout());
-			setOpaque(false);
 			setBorder(new EmptyBorder(4, 4, 4, 4));
 			JLabel top = new JLabel(caption, SwingConstants.CENTER);
 			top.setFont(FontManager.getRunescapeSmallFont());
-			top.setForeground(PanelArt.DIM_GOLD);
+			top.setForeground(PanelArt.STEEL);
 			number.setFont(FontManager.getRunescapeBoldFont().deriveFont(20f));
-			number.setForeground(PanelArt.GOLD);
+			number.setForeground(Color.WHITE);
 			today.setFont(FontManager.getRunescapeSmallFont());
 			today.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 			add(top, BorderLayout.NORTH);
@@ -347,29 +367,6 @@ final class RankCard extends JPanel
 			today.setText(gain);
 		}
 
-		void setAccent(Color accent)
-		{
-			this.accent = accent;
-			repaint();
-		}
-
-		@Override
-		protected void paintComponent(Graphics g)
-		{
-			Graphics2D g2 = (Graphics2D) g.create();
-			try
-			{
-				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				g2.setColor(PanelArt.alpha(Color.BLACK, 120));
-				g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
-				g2.setColor(PanelArt.alpha(accent, 140));
-				g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
-			}
-			finally
-			{
-				g2.dispose();
-			}
-		}
 	}
 
 	static Color gemColor(GemGlow gem)

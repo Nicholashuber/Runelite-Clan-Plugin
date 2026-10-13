@@ -97,6 +97,19 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "glowStaffTwinkle",
+		name = "Staff gold twinkle",
+		description = "Clan staff only (administrators up to the deputy owner): the gold twinkle other CoR plugin users see"
+			+ " on you. Your choice reaches them through Clan sync",
+		position = 1,
+		section = glowSection
+	)
+	default boolean glowStaffTwinkle()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "glowGoldOutline",
 		name = "Gold outline (Owner)",
 		description = "A breathing golden outline around you. Owner only: set in the CoR side panel (Owner glow) or with ::myglow",
@@ -247,6 +260,54 @@ public interface CorClanConfig extends Config
 		position = 0
 	)
 	default boolean legionLogins()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "bossBanter",
+		name = "Boss banter",
+		description = "Bosses say things over their heads, on your client only. The Maiden of Sugadinti shouts"
+			+ " \"She's tensings!\" when she throws her blood pools",
+		position = 1
+	)
+	default boolean bossBanter()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "coxDeathSound",
+		name = "CoX death sound",
+		description = "Plays \"Olm Sacrifice\" when a player in view dies in the Chambers of Xeric, while you are in a clan."
+			+ " Played on your client only",
+		position = 2
+	)
+	default boolean coxDeathSound()
+	{
+		return true;
+	}
+
+	@Range(max = 100)
+	@ConfigItem(
+		keyName = "coxDeathVolume",
+		name = "CoX death sound volume",
+		description = "0 is silent, 100 is the clip at full loudness",
+		position = 3
+	)
+	default int coxDeathVolume()
+	{
+		return 70;
+	}
+
+	@ConfigItem(
+		keyName = "raidFinderAlerts",
+		name = "Raid finder in clan chat",
+		description = "Raid finder groups (CoR side panel) advertised in your clan chat tab: when one is put up, and every 5"
+			+ " minutes while any are open. Stacks into one line while the chat is quiet. Only you see it. Needs Clan sync",
+		position = 4
+	)
+	default boolean raidFinderAlerts()
 	{
 		return true;
 	}

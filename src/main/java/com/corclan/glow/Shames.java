@@ -7,20 +7,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Who wears the Kephri dung and until when, on this client's clock. Built from the clan server's list (which
- * says how many seconds each has left, so clocks never need to agree). Immutable, so it can be built on an
- * OkHttp thread and read on the client thread. Pure Java, unit tested.
+ * Who wears the Kephri dung, from the clan server's list. A shame is a light switch on the server: it stays on until a
+ * leader takes it off with ::unshame. The plugin asks for the list every 10 seconds, and a name it lists counts as
+ * shamed for {@link #FRESH_MILLIS} after the list arrived. So the dung stays on while the server says so, and stops
+ * soon after a leader unshames or the server can't be reached. Immutable, so it can be built on an OkHttp thread and
+ * read on the client thread. Pure Java, unit tested.
  */
 public final class Shames
 {
-	/** How long a shame lasts; the clan server uses the same five minutes. */
-	public static final long DURATION_MILLIS = 5 * 60_000L;
+	/** How long a listed name counts as shamed after the list arrived: a few missed refreshes, then it stops. */
+	public static final long FRESH_MILLIS = 60_000L;
 	/** Same cap as the server, so a broken answer cannot grow memory. */
 	static final int MAX_SHAMES = 50;
 
 	public static final Shames NONE = new Shames(Collections.emptyMap());
 
-	/** {@link MemberCosmetics#key} -> epoch millis the shame wears off */
+	/** {@link MemberCosmetics#key} -> epoch millis this client stops showing the dung unless a newer list says so */
 	private final Map<String, Long> until;
 
 	private Shames(Map<String, Long> until)
@@ -42,11 +44,9 @@ public final class Shames
 				continue;
 			}
 			String key = MemberCosmetics.key(shame.getRsn());
-			// never longer than a shame can last, whatever the answer says
-			long left = Math.min(Math.max(0, shame.getSecondsLeft()) * 1000L, DURATION_MILLIS);
-			if (!key.isEmpty() && left > 0)
+			if (!key.isEmpty())
 			{
-				until.put(key, receivedAt + left);
+				until.put(key, receivedAt + FRESH_MILLIS);
 			}
 		}
 		return new Shames(until);
@@ -71,11 +71,11 @@ public final class Shames
 		return true;
 	}
 
-	/** A copy with {@code name} shamed for the full duration from {@code now}: our own ::shame, before the next refresh. */
+	/** A copy with {@code name} shamed from {@code now}: our own ::shame, before the next refresh confirms it. */
 	public Shames with(String name, long now)
 	{
 		Map<String, Long> next = new HashMap<>(until);
-		next.put(MemberCosmetics.key(name), now + DURATION_MILLIS);
+		next.put(MemberCosmetics.key(name), now + FRESH_MILLIS);
 		return new Shames(next);
 	}
 
