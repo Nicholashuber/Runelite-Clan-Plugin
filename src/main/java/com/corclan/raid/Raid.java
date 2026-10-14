@@ -7,9 +7,7 @@ public enum Raid
 {
 	COX("cox", "CoX", "Chambers of Xeric", 100, 5, new Color(70, 170, 110)),
 	TOB("tob", "ToB", "Theatre of Blood", 5, 5, new Color(200, 40, 45)),
-	TOA("toa", "ToA", "Tombs of Amascut", 8, 4, new Color(225, 175, 55)),
-	/** The upcoming raid. Full name and party size are placeholders until it is released; then add its "inside" check. */
-	TFA("tfa", "TFA", "TFA", 8, 4, new Color(150, 90, 220));
+	TOA("toa", "ToA", "Tombs of Amascut", 8, 4, new Color(225, 175, 55));
 
 	/** sent to the clan server */
 	public final String id;

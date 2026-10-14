@@ -8,7 +8,6 @@ import com.corclan.clan.Promotions;
 import com.corclan.raid.RaidAd;
 import com.corclan.raid.RaidLines;
 import com.corclan.raid.RaidListing;
-import com.corclan.fun.BossBanter;
 import com.corclan.fun.RaidSounds;
 import com.corclan.clan.ClanRoster;
 import com.corclan.glow.DaylightAura;
@@ -57,7 +56,6 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,8 +70,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatLineBuffer;
@@ -81,10 +77,7 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.MessageNode;
-import net.runelite.api.Actor;
-import net.runelite.api.NPC;
 import net.runelite.api.Player;
-import net.runelite.api.Projectile;
 import net.runelite.api.SoundEffectID;
 import java.util.TreeMap;
 import net.runelite.api.coords.WorldPoint;
@@ -99,8 +92,6 @@ import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.ClanMemberJoined;
 import net.runelite.api.events.ClanMemberLeft;
 import net.runelite.api.events.ActorDeath;
-import net.runelite.api.events.ProjectileMoved;
-import net.runelite.client.audio.AudioPlayer;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.CommandExecuted;
@@ -241,9 +232,6 @@ public class CorClanPlugin extends Plugin
 	private DaylightAura daylightAura;
 
 	@Inject
-	private AudioPlayer audioPlayer;
-
-	@Inject
 	private ScheduledExecutorService executor;
 
 	@Inject
@@ -348,19 +336,25 @@ public class CorClanPlugin extends Plugin
 	/** groups seen raiding on their current trip, so each trip is announced once */
 	private final Set<String> raidingSeen = new HashSet<>();
 	private boolean raidBoardSeen;
-	/** the open groups are advertised in the clan chat tab this often */
+	/** the open groups are advertised in chat (as game messages) this often */
 	private static final long RAID_AD_MILLIS = 5 * 60_000L;
-	/** our latest raid finder line in the clan chat tab, and when it was shown; null when there is none */
+	/**
+	 * The promotion assistant reads the whole clan roster, so it is worked out at most this often (or when your rank
+	 * or clan changes), not on every panel refresh. Ranks, join dates and gz's move slowly; a minute behind is fine.
+	 */
+	private static final long PROMOTIONS_MILLIS = 60_000L;
+	private Promotions.Result promotionsCache;
+	private ClanRank promotionsRank;
+	private long promotionsAt;
+	/** our latest raid finder game message, and when it was shown; null when there is none */
 	private MessageNode raidLine;
 	private long raidLineAt;
-	/** someone said or broadcast something in the clan chat since our raid line: the next one is a new line */
-	private boolean clanChatSinceRaidLine;
+	/** a clan chat line or another game message came in since our raid line: the next one is a new line */
+	private boolean chatSinceRaidLine;
 	/** we are adding our own raid line: our own chat handler must not read it as a clan broadcast */
 	private boolean addingRaidLine;
 	/** leaders' login alerts: tells a real login from a world hop */
 	private final Legion legion = new Legion();
-	/** bosses' overhead lines, e.g. the Maiden's "She's tensings!" */
-	private final BossBanter bossBanter = new BossBanter();
 	/** when the clan channel last (re)loaded; joins right after are the channel filling in, not logins */
 	private long clanChannelAt;
 	/** the last game state, to tell a login (from the login screen) from a world hop */
@@ -558,9 +552,9 @@ public class CorClanPlugin extends Plugin
 		{
 			return;
 		}
-		if (type == ChatMessageType.CLAN_CHAT || type == ChatMessageType.CLAN_MESSAGE)
+		if (type == ChatMessageType.CLAN_CHAT || type == ChatMessageType.CLAN_MESSAGE || type == ChatMessageType.GAMEMESSAGE)
 		{
-			clanChatSinceRaidLine = true;
+			chatSinceRaidLine = true;
 		}
 		long now = System.currentTimeMillis();
 		// the daily gm bonus works whether or not the gz tracker is on; only our own line is ever sent
@@ -1485,7 +1479,7 @@ public class CorClanPlugin extends Plugin
 	/**
 	 * The Gem League promotion assistant, for clan staff only (administrators up to the Owner, by your in-game rank).
 	 * Join dates and titles come from the game's clan data; gz's given from the same numbers the panel shows (the clan
-	 * server's with clan sync on). Client thread.
+	 * server's with clan sync on). Cached for {@link #PROMOTIONS_MILLIS}. Client thread.
 	 * @return null when you are not staff or not in a clan
 	 */
 	private Promotions.Result promotions()
@@ -1494,7 +1488,13 @@ public class CorClanPlugin extends Plugin
 		ClanSettings settings = client.getClanSettings();
 		if (settings == null || !(GlowPicks.isStaff(myRank) || ClanRank.OWNER.equals(myRank)))
 		{
+			promotionsCache = null;
 			return null;
+		}
+		long now = System.currentTimeMillis();
+		if (promotionsCache != null && myRank.equals(promotionsRank) && now - promotionsAt < PROMOTIONS_MILLIS)
+		{
+			return promotionsCache;
 		}
 		ClanChannel channel = client.getClanChannel();
 		List<Promotions.Member> members = new ArrayList<>();
@@ -1511,7 +1511,10 @@ public class CorClanPlugin extends Plugin
 		}
 		Map<String, Integer> gz = new HashMap<>();
 		view.given.forEach((name, count) -> gz.merge(MemberCosmetics.key(name), count, Integer::sum));
-		return Promotions.check(members, LocalDate.now(ZoneOffset.UTC), gz);
+		promotionsCache = Promotions.check(members, LocalDate.now(ZoneOffset.UTC), gz);
+		promotionsRank = myRank;
+		promotionsAt = now;
+		return promotionsCache;
 	}
 
 	/** The banner's line while there is no announcement to show. Client thread. */
@@ -1636,6 +1639,7 @@ public class CorClanPlugin extends Plugin
 		if (!event.isGuest())
 		{
 			clanChannelAt = System.currentTimeMillis();
+			promotionsCache = null;
 		}
 		refreshPanel();
 	}
@@ -1727,8 +1731,9 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
-	 * A player in view died in the Chambers of Xeric: "Olm Sacrifice" plays on this client, if we are in a clan.
-	 * Every CoR plugin user in the raid sees the death too, so they all hear it; nothing is sent anywhere.
+	 * A player in view died in the Chambers of Xeric: a chicken's death squawk plays on this client, if we are in a
+	 * clan. It is the game's own sound effect, so nothing is bundled. Every CoR plugin user in the raid sees the death
+	 * too, so they all hear it; nothing is sent anywhere. Client thread.
 	 */
 	@Subscribe
 	public void onActorDeath(ActorDeath event)
@@ -1738,50 +1743,10 @@ public class CorClanPlugin extends Plugin
 		{
 			return;
 		}
-		float gain = RaidSounds.gainDb(config.coxDeathVolume());
-		// off the client thread: opening the sound device can take a moment
-		executor.execute(() ->
+		int volume = RaidSounds.volume(config.coxDeathVolume());
+		if (volume > 0)
 		{
-			try
-			{
-				audioPlayer.play(CorClanPlugin.class, RaidSounds.OLM_SACRIFICE, gain);
-			}
-			catch (IOException | UnsupportedAudioFileException | LineUnavailableException e)
-			{
-				log.debug("CoR: could not play the CoX death sound", e);
-			}
-		});
-	}
-
-	/**
-	 * The Maiden of Sugadinti throws her blood pools: she says "She's tensings!" over her head, on this client only.
-	 * Her throw sends several projectiles; {@link BossBanter} lets the first one through.
-	 */
-	@Subscribe
-	public void onProjectileMoved(ProjectileMoved event)
-	{
-		Projectile projectile = event.getProjectile();
-		if (!config.bossBanter() || projectile == null || !bossBanter.saysLine(projectile.getId(), client.getGameCycle()))
-		{
-			return;
-		}
-		Actor maiden = projectile.getSourceActor();
-		if (!(maiden instanceof NPC) || !BossBanter.isMaiden(maiden.getName()))
-		{
-			maiden = null;
-			for (NPC npc : client.getTopLevelWorldView().npcs())
-			{
-				if (npc != null && BossBanter.isMaiden(npc.getName()))
-				{
-					maiden = npc;
-					break;
-				}
-			}
-		}
-		if (maiden != null)
-		{
-			maiden.setOverheadText(BossBanter.MAIDEN_LINE);
-			maiden.setOverheadCycle(BossBanter.SHOW_CYCLES);
+			client.playSoundEffect(RaidSounds.CHICKEN_DEATH, volume);
 		}
 	}
 
@@ -2251,8 +2216,7 @@ public class CorClanPlugin extends Plugin
 
 	/**
 	 * We are inside a raid: the Chambers (in the dungeon), or the Theatre / Tombs instance with a party. The parties
-	 * are formed outside the instances, so a group only comes down once we are actually in. TFA is not out yet, so
-	 * nothing detects it: a TFA host takes their group down by hand until its check is added here.
+	 * are formed outside the instances, so a group only shows as raiding once we are actually in.
 	 */
 	private boolean inRaid()
 	{
@@ -2372,7 +2336,7 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
-	 * A clan chat line for a group put up since the last look, or a party that just went into the raid (not our own).
+	 * A raid finder line (a game message) for a group put up since the last look, or a party that just went into the raid (not our own).
 	 * The first look after login is quiet: the advert that follows lists what is already open.
 	 * @return true if a line was shown
 	 */
@@ -2426,9 +2390,10 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
-	 * Shows a raid finder line in the clan chat tab, on this client only (plugins may not send chat). If nothing else
-	 * was said in the clan chat since our last raid line, that line is updated in place instead, so the ads stack
-	 * into one line rather than filling the chat. Client thread.
+	 * Shows a raid finder line as a game message, on this client only (plugins may not send chat, and a game message
+	 * can't be mistaken for something a clanmate said). If no clan chat or other game message came in since our last
+	 * raid line, that line is updated in place instead, so the ads stack into one line rather than filling the chat.
+	 * Client thread.
 	 */
 	private void showRaidLine(String text)
 	{
@@ -2440,7 +2405,7 @@ public class CorClanPlugin extends Plugin
 		long now = System.currentTimeMillis();
 		raidLineAt = now;
 		String line = "<col=" + RAID_ALERT_COLOR + ">" + text + "</col>";
-		if (raidLine != null && !clanChatSinceRaidLine && stillInChat(raidLine))
+		if (raidLine != null && !chatSinceRaidLine && stillInChat(raidLine))
 		{
 			raidLine.setValue(line);
 			raidLine.setTimestamp((int) (now / 1000));
@@ -2450,19 +2415,19 @@ public class CorClanPlugin extends Plugin
 		addingRaidLine = true;
 		try
 		{
-			raidLine = client.addChatMessage(ChatMessageType.CLAN_MESSAGE, "", line, channel.getName());
+			raidLine = client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", line, null);
 		}
 		finally
 		{
 			addingRaidLine = false;
 		}
-		clanChatSinceRaidLine = false;
+		chatSinceRaidLine = false;
 	}
 
-	/** The line is still in the game's clan broadcast history (old lines drop out of it). */
+	/** The line is still in the game message history (old lines drop out of it). */
 	private boolean stillInChat(MessageNode node)
 	{
-		ChatLineBuffer buffer = client.getChatLineMap().get(ChatMessageType.CLAN_MESSAGE.getType());
+		ChatLineBuffer buffer = client.getChatLineMap().get(ChatMessageType.GAMEMESSAGE.getType());
 		if (buffer == null)
 		{
 			return false;

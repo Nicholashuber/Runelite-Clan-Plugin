@@ -12,23 +12,23 @@ public final class RaidLines
 	{
 	}
 
-	/** "Raid finder: Bob is looking for ToB (3/5) on W330: need tank" */
+	/** "CoR raid finder: Bob is looking for ToB (3/5) on W330: need tank" */
 	public static String newGroup(RaidListing l)
 	{
-		return "Raid finder: " + l.name + " is looking for " + l.raid.shortName + " (" + l.slots() + ")"
+		return "CoR raid finder: " + l.name + " is looking for " + l.raid.shortName + " (" + l.slots() + ")"
 			+ (l.world > 0 ? " on W" + l.world : "") + (l.note.isEmpty() ? "" : ": " + l.note);
 	}
 
-	/** "Raid finder: Bob's ToB party is raiding now (4/5)" */
+	/** "CoR raid finder: Bob's ToB party is raiding now (4/5)" */
 	public static String raiding(RaidListing l)
 	{
-		return "Raid finder: " + l.name + "'s " + l.raid.shortName + " party is raiding now (" + l.slots() + ")";
+		return "CoR raid finder: " + l.name + "'s " + l.raid.shortName + " party is raiding now (" + l.slots() + ")";
 	}
 
-	/** "Raid finder: ToB 3/5 (Bob, W330), CoX 4/5 raiding (Al) and 1 more. See the CoR side panel." */
+	/** "CoR raid finder: ToB 3/5 (Bob, W330), CoX 4/5 raiding (Al) and 1 more. See the CoR side panel." */
 	public static String advert(List<RaidListing> board)
 	{
-		StringBuilder text = new StringBuilder("Raid finder: ");
+		StringBuilder text = new StringBuilder("CoR raid finder: ");
 		int listed = Math.min(ADVERT_GROUPS, board.size());
 		for (int i = 0; i < listed; i++)
 		{

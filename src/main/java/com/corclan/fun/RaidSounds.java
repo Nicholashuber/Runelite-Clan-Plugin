@@ -1,30 +1,28 @@
 package com.corclan.fun;
 
+import net.runelite.api.SoundEffectVolume;
+
 /**
- * Sound bites for raids, played on this client only. In the Chambers of Xeric, every death of a player in view
- * plays "Olm Sacrifice" for each CoR plugin user in the raid (each client plays it for itself; nothing is sent).
+ * Sound bites for raids, played on this client only. In the Chambers of Xeric, every death of a player in view plays
+ * a chicken's death squawk for each CoR plugin user in the raid (each client plays it for itself; nothing is sent).
+ * The game's own sound effects, so nothing is bundled in the plugin.
  */
 public final class RaidSounds
 {
-	/** Next to {@code CorClanPlugin} in the resources: 22 kHz mono 16-bit PCM, which Java plays without extra libraries. */
-	public static final String OLM_SACRIFICE = "olm_sacrifice.wav";
-	/** Quieter than this is silence. */
-	static final float MIN_GAIN_DB = -80f;
+	/** The game's "chicken_death" sound effect (OSRS Wiki, List of in-game sound IDs). */
+	public static final int CHICKEN_DEATH = 356;
 
 	private RaidSounds()
 	{
 	}
 
 	/**
-	 * The gain to play at, in decibels, for a volume setting.
-	 * @param volume 0 (silent) to 100 (the clip's own loudness)
+	 * The game's sound effect volume for a volume setting.
+	 * @param volume 0 (silent) to 100 (as loud as the game plays sound effects)
 	 */
-	public static float gainDb(int volume)
+	public static int volume(int volume)
 	{
-		if (volume <= 0)
-		{
-			return MIN_GAIN_DB;
-		}
-		return (float) Math.max(MIN_GAIN_DB, 20 * Math.log10(Math.min(volume, 100) / 100.0));
+		int clamped = Math.max(0, Math.min(volume, 100));
+		return Math.round(clamped * SoundEffectVolume.HIGH / 100f);
 	}
 }

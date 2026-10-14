@@ -265,23 +265,11 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "bossBanter",
-		name = "Boss banter",
-		description = "Bosses say things over their heads, on your client only. The Maiden of Sugadinti shouts"
-			+ " \"She's tensings!\" when she throws her blood pools",
-		position = 1
-	)
-	default boolean bossBanter()
-	{
-		return true;
-	}
-
-	@ConfigItem(
 		keyName = "coxDeathSound",
 		name = "CoX death sound",
-		description = "Plays \"Olm Sacrifice\" when a player in view dies in the Chambers of Xeric, while you are in a clan."
+		description = "A chicken squawks when a player in view dies in the Chambers of Xeric, while you are in a clan."
 			+ " Played on your client only",
-		position = 2
+		position = 1
 	)
 	default boolean coxDeathSound()
 	{
@@ -292,8 +280,8 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "coxDeathVolume",
 		name = "CoX death sound volume",
-		description = "0 is silent, 100 is the clip at full loudness",
-		position = 3
+		description = "0 is silent, 100 is the game's loudest sound effect",
+		position = 2
 	)
 	default int coxDeathVolume()
 	{
@@ -302,10 +290,10 @@ public interface CorClanConfig extends Config
 
 	@ConfigItem(
 		keyName = "raidFinderAlerts",
-		name = "Raid finder in clan chat",
-		description = "Raid finder groups (CoR side panel) advertised in your clan chat tab: when one is put up, and every 5"
+		name = "Raid finder in chat",
+		description = "Raid finder groups (CoR side panel) advertised as game messages: when one is put up, and every 5"
 			+ " minutes while any are open. Stacks into one line while the chat is quiet. Only you see it. Needs Clan sync",
-		position = 4
+		position = 3
 	)
 	default boolean raidFinderAlerts()
 	{

@@ -38,20 +38,19 @@ Two optional features, both off until you turn them on, talk to something outsid
 - **Legion login alerts** (setting, on by default): a chat line when one of the clan leaders logs in, and a golden
   "A Spartan has landed!" with a fanfare when uimfartqueef does. World hops are not announced. Worked out on your
   client from the clan channel; nothing is sent anywhere.
-- **Boss banter** (setting, on by default, only on your client): bosses say things over their heads. In the Theatre
-  of Blood the Maiden of Sugadinti shouts "She's tensings!" when she throws her blood pools.
 - **Daily gm** (with Clan sync on): your first gm of the day (UTC) in clan chat earns a pack's worth of CoR TCG
   points from the clan server, once a day. Gm's aren't counted or shown anywhere; it's just a boost for the card game.
-- **Raid finder** (with Clan sync on): a card in the CoR side panel lists clanmates looking for a CoX, ToB, ToA or TFA
+- **Raid finder** (with Clan sync on): a card in the CoR side panel lists clanmates looking for a CoX, ToB or ToA
   party, with how many slots are filled (for example ToB 3/5), their world and a short note. Put up your own group
   there, update it as people join and take it down when you're full. While you are inside the raid it shows as
   raiding (and clanmates get a "party is raiding now" line); it comes down 30 minutes after you log out (others see
   you as "away" meanwhile). **Ping Discord** posts your group in the
-  clan Discord's looking-for-group channel (once every 10 minutes). Open groups are advertised in your clan chat tab when one goes up and every
-  5 minutes (setting "Raid finder in clan chat"); while the chat is quiet the ad updates its one line instead of
+  clan Discord's looking-for-group channel (once every 10 minutes). Open groups are advertised as game messages when one goes up and every
+  5 minutes (setting "Raid finder in chat"); while the chat is quiet the ad updates its one line instead of
   adding more. These lines are shown by your own client only; the plugin never posts in the real clan chat.
 - **CoX death sound** (setting, on by default, with a volume slider): when a player you can see dies in the Chambers
-  of Xeric, "Olm Sacrifice" plays, while you are in a clan. Each plugin user's client plays it for itself.
+  of Xeric, a chicken squawks (the game's own chicken death sound), while you are in a clan. Each plugin user's
+  client plays it for itself.
 - **Kephri dung** (only on your client, while Show clan rank glows is on): when a clan leader (uimfartqueef,
   joeboob, Lavasockz or DAYLlGHT) types `::shame <name>`, Kephri's dung keeps dropping on that clanmate's head until a
   leader takes it off with `::unshame <name>` (it stays on, even through server restarts).
