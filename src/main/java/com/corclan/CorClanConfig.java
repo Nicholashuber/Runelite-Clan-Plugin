@@ -68,13 +68,16 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "syncEnabled",
 		name = "Sync with clan server",
-		description = "Sends the gz's you say in clan chat, clan broadcasts about you, your clan rank, your glow picks, your clan's "
-			+ "rank names (no player names), your character name, your clan's name and your RuneLite account hash to the CoR clan "
-			+ "server, and loads the clan-wide gz counts, chat icons, titles and glow picks from it. Nothing about other "
-			+ "players and nothing else from chat is sent.",
+		description = "Sends to the CoR clan server: the gz's you say in clan chat, clan broadcasts about you, your first gm of"
+			+ " the day, your clan rank, your glow picks and your clan's rank names (no player names); your raid finder group"
+			+ " (raid, slots, world, note, whether you are inside) and Discord pings, only if you post one; the announcement"
+			+ " text, only if you are a clan leader and edit it. Each comes with your character name, your clan's name and"
+			+ " your RuneLite account hash. Loads the clan-wide gz counts, chat icons, titles, glow picks and raid finder"
+			+ " board from it. Nothing else from chat is sent.",
 		warning = "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers. "
-			+ "It sends the gz's you say in clan chat, clan broadcasts about you, your clan rank, your glow picks, your clan's "
-			+ "rank names, your character name, your clan's name and your RuneLite account hash to the CoR clan server. "
+			+ "It sends the gz's you say in clan chat, clan broadcasts about you, your first gm of the day, your clan rank, "
+			+ "your glow picks, your clan's rank names, your raid finder group if you post one (with your world and note), "
+			+ "your character name, your clan's name and your RuneLite account hash to the CoR clan server. "
 			+ "Turn it on?",
 		position = 0,
 		section = syncSection
