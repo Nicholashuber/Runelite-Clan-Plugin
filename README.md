@@ -40,10 +40,10 @@ Two optional features, both off until you turn them on, talk to something outsid
   client from the clan channel; nothing is sent anywhere.
 - **Daily gm** (with Clan sync on): your first gm of the day (UTC) in clan chat earns a pack's worth of CoR TCG
   points from the clan server, once a day. Gm's aren't counted or shown anywhere; it's just a boost for the card game.
-- **Raid finder** (with Clan sync on): a card in the CoR side panel lists clanmates looking for a CoX, ToB or ToA
+- **Raid finder** (with Clan sync on): a card in the CoR side panel lists clanmates looking for a CoX, ToB, ToA or TFA
   party, with how many slots are filled (for example ToB 3/5), their world and a short note. Put up your own group
   there, update it as people join and take it down when you're full. While you are inside the raid it shows as
-  raiding (and clanmates get a "party is raiding now" line); it comes down 30 minutes after you log out (others see
+  raiding (and clanmates get a "party is raiding now" line; TFA groups don't, so take those down yourself); it comes down 30 minutes after you log out (others see
   you as "away" meanwhile). **Ping Discord** posts your group in the
   clan Discord's looking-for-group channel (once every 10 minutes). Open groups are advertised as game messages when one goes up and every
   5 minutes (setting "Raid finder in chat"); while the chat is quiet the ad updates its one line instead of
