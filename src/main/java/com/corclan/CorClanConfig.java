@@ -97,6 +97,19 @@ public interface CorClanConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "glowStaffTwinkle",
+		name = "Staff gold twinkle",
+		description = "Clan staff only (administrators up to the deputy owner): the gold twinkle other CoR plugin users see"
+			+ " on you. Your choice reaches them through Clan sync",
+		position = 1,
+		section = glowSection
+	)
+	default boolean glowStaffTwinkle()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "glowGoldOutline",
 		name = "Gold outline (Owner)",
 		description = "A breathing golden outline around you. Owner only: set in the CoR side panel (Owner glow) or with ::myglow",
@@ -235,6 +248,106 @@ public interface CorClanConfig extends Config
 		hidden = true
 	)
 	default boolean founderGlowSparkle()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "legionLogins",
+		name = "Legion login alerts",
+		description = "A chat line when one of the CoR leaders (the legionnaires) logs in, and a golden one when the Spartan"
+			+ " lands. Not for world hops",
+		position = 0
+	)
+	default boolean legionLogins()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "coxDeathSound",
+		name = "CoX death sound",
+		description = "A chicken squawks when a player in view dies in the Chambers of Xeric, while you are in a clan."
+			+ " Played on your client only",
+		position = 1
+	)
+	default boolean coxDeathSound()
+	{
+		return true;
+	}
+
+	@Range(max = 100)
+	@ConfigItem(
+		keyName = "coxDeathVolume",
+		name = "CoX death sound volume",
+		description = "0 is silent, 100 is the game's loudest sound effect",
+		position = 2
+	)
+	default int coxDeathVolume()
+	{
+		return 70;
+	}
+
+	@ConfigItem(
+		keyName = "raidFinderAlerts",
+		name = "Raid finder in chat",
+		description = "Raid finder groups (CoR side panel) advertised as game messages: when one is put up, and every 5"
+			+ " minutes while any are open. Stacks into one line while the chat is quiet. Only you see it. Needs Clan sync",
+		position = 3
+	)
+	default boolean raidFinderAlerts()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "natureGlowFairyRing",
+		name = "Zanaris fairy ring and leaves (JoeBoob)",
+		description = "A fairy ring and leaves springing up around you nonstop. JoeBoob only: set in the CoR side panel (Nature glow) or with ::natureglow",
+		position = 16,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean natureGlowFairyRing()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "natureGlowSwirl",
+		name = "Leaf green swirl (JoeBoob)",
+		description = "A green swirl spiralling up you nonstop. JoeBoob only: set in the CoR side panel (Nature glow) or with ::natureglow",
+		position = 17,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean natureGlowSwirl()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "natureGlowBloom",
+		name = "Druid bloom (JoeBoob)",
+		description = "The Druidic spirit's bloom springing up around you nonstop. JoeBoob only: set in the CoR side panel (Nature glow) or with ::natureglow",
+		position = 18,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean natureGlowBloom()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "natureGlowSparkle",
+		name = "Emerald sparkle (JoeBoob)",
+		description = "Green gem sparkles, matching the flames, twinkling over you. JoeBoob only: set in the CoR side panel (Nature glow) or with ::natureglow",
+		position = 19,
+		section = glowSection,
+		hidden = true
+	)
+	default boolean natureGlowSparkle()
 	{
 		return true;
 	}

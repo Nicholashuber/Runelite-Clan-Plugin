@@ -40,6 +40,8 @@ public class ClanApiTest
 	{
 		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(400, "invalid_events"));
 		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(403, "banned"));
+		// someone who isn't a shamer tried ::shame: refused, but it doesn't stop their other reports
+		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(403, "not_a_shamer"));
 		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(404, null));
 		assertFalse(ClanApi.Outcome.REFUSED.blocksReporter());
 		assertFalse(ClanApi.Outcome.OK.blocksReporter());
@@ -49,5 +51,14 @@ public class ClanApiTest
 	public void theServerIsTheClansOwn()
 	{
 		assertEquals("https://cor-clan-api-production.up.railway.app/v1/clan", ClanApi.BASE_URL.resolve("v1/clan").toString());
+	}
+
+	@Test
+	public void pingProblemsReadWell()
+	{
+		assertEquals("you can ping Discord again in 10 minutes", ClanApi.pingProblem("ping_cooldown", 600));
+		assertEquals("you can ping Discord again in 1 minute", ClanApi.pingProblem("ping_cooldown", 5));
+		assertEquals("put your group up first", ClanApi.pingProblem("no_group", 0));
+		assertEquals("the clan server refused the ping", ClanApi.pingProblem(null, 0));
 	}
 }

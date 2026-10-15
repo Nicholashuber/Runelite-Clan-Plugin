@@ -176,6 +176,19 @@ public enum GemGlow
 		return OrgChart.normalize(title).equals(OrgChart.normalize(rankTitle));
 	}
 
+	/** The highest gem glow {@code wearer}'s rank unlocks, or null when it unlocks none. */
+	public static GemGlow highestUnlocked(ClanRank wearer, Map<Integer, String> rankTitles)
+	{
+		for (GemGlow gem : values())
+		{
+			if (gem.unlockedBy(wearer, rankTitles))
+			{
+				return gem;
+			}
+		}
+		return null;
+	}
+
 	/**
 	 * The gem glow a player of rank {@code wearer} shows, or null.
 	 * @param picks the ids they picked (other glow ids mixed in are ignored), or null if they never shared

@@ -30,11 +30,17 @@ public final class ClanSnapshot
 	private final List<WeekResult> weekResults;
 	private final List<SyncModels.ClanPlayer> players;
 	private final Map<String, List<String>> glows;
+	/** the banner clan leaders set, or null */
+	private final Announcement announcement;
+	/** the clan's latest promotions, newest first */
+	private final List<RecentPromotion> recentPromotions;
 
 	private ClanSnapshot(long weekStart, Map<String, Integer> given, Map<String, Integer> received,
 		Map<String, Integer> weekly, List<WeekResult> weekResults, List<SyncModels.ClanPlayer> players,
-		Map<String, List<String>> glows)
+		Map<String, List<String>> glows, Announcement announcement, List<RecentPromotion> recentPromotions)
 	{
+		this.recentPromotions = recentPromotions;
+		this.announcement = announcement;
 		this.weekStart = weekStart;
 		this.given = Collections.unmodifiableMap(given);
 		this.received = Collections.unmodifiableMap(received);
@@ -79,7 +85,8 @@ public final class ClanSnapshot
 				weekResults.add(new WeekResult(start, winners));
 			}
 		}
-		return new ClanSnapshot(parseWeekStart(response.getWeekStart()), given, received, weekly, weekResults, players, glows);
+		return new ClanSnapshot(parseWeekStart(response.getWeekStart()), given, received, weekly, weekResults, players, glows,
+			Announcement.of(response.getAnnouncement()), RecentPromotion.list(response.getPromotions()));
 	}
 
 	private static void count(Map<String, Integer> counts, String name, int value)
@@ -183,6 +190,18 @@ public final class ClanSnapshot
 	public List<SyncModels.ClanPlayer> getPlayers()
 	{
 		return players;
+	}
+
+	/** The clan's latest promotions, newest first; empty on a server without them. */
+	public List<RecentPromotion> getRecentPromotions()
+	{
+		return recentPromotions;
+	}
+
+	/** The announcement banner, or null when the leaders have not set one. */
+	public Announcement getAnnouncement()
+	{
+		return announcement;
 	}
 
 	/** {@link MemberCosmetics#key} -> the glow ids that player shared. Players who shared none are absent. */

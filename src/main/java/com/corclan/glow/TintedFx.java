@@ -1,5 +1,7 @@
 package com.corclan.glow;
 
+import java.nio.BufferUnderflowException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -8,6 +10,7 @@ import java.util.Map;
 import net.runelite.api.Animation;
 import net.runelite.api.AnimationController;
 import net.runelite.api.Client;
+import net.runelite.api.IndexDataBase;
 import net.runelite.api.Model;
 import net.runelite.api.ModelData;
 import net.runelite.api.Player;
@@ -17,8 +20,8 @@ import net.runelite.api.coords.LocalPoint;
 /**
  * A game graphic recolored and kept on each wearer. Spot anims can't be recolored, so like {@link StormCloud}
  * this rebuilds one as a client-side object from the same model and animation (taken from the cache's spot
- * anim definitions, see {@link #CATALOG}), with every face turned to one {@link Tint}. It can also drift
- * upwards on a loop. Client-side only: other players never see it. All instance methods run on the client thread.
+ * anim definitions, see {@link #CATALOG}, or read from the game cache for any other id), with every face turned to one
+ * {@link Tint}. It can also drift upwards on a loop, play slower than the game would and be drawn bigger. Client-side only: other players never see it. All instance methods run on the client thread.
  */
 public class TintedFx
 {
@@ -27,7 +30,11 @@ public class TintedFx
 		/** deep red, keeping the graphic's light and shade */
 		RED,
 		/** near black, a hint of the shading left so it still has shape */
-		BLACK
+		BLACK,
+		/** leaf green, keeping the light and shade (JoeBoob's nature aura) */
+		GREEN,
+		/** the graphic's own colours */
+		NONE
 	}
 
 	/** A spot anim's model, animation, size and lighting, as the cache defines it. */
@@ -92,6 +99,128 @@ public class TintedFx
 		defs.put(def.spotId, def);
 	}
 
+	/** The config index archive that holds the spot anim definitions. */
+	static final int SPOTANIM_ARCHIVE = 13;
+
+	/**
+	 * A spot anim definition from the game cache's bytes, or null if they hold something this reader doesn't know
+	 * (a newer cache format), so a bad read never draws garbage. Opcodes as in RuneLite's cache SpotAnimLoader.
+	 */
+	static Def parseDef(int spotId, byte[] data)
+	{
+		if (data == null)
+		{
+			return null;
+		}
+		ByteBuffer in = ByteBuffer.wrap(data);
+		int model = -1;
+		int animation = -1;
+		int resizeH = 128;
+		int resizeV = 128;
+		int ambient = 0;
+		int contrast = 0;
+		try
+		{
+			while (true)
+			{
+				int opcode = in.get() & 0xFF;
+				switch (opcode)
+				{
+					case 0:
+						return model < 0 ? null : new Def(spotId, "spot anim " + spotId, model, animation, resizeH, resizeV, ambient, contrast);
+					case 1:
+						model = in.getShort() & 0xFFFF;
+						break;
+					case 2:
+						animation = in.getShort() & 0xFFFF;
+						break;
+					case 3:
+						model = in.getInt();
+						break;
+					case 4:
+						resizeH = in.getShort() & 0xFFFF;
+						break;
+					case 5:
+						resizeV = in.getShort() & 0xFFFF;
+						break;
+					case 6:
+						// rotation: not used here
+						in.getShort();
+						break;
+					case 7:
+						ambient = in.get() & 0xFF;
+						break;
+					case 8:
+						contrast = in.get() & 0xFF;
+						break;
+					case 9:
+						// debug name, a zero-terminated string
+						while (in.get() != 0)
+						{
+						}
+						break;
+					case 10:
+						break;
+					case 40:
+					case 41:
+						// recolours / retextures: a count, then pairs of shorts
+						int count = in.get() & 0xFF;
+						in.position(in.position() + count * 4);
+						break;
+					case 42:
+						in.getShort();
+						break;
+					default:
+						return null;
+				}
+			}
+		}
+		catch (BufferUnderflowException | IllegalArgumentException e)
+		{
+			return null;
+		}
+	}
+
+	/** {@link #CATALOG}'s entry, else the definition read from the game cache, else null. Client thread. */
+	private Def lookUp(int spotId)
+	{
+		Def known = CATALOG.get(spotId);
+		if (known != null)
+		{
+			return known;
+		}
+		IndexDataBase config = client.getIndexConfig();
+		return config == null ? null : parseDef(spotId, config.loadData(SPOTANIM_ARCHIVE, spotId));
+	}
+
+	/**
+	 * Plays an animation at a fraction of the game's speed: the client hands each object the time that passed, and
+	 * this passes on only {@code speed} of it, carrying the remainder so nothing is lost.
+	 */
+	static final class PacedController extends AnimationController
+	{
+		private final double speed;
+		private double owed;
+
+		PacedController(Client client, Animation animation, double speed)
+		{
+			super(client, animation);
+			this.speed = speed;
+		}
+
+		@Override
+		public void tick(int ticks)
+		{
+			owed += ticks * speed;
+			int whole = (int) owed;
+			owed -= whole;
+			if (whole > 0)
+			{
+				super.tick(whole);
+			}
+		}
+	}
+
 	/**
 	 * One face color (the game's 16-bit HSL: 6 bits hue, 3 saturation, 7 lightness) turned to {@code tint}.
 	 * Lightness is kept, so the graphic keeps its shading.
@@ -106,6 +235,11 @@ public class TintedFx
 				return (short) (7 << 7 | Math.min(lum, 90));
 			case BLACK:
 				return (short) (lum / 6);
+			case NONE:
+				return hsl;
+			case GREEN:
+				// hue 21 of 64 is green; a little less than full saturation looks like leaves, not neon
+				return (short) (21 << 10 | 6 << 7 | Math.min(lum, 100));
 			default:
 				return hsl;
 		}
@@ -113,6 +247,14 @@ public class TintedFx
 
 	private final Client client;
 	private final Tint tint;
+	/** 1 = the game's own speed, 0.5 = half as fast */
+	private final double speed;
+	/** 1 = the graphic's own size, 2 = twice as big */
+	private final double scale;
+	/** the spot anim asked for before its definition was read */
+	private int wantedSpotId;
+	/** a spot anim whose definition could not be read, so it is not read again every frame */
+	private int unreadableSpotId = -1;
 	private final Map<Player, RuneLiteObject> objects = new IdentityHashMap<>();
 	private Def def;
 	/** how far it climbs each loop, in local units (a character is ~200); 0 stays put */
@@ -128,23 +270,39 @@ public class TintedFx
 	 */
 	TintedFx(Client client, Tint tint, int spotId, int rise, long riseMillis)
 	{
+		this(client, tint, spotId, rise, riseMillis, 1.0, 1.0);
+	}
+
+	/**
+	 * @param speed 1 for the game's own speed, below 1 to play it slower
+	 * @param scale 1 for the graphic's own size, 2 for twice as big
+	 */
+	TintedFx(Client client, Tint tint, int spotId, int rise, long riseMillis, double speed, double scale)
+	{
 		this.client = client;
 		this.tint = tint;
+		this.wantedSpotId = spotId;
 		this.def = CATALOG.get(spotId);
 		this.rise = rise;
 		this.riseMillis = riseMillis;
+		this.speed = speed;
+		this.scale = scale;
 	}
 
-	/** Uses another graphic from {@link #CATALOG} (and climb height) from now on. False if it isn't listed. */
+	/**
+	 * Uses another graphic (and climb height) from now on: one in {@link #CATALOG} or any spot anim in the game
+	 * cache. False if it can't be read. Client thread.
+	 */
 	boolean use(int spotId, int rise)
 	{
-		Def next = CATALOG.get(spotId);
+		Def next = lookUp(spotId);
 		if (next == null)
 		{
 			return false;
 		}
 		clear();
 		def = next;
+		wantedSpotId = spotId;
 		this.rise = rise;
 		model = null;
 		animation = null;
@@ -153,7 +311,7 @@ public class TintedFx
 
 	int spotId()
 	{
-		return def.spotId;
+		return def == null ? wantedSpotId : def.spotId;
 	}
 
 	/** Keeps exactly one object on each of {@code wearers}, following them. Call every client frame. */
@@ -187,6 +345,19 @@ public class TintedFx
 
 	private boolean loaded()
 	{
+		if (def == null)
+		{
+			if (wantedSpotId == unreadableSpotId)
+			{
+				return false;
+			}
+			def = lookUp(wantedSpotId);
+			if (def == null)
+			{
+				unreadableSpotId = wantedSpotId;
+				return false;
+			}
+		}
 		if (model == null)
 		{
 			ModelData data = client.loadModelData(def.model);
@@ -196,9 +367,11 @@ public class TintedFx
 				return false;
 			}
 			data = data.cloneVertices().cloneColors();
-			if (def.resizeH != 128 || def.resizeV != 128)
+			int width = (int) Math.round(def.resizeH * scale);
+			int height = (int) Math.round(def.resizeV * scale);
+			if (width != 128 || height != 128)
 			{
-				data.scale(def.resizeH, def.resizeV, def.resizeH);
+				data.scale(width, height, width);
 			}
 			// change every face in place; recolor() would merge faces whose new color matches an old one
 			short[] colors = data.getFaceColors();
@@ -208,7 +381,7 @@ public class TintedFx
 			}
 			// spot anims are lit with ambient 64 + their own and contrast 850 + their own
 			model = data.light(64 + def.ambient, 850 + def.contrast, -30, -50, -30);
-			animation = client.loadAnimation(def.animation);
+			animation = def.animation < 0 ? null : client.loadAnimation(def.animation);
 		}
 		return true;
 	}
@@ -218,7 +391,13 @@ public class TintedFx
 		RuneLiteObject object = client.createRuneLiteObject();
 		object.setModel(model);
 		// each object has its own controller (its own frame), restarting itself whenever it finishes
-		object.setAnimationController(new AnimationController(client, animation).setOnFinished(AnimationController::loop));
+		if (animation != null)
+		{
+			AnimationController controller = speed == 1.0
+				? new AnimationController(client, animation)
+				: new PacedController(client, animation, speed);
+			object.setAnimationController(controller.setOnFinished(AnimationController::loop));
+		}
 		object.setActive(true);
 		return object;
 	}

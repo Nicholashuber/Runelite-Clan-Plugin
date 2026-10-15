@@ -4,11 +4,9 @@ import com.corclan.CorClanConfig;
 import com.corclan.icons.MemberCosmetics;
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,12 +28,9 @@ public class DaylightAura
 {
 	/**
 	 * Players who wear the aura, as {@link MemberCosmetics#key} names. DAYLlGHT is spelt with a lowercase L,
-	 * not an I. TESTING ONLY: Runny Sharts wears it too so it can be tried without DAYLlGHT's account;
-	 * remove before merging.
+	 * not an I.
 	 */
-	public static final Set<String> WEARERS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-		"dayllght",
-		"runny sharts")));
+	public static final Set<String> WEARERS = Collections.singleton("dayllght");
 
 	/** Our own spot-anim slot (Ray's storm uses 3082-3084, Lavasockz's flames 3090). */
 	static final int SMOKE_SLOT = 3092;
