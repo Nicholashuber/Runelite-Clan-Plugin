@@ -16,6 +16,7 @@ import com.corclan.glow.FounderGlow;
 import com.corclan.glow.GemGlow;
 import com.corclan.glow.GlowEffect;
 import com.corclan.glow.GlowPicks;
+import com.corclan.glow.FxPresets;
 import com.corclan.glow.HolyAura;
 import com.corclan.glow.LavaAura;
 import com.corclan.glow.NatureAura;
@@ -68,6 +69,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatLineBuffer;
@@ -201,6 +203,11 @@ public class CorClanPlugin extends Plugin
 
 	@Inject
 	private CorClanConfig config;
+
+	/** RuneLite started with --developer-mode: the effect preview commands also take raw spot anim ids */
+	@Inject
+	@Named("developerMode")
+	private boolean developerMode;
 
 	@Inject
 	private ClanIconService iconService;
@@ -659,26 +666,29 @@ public class CorClanPlugin extends Plugin
 	// ---------------------------------------------------------------- ::cor / ::test / Owner storm effects
 
 	/**
-	 * ::glowzap, ::glowshock and ::glowstrike &lt;id&gt; play a game graphic (spot anim
-	 * id) on your own character and use it for that layer of the Owner's storm this session, to try
-	 * out effects. Local only, like every :: command.
+	 * ::glowzap, ::glowshock and ::glowstrike &lt;preset&gt; play a graphic from {@link FxPresets} on your own character
+	 * and use it for that layer of the Owner's storm this session, to try out effects. A raw spot anim id only works
+	 * in developer mode. Local only, like every :: command.
 	 */
 	private void previewGlowFx(HolyAura.Effect effect, String[] args)
 	{
-		int id;
-		try
+		List<String> typed = Arrays.asList(args);
+		FxPresets.Pick pick = FxPresets.parse(typed, developerMode);
+		if (pick == null)
 		{
-			id = Integer.parseInt(args.length > 0 ? args[0] : "");
-		}
-		catch (NumberFormatException e)
-		{
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-				"Usage: ::" + effect.command + " <spot anim id>, e.g. ::" + effect.command + " " + effect.defaultSpotAnimId, null);
+			fxUsage("::" + effect.command + " <preset>", typed);
 			return;
 		}
-		holyAura.preview(effect, id);
+		holyAura.preview(effect, pick.id);
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-			"CoR: Owner " + effect.label + " set to " + id + " for this session", null);
+			"CoR: Owner " + effect.label + " set to " + pick.label + " for this session", null);
+	}
+
+	/** The usage line for an effect preview command, with the preset names (and why an id was refused). */
+	private void fxUsage(String usage, List<String> typed)
+	{
+		String ids = FxPresets.typedAnId(typed) && !developerMode ? "Spot anim ids only work in RuneLite's developer mode. " : "";
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Usage: " + usage + ". " + ids + "Presets: " + FxPresets.names(), null);
 	}
 
 	/**
@@ -840,56 +850,48 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
-	 * ::naturefx ring|leaves|swirl|bloom &lt;spot anim id&gt; [rise or height] switches a part of JoeBoob's aura to another
-	 * game graphic this session, like ::dayfx. Local only.
+	 * ::naturefx ring|leaves|swirl|bloom &lt;preset&gt; [rise or height] switches a part of JoeBoob's aura to another
+	 * graphic from {@link FxPresets} this session, like ::dayfx. Local only.
 	 */
 	private void previewNatureFx(String[] args)
 	{
-		try
+		List<String> typed = args.length > 1 ? Arrays.asList(args).subList(1, args.length) : Collections.emptyList();
+		FxPresets.Pick pick = FxPresets.parse(typed, developerMode);
+		if (pick != null)
 		{
-			int id = Integer.parseInt(args.length > 1 ? args[1] : "");
 			boolean swirl = NatureGlow.LEAF_SWIRL.shortName.equalsIgnoreCase(args[0]);
-			int extra = args.length > 2 ? Integer.parseInt(args[2]) : swirl ? DaylightAura.DEFAULT_SWIRL_RISE : 0;
-			String done = natureAura.preview(args[0], id, extra);
+			int extra = pick.extra != null ? pick.extra : swirl ? DaylightAura.DEFAULT_SWIRL_RISE : 0;
+			String done = natureAura.preview(args[0], pick.id, extra, pick.label);
 			if (done != null)
 			{
 				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", done, null);
 				return;
 			}
 		}
-		catch (NumberFormatException e)
-		{
-			// fall through to the usage line
-		}
-		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-			"Usage: ::naturefx ring|leaves|swirl|bloom <spot anim id> [swirl rise / bloom height], e.g. ::naturefx ring 2540", null);
+		fxUsage("::naturefx ring|leaves|swirl|bloom <preset> [swirl rise / bloom height], e.g. ::naturefx ring fairy ring", typed);
 	}
 
 	/**
-	 * ::dayfx flames|swirl|smoke &lt;spot anim id&gt; [rise or height] switches a part of DAYLlGHT's aura to
-	 * another game graphic this session, to try out effects. Local only, like every :: command.
+	 * ::dayfx flames|swirl|smoke &lt;preset&gt; [rise or height] switches a part of DAYLlGHT's aura to another graphic
+	 * from {@link FxPresets} this session, to try out effects. Local only, like every :: command.
 	 */
 	private void previewDaylightFx(String[] args)
 	{
-		try
+		List<String> typed = args.length > 1 ? Arrays.asList(args).subList(1, args.length) : Collections.emptyList();
+		FxPresets.Pick pick = FxPresets.parse(typed, developerMode);
+		if (pick != null)
 		{
-			int id = Integer.parseInt(args.length > 1 ? args[1] : "");
 			// the swirl climbs this far each loop unless told otherwise; the smoke plays at the feet
 			boolean swirl = FounderGlow.BLACK_SWIRL.shortName.equalsIgnoreCase(args[0]);
-			int extra = args.length > 2 ? Integer.parseInt(args[2]) : swirl ? DaylightAura.DEFAULT_SWIRL_RISE : 0;
-			String done = daylightAura.preview(args[0], id, extra);
+			int extra = pick.extra != null ? pick.extra : swirl ? DaylightAura.DEFAULT_SWIRL_RISE : 0;
+			String done = daylightAura.preview(args[0], pick.id, extra, pick.label);
 			if (done != null)
 			{
 				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", done, null);
 				return;
 			}
 		}
-		catch (NumberFormatException e)
-		{
-			// fall through to the usage line
-		}
-		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-			"Usage: ::dayfx flames|swirl|smoke <spot anim id> [swirl rise / smoke height], e.g. ::dayfx swirl 1296 250", null);
+		fxUsage("::dayfx flames|swirl|smoke <preset> [swirl rise / smoke height], e.g. ::dayfx swirl arceuus 250", typed);
 	}
 
 	/**

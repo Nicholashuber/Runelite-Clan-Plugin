@@ -22,8 +22,10 @@ Two optional features, both off until you turn them on, talk to something outsid
   stored in your RuneLite settings.
 - **Rank glow** (only on your client): the clan Owner gets a golden outline and a lightning storm overhead, and
   Gem League ranks (Opal to Zenyte) get their gem's glow, and clan staff (administrators up to the deputy owner) twinkle gold
-  (each can switch theirs off with the **Staff gold twinkle** setting). `::glowzap`, `::glowshock` and `::glowstrike <id>`
-  preview the storm effects on your own character. What you pick for yourself reaches other plugin users
+  (each can switch theirs off with the **Staff gold twinkle** setting). `::glowzap`, `::glowshock` and `::glowstrike <preset>`
+  preview the storm effects on your own character. These preview commands, `::dayfx` and `::naturefx` pick from a
+  fixed list of named graphics (type the command alone to see it); a raw graphic id only works in RuneLite's
+  developer mode. What you pick for yourself reaches other plugin users
   through Clan sync; without it everyone shows their rank's default.
 - **Lavasockz's aura** (only on your client, while Show clan rank glows is on): a flickering molten outline
   and the Flames of Zamorak burning around him nonstop, following him as he walks. `::lavafx` plays it once on your own character. Lavasockz can

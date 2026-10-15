@@ -183,13 +183,14 @@ public class DaylightAura
 	/**
 	 * ::dayfx: uses another game graphic for one part this session, to try out effects. Local only.
 	 * <ul>
-	 * <li>flames|swirl &lt;id&gt;: any id in {@link TintedFx#CATALOG}, recolored red or black; for the swirl an
-	 * optional third number is how far it climbs (0 stays at the feet)</li>
-	 * <li>smoke &lt;id&gt; [height]: any spot anim id, played as the game draws it (and once on you now)</li>
+	 * <li>flames|swirl: recolored red or black; for the swirl {@code extra} is how far it climbs (0 stays at the
+	 * feet)</li>
+	 * <li>smoke [height]: played as the game draws it (and once on you now)</li>
 	 * </ul>
+	 * @param label what to call the graphic in chat
 	 * @return the chat line to show, or null if the arguments are wrong
 	 */
-	public String preview(String part, int id, int extra)
+	public String preview(String part, int id, int extra, String label)
 	{
 		if (part.equalsIgnoreCase(FounderGlow.DEMON_FLAMES.shortName) || part.equalsIgnoreCase(FounderGlow.BLACK_SWIRL.shortName))
 		{
@@ -197,9 +198,9 @@ public class DaylightAura
 			TintedFx fx = isFlames ? flames : swirl;
 			if (!fx.use(id, isFlames ? 0 : extra))
 			{
-				return "CoR: " + id + " isn't in the list. Try: " + catalogIds();
+				return "CoR: " + label + " couldn't be read from the game cache";
 			}
-			return "CoR: " + part.toLowerCase() + " set to " + id + " (" + TintedFx.CATALOG.get(id).name + ") for this session";
+			return "CoR: " + part.toLowerCase() + " set to " + label + " for this session";
 		}
 		if (part.equalsIgnoreCase(FounderGlow.SMOKE_CLOUD.shortName))
 		{
@@ -210,20 +211,9 @@ public class DaylightAura
 			{
 				me.createSpotAnim(SMOKE_SLOT, id, extra, 0);
 			}
-			return "CoR: smoke set to " + id + " for this session";
+			return "CoR: smoke set to " + label + " for this session";
 		}
 		return null;
-	}
-
-	/** The ids ::dayfx flames and swirl accept, for the chat. */
-	static String catalogIds()
-	{
-		StringBuilder ids = new StringBuilder();
-		for (int id : TintedFx.CATALOG.keySet())
-		{
-			ids.append(ids.length() == 0 ? "" : ", ").append(id);
-		}
-		return ids.toString();
 	}
 
 	/** Removes our graphics from everyone (glows turned off or plugin stopped). */
