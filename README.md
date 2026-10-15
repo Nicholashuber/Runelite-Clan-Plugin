@@ -59,14 +59,16 @@ Two optional features, both off until you turn them on, talk to something outsid
 
 ## Clan sync and your data
 
-Clan sync is **off by default**. Turning it on shows RuneLite's warning that it submits your IP address to a
-3rd-party server not controlled or verified by RuneLite developers.
+Clan sync is **off by default**. Turning it on shows RuneLite's warning: "This feature submits your IP address
+and various account data to a 3rd-party server not controlled or verified by Runelite developers."
 
-**Your client only ever reports about your own character.** It never sends anything another player said or
-did. While sync is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
+**Your client only ever reports about your own character.** It never sends anything another player said. The one
+time another player's name goes along is a clan broadcast about you that names them: a PvP kill broadcast
+("Lavasockz has defeated Bob ...") includes the name of the player you defeated. While sync is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
 
 - the gz's (gz / grats / congrats) **you** say in your clan's chat,
-- clan broadcasts **about you** (for example "Lavasockz has received a drop: ..."),
+- clan broadcasts **about you** (for example "Lavasockz has received a drop: ..."; a PvP kill broadcast includes
+  the name of the player you defeated),
 - your first gm of the day (the line **you** said, for example "gm all"), at most once a day, for the daily gm
   bonus. The server checks it is a gm and does not keep the text,
 - your own clan rank and the glows you picked for yourself, on login and when they change,
@@ -85,12 +87,15 @@ chat. Gz's and broadcasts go out in small batches about every 30 seconds.
 
 About every 2 minutes while you are logged in it downloads everyone's gz counts, clan ranks, icons, titles
 and glow picks (as their own clients reported them or clan staff set them), the past weekly podiums, the
-announcement banner, and the chat icon images from the clan's admin page (small PNGs, at most 32x16 pixels).
+announcement banner, the latest promotions, and the chat icon images from the clan's admin page (small PNGs, at
+most 32x16 pixels). About every 30 seconds it downloads the raid finder board (the open groups: host, raid, slots,
+world and note).
 
 While the server's data is loaded, the leaderboards, podiums, GZ King, weekly trophies, streaks, `!rank` and
 `[GZ count]` show the server's numbers, which only include players who have sync on. Your client keeps
 counting what it sees in clan chat either way, and shows those counts again whenever sync is off or the
-server can't be reached. Turning sync off stops all traffic to the clan server immediately.
+server can't be reached. Turning sync off stops all traffic to the clan server immediately: every request checks
+the setting just before it would be sent.
 
 The first account to report under a character name owns that name on the server. If the server says your name
 is linked to another account, the plugin tells you once in chat and in the side panel and stops reporting;
@@ -157,7 +162,7 @@ the game server; only you see the output.
 | GZ tracker | Max gz message length | Longer messages are never treated as a gz |
 | Rank glow | Show clan rank glows | Draw the glows clan members picked (or their rank's default), only on your client |
 | Gem tier glows | Zenyte glow ... Opal glow, Gem outline, Gem sparkles | The gem glow other plugin users see on you; shared through Clan sync |
-| Clan sync | Sync with clan server | Off by default. Reports your own gz's, broadcasts about you, your clan rank and glow picks to the CoR clan server and loads the clan-wide counts, icons, titles and glows. See [Clan sync and your data](#clan-sync-and-your-data) |
+| Clan sync | Sync with clan server | Off by default. Reports your own gz's, broadcasts about you, daily gm, clan rank, glow picks and raid finder group to the CoR clan server and loads the clan-wide counts, icons, titles, glows and raid finder board. See [Clan sync and your data](#clan-sync-and-your-data) |
 | CoR party | Party passphrase | Empty uses the default. Everyone in CoR must use the same one |
 | CoR party | Share my location | Off by default. Show your world and tile to party members on the world map, and see theirs |
 | CoR party | Share in Wilderness | Keep sharing inside the Wilderness. Off means you vanish from the clan map there |
