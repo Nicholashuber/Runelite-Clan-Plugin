@@ -51,12 +51,6 @@ Two optional features, both off until you turn them on, talk to something outsid
 - **CoX death sound** (setting, on by default, with a volume slider): when a player you can see dies in the Chambers
   of Xeric, a chicken squawks (the game's own chicken death sound), while you are in a clan. Each plugin user's
   client plays it for itself.
-- **Kephri dung** (only on your client, while Show clan rank glows is on): when a clan leader (uimfartqueef,
-  joeboob, Lavasockz or DAYLlGHT) types `::shame <name>`, Kephri's dung keeps dropping on that clanmate's head until a
-  leader takes it off with `::unshame <name>` (it stays on, even through server restarts).
-  Everyone with Clan sync on sees it, the shamed player too, and it can't be switched off on its own: only the
-  Show clan rank glows master switch hides it. `::dungfx` drops it on your own character for 30 seconds, the way a shame does (type it
-  again to stop).
 - **Clan sync** (optional, off by default): clan-wide gz leaderboards, podiums, GZ King, weekly trophies and
   streaks, plus the chat icons, member icons, titles and rank icons clan staff set on the clan server, and
   everyone's glow picks.
@@ -69,7 +63,7 @@ Clan sync is **off by default**. Turning it on shows RuneLite's warning that it 
 3rd-party server not controlled or verified by RuneLite developers.
 
 **Your client only ever reports about your own character.** It never sends anything another player said or
-did (the one other name it can send is the clanmate a clan leader types after `::shame`). While sync is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
+did. While sync is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
 
 - the gz's (gz / grats / congrats) **you** say in your clan's chat,
 - clan broadcasts **about you** (for example "Lavasockz has received a drop: ..."),
@@ -81,9 +75,8 @@ did (the one other name it can send is the clanmate a clan leader types after `:
   the clan server to post that same group in the clan Discord,
 - your clan's rank names with their rank numbers (for example 126 "Owner", 5 "Captain"), once per login, so
   clan staff can pick a chat icon per rank. No player names are sent with them,
-- only if you are one of the four clan leaders (uimfartqueef, joeboob, Lavasockz, DAYLlGHT): the name of the
-  clanmate you `::shame` or `::unshame`, and the announcement text you save with the banner's Edit button, when
-  you do it,
+- only if you are one of the four clan leaders (uimfartqueef, joeboob, Lavasockz, DAYLlGHT): the announcement text
+  you save with the banner's Edit button, when you do it,
 - your character name, your clan's name and your RuneLite account hash with each of those, so the server
   knows whose they are.
 
@@ -92,8 +85,7 @@ chat. Gz's and broadcasts go out in small batches about every 30 seconds.
 
 About every 2 minutes while you are logged in it downloads everyone's gz counts, clan ranks, icons, titles
 and glow picks (as their own clients reported them or clan staff set them), the past weekly podiums, the
-announcement banner, and the chat icon images from the clan's admin page (small PNGs, at most 32x16 pixels). About every 10 seconds it
-downloads the short list of who is shamed with the Kephri dung right now.
+announcement banner, and the chat icon images from the clan's admin page (small PNGs, at most 32x16 pixels).
 
 While the server's data is loaded, the leaderboards, podiums, GZ King, weekly trophies, streaks, `!rank` and
 `[GZ count]` show the server's numbers, which only include players who have sync on. Your client keeps
@@ -143,8 +135,7 @@ on the clan server replace them. Your own **Member icons** always win on your cl
 ## Commands
 
 Type `::cor` (or `::test`) in the chatbox to print a local CoR banner with the GZ King, the most gz'd
-members and your own counts. The four clan leaders can type `::shame <name>` and `::unshame <name>` (needs Clan
-sync on); for anyone else they do nothing. Double-colon commands are handled inside RuneLite and are never sent to
+members and your own counts. Double-colon commands are handled inside RuneLite and are never sent to
 the game server; only you see the output.
 
 ## Config
