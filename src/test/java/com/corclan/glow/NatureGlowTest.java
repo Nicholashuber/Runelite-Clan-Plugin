@@ -71,7 +71,7 @@ public class NatureGlowTest
 	@Test
 	public void ownSpotAnimSlots()
 	{
-		Set<Integer> slots = new HashSet<>(Arrays.asList(DaylightAura.SMOKE_SLOT, LavaAura.SLOT, ShameAura.SLOT));
+		Set<Integer> slots = new HashSet<>(Arrays.asList(DaylightAura.SMOKE_SLOT, LavaAura.SLOT));
 		assertTrue(slots.add(NatureAura.BLOOM_SLOT));
 		assertTrue(slots.add(NatureAura.LEAVES_SLOT));
 	}

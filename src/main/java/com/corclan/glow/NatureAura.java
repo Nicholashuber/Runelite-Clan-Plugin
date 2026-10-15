@@ -29,7 +29,7 @@ public class NatureAura
 	/** Players who wear the aura, as {@link MemberCosmetics#key} names. */
 	public static final Set<String> WEARERS = Collections.singleton("joeboob");
 
-	/** Our own spot-anim slots (storm 3082-3084, Lavasockz 3090, DAYLlGHT 3092, shame 3094). */
+	/** Our own spot-anim slots (storm 3082-3084, Lavasockz 3090, DAYLlGHT 3092). */
 	static final int BLOOM_SLOT = 3096;
 	static final int LEAVES_SLOT = 3098;
 	/** The fairy ring's mushrooms and flowers coming up around a player, as when you step through to Zanaris. */
