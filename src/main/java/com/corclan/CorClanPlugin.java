@@ -311,7 +311,7 @@ public class CorClanPlugin extends Plugin
 	private long gmAnsweredDay = -1;
 	/** a gm is on its way to the clan server */
 	private boolean gmInFlight;
-	/** our own raid finder group is sent again this often, so it stays up while we play (the server drops it after 15 min) */
+	/** our own raid finder group is sent again this often, so it stays up while we play (the server drops it 30 minutes after the last one) */
 	private static final long RAID_RESEND_MILLIS = 5 * 60_000L;
 	private static final String RAID_ALERT_COLOR = "4fb06e";
 	/** every open raid finder group, newest first; swapped whole (read by the panel snapshot) */
@@ -1761,7 +1761,7 @@ public class CorClanPlugin extends Plugin
 		}
 		if (state == GameState.LOGIN_SCREEN)
 		{
-			// our raid group stays up (the server drops it an hour after our last resend); the next login looks at
+			// our raid group stays up (the server drops it 30 minutes after our last resend); the next login looks at
 			// the board quietly first
 			raidBoardSeen = false;
 			// the next login advertises what is open straight away, on a fresh line
@@ -2091,7 +2091,7 @@ public class CorClanPlugin extends Plugin
 					pullRaids();
 					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", outcome == ClanApi.Outcome.OK
 						? done
-						: "CoR: couldn't reach the clan server to take your raid group down; it goes by itself within the hour", null);
+						: "CoR: couldn't reach the clan server to take your raid group down; it goes by itself within 30 minutes", null);
 				}
 			}));
 		});
@@ -2146,7 +2146,8 @@ public class CorClanPlugin extends Plugin
 	 */
 	private void checkRaidEntry()
 	{
-		SyncModels.Reporter r = myRaid == null || client.getGameState() != GameState.LOGGED_IN ? null : currentReporter();
+		SyncModels.Reporter r = myRaid == null || !config.syncEnabled() || client.getGameState() != GameState.LOGGED_IN
+			? null : currentReporter();
 		if (r == null || !r.equals(myRaidReporter) || r.equals(refusedReporter) || inRaid() == raidSentRaiding)
 		{
 			return;

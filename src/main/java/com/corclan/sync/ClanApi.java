@@ -1,5 +1,6 @@
 package com.corclan.sync;
 
+import com.corclan.CorClanConfig;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import java.io.IOException;
@@ -20,7 +21,8 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * Talks to the CoR clan server. Only used when the player turns on "Sync with clan server".
+ * Talks to the CoR clan server. Only used when the player turns on "Sync with clan server": every request goes
+ * through {@link #enqueue}, which checks that setting first and sends nothing while it is off.
  * Every call is asynchronous on RuneLite's shared OkHttp client; callbacks run on OkHttp's threads.
  */
 @Slf4j
@@ -55,12 +57,28 @@ public class ClanApi
 
 	private final OkHttpClient http;
 	private final Gson gson;
+	private final CorClanConfig config;
 
 	@Inject
-	ClanApi(OkHttpClient http, Gson gson)
+	ClanApi(OkHttpClient http, Gson gson, CorClanConfig config)
 	{
 		this.http = http;
 		this.gson = gson;
+		this.config = config;
+	}
+
+	/**
+	 * The only place a request leaves the plugin. With "Sync with clan server" off nothing is sent; {@code whenOff}
+	 * runs instead, so whoever waits for an answer is told the request failed.
+	 */
+	private void enqueue(Request request, Callback callback, Runnable whenOff)
+	{
+		if (!config.syncEnabled())
+		{
+			whenOff.run();
+			return;
+		}
+		http.newCall(request).enqueue(callback);
 	}
 
 	/**
@@ -117,7 +135,7 @@ public class ClanApi
 			.url(BASE_URL.resolve("v1/gm"))
 			.post(RequestBody.create(JSON, gson.toJson(payload)))
 			.build();
-		http.newCall(request).enqueue(new Callback()
+		enqueue(request, new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
@@ -147,7 +165,7 @@ public class ClanApi
 				}
 				done.accept(outcome, result);
 			}
-		});
+		}, () -> done.accept(Outcome.RETRY, null));
 	}
 
 	/** Puts up or updates our own raid finder listing. */
@@ -172,7 +190,7 @@ public class ClanApi
 			.url(BASE_URL.resolve("v1/raids/ping"))
 			.post(RequestBody.create(JSON, gson.toJson(payload)))
 			.build();
-		http.newCall(request).enqueue(new Callback()
+		enqueue(request, new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
@@ -203,7 +221,7 @@ public class ClanApi
 					done.accept(pingProblem(body == null ? null : body.getError(), body == null ? 0 : body.getRetryAfterSeconds()));
 				}
 			}
-		});
+		}, () -> done.accept("turn on Sync with clan server first"));
 	}
 
 	/** What to tell the player when a Discord ping is refused. */
@@ -266,7 +284,7 @@ public class ClanApi
 			.post(RequestBody.create(JSON, gson.toJson(payload)))
 			.build();
 
-		http.newCall(request).enqueue(new Callback()
+		enqueue(request, new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
@@ -286,7 +304,7 @@ public class ClanApi
 				}
 				done.accept(outcome);
 			}
-		});
+		}, () -> done.accept(Outcome.RETRY));
 	}
 
 	/** The {@code error} code of a refused request, or null if the body has none. */
@@ -312,7 +330,7 @@ public class ClanApi
 			builder.cacheControl(cache);
 		}
 		Request request = builder.build();
-		http.newCall(request).enqueue(new Callback()
+		enqueue(request, new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
@@ -342,6 +360,6 @@ public class ClanApi
 					log.debug("CoR sync: unreadable response from {}", path, e);
 				}
 			}
-		});
+		}, () -> { });
 	}
 }
