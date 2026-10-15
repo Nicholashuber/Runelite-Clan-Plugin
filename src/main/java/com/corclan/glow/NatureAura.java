@@ -182,23 +182,24 @@ public class NatureAura
 
 	/**
 	 * ::naturefx: uses another game graphic for one part this session, like ::dayfx. Local only.
-	 * swirl &lt;id&gt; [rise] takes any spot anim id, turned green; ring &lt;id&gt; any spot anim, slowed and doubled like
-	 * the fairy ring; leaves and bloom &lt;id&gt; [height] any spot anim id, played as the game draws it.
+	 * swirl [rise] is turned green; ring is slowed and doubled like the fairy ring; leaves and bloom [height] are
+	 * played as the game draws them.
+	 * @param label what to call the graphic in chat
 	 * @return the chat line to show, or null if the arguments are wrong
 	 */
-	public String preview(String part, int id, int extra)
+	public String preview(String part, int id, int extra, String label)
 	{
 		if (part.equalsIgnoreCase(NatureGlow.LEAF_SWIRL.shortName))
 		{
 			return swirl.use(id, extra)
-				? "CoR: swirl set to " + id + " for this session"
-				: "CoR: spot anim " + id + " couldn't be read from the game cache";
+				? "CoR: swirl set to " + label + " for this session"
+				: "CoR: " + label + " couldn't be read from the game cache";
 		}
 		if (part.equalsIgnoreCase(NatureGlow.FAIRY_RING.shortName))
 		{
 			return ring.use(id, 0)
-				? "CoR: ring set to " + id + " for this session (slowed and doubled)"
-				: "CoR: spot anim " + id + " couldn't be read from the game cache";
+				? "CoR: ring set to " + label + " for this session (slowed and doubled)"
+				: "CoR: " + label + " couldn't be read from the game cache";
 		}
 		int slot;
 		if (part.equalsIgnoreCase("leaves"))
@@ -221,7 +222,7 @@ public class NatureAura
 		{
 			me.createSpotAnim(slot, id, slot == BLOOM_SLOT ? extra : 0, 0);
 		}
-		return "CoR: " + part.toLowerCase() + " set to " + id + " for this session";
+		return "CoR: " + part.toLowerCase() + " set to " + label + " for this session";
 	}
 
 	/** Removes our graphics from everyone (glows turned off or plugin stopped). */

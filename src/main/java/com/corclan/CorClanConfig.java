@@ -68,17 +68,15 @@ public interface CorClanConfig extends Config
 	@ConfigItem(
 		keyName = "syncEnabled",
 		name = "Sync with clan server",
-		description = "Sends to the CoR clan server: the gz's you say in clan chat, clan broadcasts about you, your first gm of"
-			+ " the day, your clan rank, your glow picks and your clan's rank names (no player names); your raid finder group"
-			+ " (raid, slots, world, note, whether you are inside) and Discord pings, only if you post one; the announcement"
-			+ " text, only if you are a clan leader and edit it. Each comes with your character name, your clan's name and"
-			+ " your RuneLite account hash. Loads the clan-wide gz counts, chat icons, titles, glow picks and raid finder"
-			+ " board from it. Nothing else from chat is sent.",
-		warning = "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers. "
-			+ "It sends the gz's you say in clan chat, clan broadcasts about you, your first gm of the day, your clan rank, "
-			+ "your glow picks, your clan's rank names, your raid finder group if you post one (with your world and note), "
-			+ "your character name, your clan's name and your RuneLite account hash to the CoR clan server. "
-			+ "Turn it on?",
+		description = "Sends to the CoR clan server: the gz's you say in clan chat, clan broadcasts about you (a PvP kill"
+			+ " broadcast includes the name of the player you defeated), your first gm of the day, your clan rank, your glow"
+			+ " picks and your clan's rank names (no player names); your raid finder group (raid, slots, world, note, whether"
+			+ " you are inside) and Discord pings, only if you post one; the announcement text, only if you are a clan leader"
+			+ " and edit it. Each comes with your character name, your clan's name and your RuneLite account hash. Loads the"
+			+ " clan-wide gz counts, chat icons, titles, glow picks, announcement, recent promotions and raid finder board"
+			+ " from it. Nothing else from chat is sent.",
+		warning = "This feature submits your IP address and various account data to a 3rd-party server not controlled or"
+			+ " verified by Runelite developers.",
 		position = 0,
 		section = syncSection
 	)

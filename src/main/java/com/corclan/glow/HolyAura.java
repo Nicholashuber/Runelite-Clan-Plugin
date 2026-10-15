@@ -39,7 +39,6 @@ public class HolyAura
 		/** random gap between plays, in game ticks (0.6 s each), inclusive */
 		final int minTicks;
 		final int maxTicks;
-		public final int defaultSpotAnimId;
 		int spotAnimId;
 		int nextTick;
 
@@ -49,7 +48,6 @@ public class HolyAura
 			this.label = label;
 			this.glow = glow;
 			this.slot = slot;
-			this.defaultSpotAnimId = spotAnimId;
 			this.spotAnimId = spotAnimId;
 			this.minTicks = minTicks;
 			this.maxTicks = maxTicks;
