@@ -2216,7 +2216,8 @@ public class CorClanPlugin extends Plugin
 
 	/**
 	 * We are inside a raid: the Chambers (in the dungeon), or the Theatre / Tombs instance with a party. The parties
-	 * are formed outside the instances, so a group only shows as raiding once we are actually in.
+	 * are formed outside the instances, so a group only shows as raiding once we are actually in. TFA has no check:
+	 * its host takes the group down by hand.
 	 */
 	private boolean inRaid()
 	{
