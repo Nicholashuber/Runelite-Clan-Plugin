@@ -510,6 +510,18 @@ public class CorClanPlugin extends Plugin
 			return;
 		}
 		String key = event.getKey();
+		if ("allowShame".equals(key) && !config.allowShame())
+		{
+			// the server takes it off for everyone with the next profile; our own dung goes at once
+			clientThread.invokeLater(() ->
+			{
+				String me = localPlayerName();
+				if (me != null)
+				{
+					shameAura.setShames(shameAura.getShames().without(me));
+				}
+			});
+		}
 		if ("syncEnabled".equals(key))
 		{
 			// off: forget everything from the server and stop all traffic. On: start clean and load right away
@@ -832,6 +844,10 @@ public class CorClanPlugin extends Plugin
 			else if (outcome == ClanApi.Outcome.RETRY)
 			{
 				done = "CoR: the clan server isn't answering, try " + command + " again";
+			}
+			else if (outcome == ClanApi.Outcome.NOT_SHAMEABLE)
+			{
+				done = "CoR: " + target + " hasn't turned on Let leaders shame me";
 			}
 			else
 			{
@@ -1740,13 +1756,18 @@ public class CorClanPlugin extends Plugin
 	@Subscribe
 	public void onActorDeath(ActorDeath event)
 	{
-		if (!config.coxDeathSound() || !(event.getActor() instanceof Player)
-			|| client.getVarbitValue(VarbitID.RAIDS_CLIENT_INDUNGEON) != 1 || client.getClanChannel() == null)
+		if (!(event.getActor() instanceof Player) || client.getVarbitValue(VarbitID.RAIDS_CLIENT_INDUNGEON) != 1
+			|| client.getClanChannel() == null)
 		{
 			return;
 		}
+		String name = event.getActor().getName();
+		if (config.coxDeathLine() && name != null)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", RaidSounds.sacrificeLine(displayName(name)), null);
+		}
 		int volume = RaidSounds.volume(config.coxDeathVolume());
-		if (volume > 0)
+		if (config.coxDeathSound() && volume > 0)
 		{
 			client.playSoundEffect(RaidSounds.CHICKEN_DEATH, volume);
 		}
@@ -2005,14 +2026,15 @@ public class CorClanPlugin extends Plugin
 		{
 			glows.addAll(natureAura.localPicks());
 		}
-		List<Object> profile = Arrays.asList(r, rank.getRank(), glows);
+		boolean allowShame = config.allowShame();
+		List<Object> profile = Arrays.asList(r, rank.getRank(), glows, allowShame);
 		if (profile.equals(sentProfile))
 		{
 			return;
 		}
 		profileInFlight = true;
 		nextProfileAt = now + PROFILE_MIN_MILLIS;
-		clanApi.sendProfile(new SyncModels.ProfilePayload(r, rank.getRank(), glows), outcome -> clientThread.invokeLater(() ->
+		clanApi.sendProfile(new SyncModels.ProfilePayload(r, rank.getRank(), glows, allowShame), outcome -> clientThread.invokeLater(() ->
 		{
 			profileInFlight = false;
 			if (outcome == ClanApi.Outcome.RETRY)

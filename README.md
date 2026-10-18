@@ -53,11 +53,13 @@ Two optional features, both off until you turn them on, talk to something outsid
 - **CoX death sound** (setting, on by default, with a volume slider): when a player you can see dies in the Chambers
   of Xeric, a chicken squawks (the game's own chicken death sound), while you are in a clan. Each plugin user's
   client plays it for itself.
-- **Kephri dung** (only on your client, while Show clan rank glows is on): when a clan leader (uimfartqueef,
-  joeboob, Lavasockz or DAYLlGHT) types `::shame <name>`, Kephri's dung keeps dropping on that clanmate's head until a
-  leader takes it off with `::unshame <name>` (it stays on, even through server restarts).
-  Everyone with Clan sync on sees it, the shamed player too, and it can't be switched off on its own: only the
-  Show clan rank glows master switch hides it. `::dungfx` drops it on your own character for 30 seconds, the way a shame does (type it
+- **Olm's blood sacrifice** (setting, on by default): the same death also puts a blood red line in your chat,
+  "Olm demands a blood sacrifice: Bob". Only on your client; nothing is sent, and the real clan chat never sees it.
+- **Kephri dung** (opt-in, needs Clan sync): turn on **Let leaders shame me** and a clan leader (uimfartqueef,
+  joeboob, Lavasockz or DAYLlGHT) can type `::shame <name>` to keep Kephri's dung dropping on your head until a leader
+  takes it off with `::unshame <name>` (it stays on, even through server restarts). Nobody can be shamed without
+  turning the setting on, and turning it off takes the dung off at once. Everyone with Clan sync on sees it, while
+  Show clan rank glows is on. `::dungfx` drops it on your own character for 30 seconds, the way a shame does (type it
   again to stop).
 - **Clan sync** (optional, off by default): clan-wide gz leaderboards, podiums, GZ King, weekly trophies and
   streaks, plus the chat icons, member icons, titles and rank icons clan staff set on the clan server, and
@@ -86,9 +88,10 @@ the name of the player you defeated, and a clan leader's `::shame` names the cla
   the clan server to post that same group in the clan Discord,
 - your clan's rank names with their rank numbers (for example 126 "Owner", 5 "Captain"), once per login, so
   clan staff can pick a chat icon per rank. No player names are sent with them,
+- whether you turned on **Let leaders shame me**, with your clan rank and glow picks,
 - only if you are one of the four clan leaders (uimfartqueef, joeboob, Lavasockz, DAYLlGHT): the name of the
-  clanmate you `::shame` or `::unshame`, and the announcement text you save with the banner's Edit button, when
-  you do it,
+  clanmate you `::shame` or `::unshame` (the server refuses anyone who hasn't turned on Let leaders shame me), and
+  the announcement text you save with the banner's Edit button, when you do it,
 - your character name, your clan's name and your RuneLite account hash with each of those, so the server
   knows whose they are.
 
@@ -151,7 +154,7 @@ on the clan server replace them. Your own **Member icons** always win on your cl
 
 Type `::cor` (or `::test`) in the chatbox to print a local CoR banner with the GZ King, the most gz'd
 members and your own counts. The four clan leaders can type `::shame <name>` and `::unshame <name>` (needs Clan
-sync on); for anyone else they do nothing. Double-colon commands are handled inside RuneLite and are never sent to
+sync on, and the clanmate must have turned on Let leaders shame me); for anyone else they do nothing. Double-colon commands are handled inside RuneLite and are never sent to
 the game server; only you see the output.
 
 ## Config

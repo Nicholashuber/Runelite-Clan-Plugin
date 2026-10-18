@@ -11,9 +11,17 @@ public final class RaidSounds
 {
 	/** The game's "chicken_death" sound effect (OSRS Wiki, List of in-game sound IDs). */
 	public static final int CHICKEN_DEATH = 356;
+	/** Olm's blood red */
+	static final String SACRIFICE_COLOR = "c8102e";
 
 	private RaidSounds()
 	{
+	}
+
+	/** "Olm demands a blood sacrifice: Bob", in blood red, for a death in the Chambers. Shown on this client only. */
+	public static String sacrificeLine(String name)
+	{
+		return "<col=" + SACRIFICE_COLOR + ">Olm demands a blood sacrifice: " + name + "</col>";
 	}
 
 	/**

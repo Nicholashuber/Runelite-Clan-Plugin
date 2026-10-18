@@ -111,12 +111,15 @@ public final class SyncModels
 		private final Reporter reporter;
 		private final Integer rank;
 		private final List<String> glows;
+		/** our own "Let leaders shame me" */
+		private final Boolean allowShame;
 
-		public ProfilePayload(Reporter reporter, Integer rank, List<String> glows)
+		public ProfilePayload(Reporter reporter, Integer rank, List<String> glows, Boolean allowShame)
 		{
 			this.reporter = reporter;
 			this.rank = rank;
 			this.glows = glows;
+			this.allowShame = allowShame;
 		}
 	}
 

@@ -46,7 +46,9 @@ public class ClanApi
 		/** another account owns this character name until CoR staff unlink it */
 		NAME_TAKEN,
 		/** this character is not in the CoR clan */
-		WRONG_CLAN;
+		WRONG_CLAN,
+		/** a ::shame on a clanmate who hasn't turned on "Let leaders shame me" */
+		NOT_SHAMEABLE;
 
 		/** True when the server refuses everything from this player, so nothing more should be sent. */
 		public boolean blocksReporter()
@@ -98,6 +100,10 @@ public class ClanApi
 		if ("wrong_clan".equals(error) || (error == null && status == 403))
 		{
 			return Outcome.WRONG_CLAN;
+		}
+		if ("not_shameable".equals(error))
+		{
+			return Outcome.NOT_SHAMEABLE;
 		}
 		// rate limited, timed out or a server fault
 		if (status == 429 || status == 408 || status >= 500)

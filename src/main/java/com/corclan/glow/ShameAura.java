@@ -10,9 +10,10 @@ import net.runelite.api.gameval.SpotanimID;
 
 /**
  * The Kephri dung: ::shame &lt;name&gt; from one of the {@link ClanLeaders} drops Kephri's dung on that clanmate's head
- * over and over until a leader takes it off with ::unshame. Shames travel through the clan server (clan sync), so every
- * plugin user with sync on sees it, the shamed player included. Only the master switch "Show clan rank glows"
- * hides it: unlike the other auras, the wearer cannot switch their dung off. Drawn on this client only.
+ * over and over until a leader takes it off with ::unshame. Opt-in: only clanmates who turned on "Let leaders shame
+ * me" can be shamed, and turning it off takes the dung off. Shames travel through the clan server (clan sync), so every
+ * plugin user with sync on sees it, the shamed player included, while "Show clan rank glows" is on. Drawn on this
+ * client only.
  * All methods must run on the client thread.
  */
 @Singleton

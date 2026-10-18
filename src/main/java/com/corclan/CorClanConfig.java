@@ -71,8 +71,8 @@ public interface CorClanConfig extends Config
 		description = "Sends to the CoR clan server: the gz's you say in clan chat, clan broadcasts about you (a PvP kill"
 			+ " broadcast includes the name of the player you defeated), your first gm of the day, your clan rank, your glow"
 			+ " picks and your clan's rank names (no player names); your raid finder group (raid, slots, world, note, whether"
-			+ " you are inside) and Discord pings, only if you post one; the announcement text, only if you are a clan leader"
-			+ " and edit it. Each comes with your character name, your clan's name and your RuneLite account hash. Loads the"
+			+ " you are inside) and Discord pings, only if you post one; whether you let leaders shame you; the announcement"
+			+ " text and the clanmates you ::shame, only if you are a clan leader. Each comes with your character name, your clan's name and your RuneLite account hash. Loads the"
 			+ " clan-wide gz counts, chat icons, titles, glow picks, announcement, recent promotions and raid finder board"
 			+ " from it. Nothing else from chat is sent.",
 		warning = "This feature submits your IP address and various account data to a 3rd-party server not controlled or"
@@ -81,6 +81,20 @@ public interface CorClanConfig extends Config
 		section = syncSection
 	)
 	default boolean syncEnabled()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "allowShame",
+		name = "Let leaders shame me",
+		description = "Lets the clan leaders drop the Kephri dung on your character with ::shame, for everyone with Clan sync"
+			+ " on to see, until a leader takes it off. Nobody can be shamed without turning this on; turning it off takes"
+			+ " the dung off at once. Needs Clan sync",
+		position = 1,
+		section = syncSection
+	)
+	default boolean allowShame()
 	{
 		return false;
 	}
@@ -277,6 +291,18 @@ public interface CorClanConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "coxDeathLine",
+		name = "Olm's blood sacrifice",
+		description = "A chat line \"Olm demands a blood sacrifice: <name>\" when a player in view dies in the Chambers of Xeric,"
+			+ " while you are in a clan. Shown on your client only; nothing is sent",
+		position = 3
+	)
+	default boolean coxDeathLine()
+	{
+		return true;
+	}
+
 	@Range(max = 100)
 	@ConfigItem(
 		keyName = "coxDeathVolume",
@@ -294,7 +320,7 @@ public interface CorClanConfig extends Config
 		name = "Raid finder in chat",
 		description = "Raid finder groups (CoR side panel) advertised as game messages: when one is put up, and every 5"
 			+ " minutes while any are open. Stacks into one line while the chat is quiet. Only you see it. Needs Clan sync",
-		position = 3
+		position = 4
 	)
 	default boolean raidFinderAlerts()
 	{
