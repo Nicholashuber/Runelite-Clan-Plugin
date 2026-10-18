@@ -111,12 +111,15 @@ public final class SyncModels
 		private final Reporter reporter;
 		private final Integer rank;
 		private final List<String> glows;
+		/** our own "Let leaders shame me" */
+		private final Boolean allowShame;
 
-		public ProfilePayload(Reporter reporter, Integer rank, List<String> glows)
+		public ProfilePayload(Reporter reporter, Integer rank, List<String> glows, Boolean allowShame)
 		{
 			this.reporter = reporter;
 			this.rank = rank;
 			this.glows = glows;
+			this.allowShame = allowShame;
 		}
 	}
 
@@ -248,6 +251,58 @@ public final class SyncModels
 		public int getPoints()
 		{
 			return points;
+		}
+	}
+
+	/** ::shame (or with {@code clear}, ::unshame) from one of the clan leaders, naming the clanmate to shame. */
+	public static final class ShamePayload
+	{
+		private final Reporter reporter;
+		private final String target;
+		private final boolean clear;
+
+		public ShamePayload(Reporter reporter, String target, boolean clear)
+		{
+			this.reporter = reporter;
+			this.target = target;
+			this.clear = clear;
+		}
+	}
+
+	/** One player wearing the Kephri dung in {@code GET /v1/shames}. */
+	public static final class ActiveShame
+	{
+		private String rsn;
+		private String by;
+
+		public ActiveShame()
+		{
+		}
+
+		public ActiveShame(String rsn, String by)
+		{
+			this.rsn = rsn;
+			this.by = by;
+		}
+
+		public String getRsn()
+		{
+			return rsn;
+		}
+
+		public String getBy()
+		{
+			return by;
+		}
+	}
+
+	public static final class ShamesResponse
+	{
+		private List<ActiveShame> shames;
+
+		public List<ActiveShame> getShames()
+		{
+			return shames == null ? Collections.emptyList() : shames;
 		}
 	}
 

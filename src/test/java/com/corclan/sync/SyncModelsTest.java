@@ -45,12 +45,12 @@ public class SyncModelsTest
 	public void profileSerializesToTheServerShape()
 	{
 		assertEquals(
-			"{\"reporter\":" + REPORTER + ",\"rank\":126,\"glows\":[\"gold_outline\",\"gem_ruby\"]}",
-			gson.toJson(new SyncModels.ProfilePayload(reporter, 126, Arrays.asList("gold_outline", "gem_ruby"))));
+			"{\"reporter\":" + REPORTER + ",\"rank\":126,\"glows\":[\"gold_outline\",\"gem_ruby\"],\"allowShame\":true}",
+			gson.toJson(new SyncModels.ProfilePayload(reporter, 126, Arrays.asList("gold_outline", "gem_ruby"), true)));
 		// an empty list clears the picks on the server, so it must be sent as one
 		assertEquals(
-			"{\"reporter\":" + REPORTER + ",\"rank\":-1,\"glows\":[]}",
-			gson.toJson(new SyncModels.ProfilePayload(reporter, -1, Collections.emptyList())));
+			"{\"reporter\":" + REPORTER + ",\"rank\":-1,\"glows\":[],\"allowShame\":false}",
+			gson.toJson(new SyncModels.ProfilePayload(reporter, -1, Collections.emptyList(), false)));
 	}
 
 	@Test

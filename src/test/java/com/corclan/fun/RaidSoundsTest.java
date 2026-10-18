@@ -7,6 +7,12 @@ import org.junit.Test;
 public class RaidSoundsTest
 {
 	@Test
+	public void olmDemandsTheDeadPlayerInBloodRed()
+	{
+		assertEquals("<col=c8102e>Olm demands a blood sacrifice: Bob</col>", RaidSounds.sacrificeLine("Bob"));
+	}
+
+	@Test
 	public void volumeMapsToTheGamesSoundEffectVolume()
 	{
 		assertEquals(SoundEffectVolume.HIGH, RaidSounds.volume(100));

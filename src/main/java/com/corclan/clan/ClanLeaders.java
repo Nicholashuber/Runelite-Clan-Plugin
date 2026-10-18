@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * The CoR leaders: they may edit the announcement banner. The clan server checks the same
+ * The CoR leaders: they may ::shame a clanmate and edit the announcement banner. The clan server checks the same
  * names (its LEADERS setting) and that the request really comes from that player's account, so this list only
  * decides what the plugin offers; change both together.
  */

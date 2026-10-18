@@ -46,7 +46,9 @@ public class ClanApi
 		/** another account owns this character name until CoR staff unlink it */
 		NAME_TAKEN,
 		/** this character is not in the CoR clan */
-		WRONG_CLAN;
+		WRONG_CLAN,
+		/** a ::shame on a clanmate who hasn't turned on "Let leaders shame me" */
+		NOT_SHAMEABLE;
 
 		/** True when the server refuses everything from this player, so nothing more should be sent. */
 		public boolean blocksReporter()
@@ -99,6 +101,10 @@ public class ClanApi
 		{
 			return Outcome.WRONG_CLAN;
 		}
+		if ("not_shameable".equals(error))
+		{
+			return Outcome.NOT_SHAMEABLE;
+		}
 		// rate limited, timed out or a server fault
 		if (status == 429 || status == 408 || status >= 500)
 		{
@@ -123,6 +129,12 @@ public class ClanApi
 	public void sendRanks(SyncModels.RanksPayload payload, Consumer<Outcome> done)
 	{
 		post("v1/ranks", payload, done);
+	}
+
+	/** Shames a clanmate with the Kephri dung, or takes it off. Only the shamers' own accounts are taken. */
+	public void sendShame(SyncModels.ShamePayload payload, Consumer<Outcome> done)
+	{
+		post("v1/shame", payload, done);
 	}
 
 	/**
@@ -166,6 +178,12 @@ public class ClanApi
 				done.accept(outcome, result);
 			}
 		}, () -> done.accept(Outcome.RETRY, null));
+	}
+
+	/** Who wears the Kephri dung right now. */
+	public void fetchShames(Consumer<SyncModels.ShamesResponse> onSuccess)
+	{
+		get("v1/shames", SyncModels.ShamesResponse.class, null, onSuccess);
 	}
 
 	/** Puts up or updates our own raid finder listing. */
