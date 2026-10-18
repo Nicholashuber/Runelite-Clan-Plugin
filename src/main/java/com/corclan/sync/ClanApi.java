@@ -125,6 +125,12 @@ public class ClanApi
 		post("v1/ranks", payload, done);
 	}
 
+	/** Shames a clanmate with the Kephri dung, or takes it off. Only the shamers' own accounts are taken. */
+	public void sendShame(SyncModels.ShamePayload payload, Consumer<Outcome> done)
+	{
+		post("v1/shame", payload, done);
+	}
+
 	/**
 	 * Our own daily gm: the server pays the gm bonus for the first one each UTC day.
 	 * @param done the outcome, and on OK the server's answer (null if it could not be read)
@@ -166,6 +172,12 @@ public class ClanApi
 				done.accept(outcome, result);
 			}
 		}, () -> done.accept(Outcome.RETRY, null));
+	}
+
+	/** Who wears the Kephri dung right now. */
+	public void fetchShames(Consumer<SyncModels.ShamesResponse> onSuccess)
+	{
+		get("v1/shames", SyncModels.ShamesResponse.class, null, onSuccess);
 	}
 
 	/** Puts up or updates our own raid finder listing. */

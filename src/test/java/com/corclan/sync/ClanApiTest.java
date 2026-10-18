@@ -40,8 +40,8 @@ public class ClanApiTest
 	{
 		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(400, "invalid_events"));
 		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(403, "banned"));
-		// a non-leader tried to edit the banner: refused, but it doesn't stop their other reports
-		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(403, "not_a_leader"));
+		// someone who isn't a shamer tried ::shame: refused, but it doesn't stop their other reports
+		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(403, "not_a_shamer"));
 		assertEquals(ClanApi.Outcome.REFUSED, ClanApi.classify(404, null));
 		assertFalse(ClanApi.Outcome.REFUSED.blocksReporter());
 		assertFalse(ClanApi.Outcome.OK.blocksReporter());

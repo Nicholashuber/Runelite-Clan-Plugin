@@ -53,6 +53,12 @@ Two optional features, both off until you turn them on, talk to something outsid
 - **CoX death sound** (setting, on by default, with a volume slider): when a player you can see dies in the Chambers
   of Xeric, a chicken squawks (the game's own chicken death sound), while you are in a clan. Each plugin user's
   client plays it for itself.
+- **Kephri dung** (only on your client, while Show clan rank glows is on): when a clan leader (uimfartqueef,
+  joeboob, Lavasockz or DAYLlGHT) types `::shame <name>`, Kephri's dung keeps dropping on that clanmate's head until a
+  leader takes it off with `::unshame <name>` (it stays on, even through server restarts).
+  Everyone with Clan sync on sees it, the shamed player too, and it can't be switched off on its own: only the
+  Show clan rank glows master switch hides it. `::dungfx` drops it on your own character for 30 seconds, the way a shame does (type it
+  again to stop).
 - **Clan sync** (optional, off by default): clan-wide gz leaderboards, podiums, GZ King, weekly trophies and
   streaks, plus the chat icons, member icons, titles and rank icons clan staff set on the clan server, and
   everyone's glow picks.
@@ -64,9 +70,10 @@ Two optional features, both off until you turn them on, talk to something outsid
 Clan sync is **off by default**. Turning it on shows RuneLite's warning: "This feature submits your IP address
 and various account data to a 3rd-party server not controlled or verified by Runelite developers."
 
-**Your client only ever reports about your own character.** It never sends anything another player said. The one
-time another player's name goes along is a clan broadcast about you that names them: a PvP kill broadcast
-("Lavasockz has defeated Bob ...") includes the name of the player you defeated. While sync is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
+**Your client only ever reports about your own character.** It never sends anything another player said. The
+other players' names that can go along: a PvP kill broadcast about you ("Lavasockz has defeated Bob ...") includes
+the name of the player you defeated, and a clan leader's `::shame` names the clanmate, who must have turned on
+**Let leaders shame me** themselves. While sync is on, the plugin sends to the CoR clan server (`cor-clan-api-production.up.railway.app`):
 
 - the gz's (gz / grats / congrats) **you** say in your clan's chat,
 - clan broadcasts **about you** (for example "Lavasockz has received a drop: ..."; a PvP kill broadcast includes
@@ -79,8 +86,9 @@ time another player's name goes along is a clan broadcast about you that names t
   the clan server to post that same group in the clan Discord,
 - your clan's rank names with their rank numbers (for example 126 "Owner", 5 "Captain"), once per login, so
   clan staff can pick a chat icon per rank. No player names are sent with them,
-- only if you are one of the four clan leaders (uimfartqueef, joeboob, Lavasockz, DAYLlGHT): the announcement text
-  you save with the banner's Edit button, when you do it,
+- only if you are one of the four clan leaders (uimfartqueef, joeboob, Lavasockz, DAYLlGHT): the name of the
+  clanmate you `::shame` or `::unshame`, and the announcement text you save with the banner's Edit button, when
+  you do it,
 - your character name, your clan's name and your RuneLite account hash with each of those, so the server
   knows whose they are.
 
@@ -91,7 +99,7 @@ About every 2 minutes while you are logged in it downloads everyone's gz counts,
 and glow picks (as their own clients reported them or clan staff set them), the past weekly podiums, the
 announcement banner, the latest promotions, and the chat icon images from the clan's admin page (small PNGs, at
 most 32x16 pixels). About every 30 seconds it downloads the raid finder board (the open groups: host, raid, slots,
-world and note).
+world and note), and about every 10 seconds the short list of who is shamed with the Kephri dung right now.
 
 While the server's data is loaded, the leaderboards, podiums, GZ King, weekly trophies, streaks, `!rank` and
 `[GZ count]` show the server's numbers, which only include players who have sync on. Your client keeps
@@ -142,7 +150,8 @@ on the clan server replace them. Your own **Member icons** always win on your cl
 ## Commands
 
 Type `::cor` (or `::test`) in the chatbox to print a local CoR banner with the GZ King, the most gz'd
-members and your own counts. Double-colon commands are handled inside RuneLite and are never sent to
+members and your own counts. The four clan leaders can type `::shame <name>` and `::unshame <name>` (needs Clan
+sync on); for anyone else they do nothing. Double-colon commands are handled inside RuneLite and are never sent to
 the game server; only you see the output.
 
 ## Config

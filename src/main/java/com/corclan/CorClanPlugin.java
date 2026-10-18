@@ -22,6 +22,8 @@ import com.corclan.glow.LavaAura;
 import com.corclan.glow.NatureAura;
 import com.corclan.glow.NatureGlow;
 import com.corclan.glow.RankGlowOverlay;
+import com.corclan.glow.ShameAura;
+import com.corclan.glow.Shames;
 import com.corclan.glow.SignatureGlowOverlay;
 import com.corclan.gz.BroadcastParser;
 import com.corclan.gz.DailyGm;
@@ -241,6 +243,9 @@ public class CorClanPlugin extends Plugin
 
 	@Inject
 	private NatureAura natureAura;
+
+	@Inject
+	private ShameAura shameAura;
 
 	@Inject
 	private SignatureGlowOverlay signatureGlowOverlay;
@@ -481,6 +486,7 @@ public class CorClanPlugin extends Plugin
 		clientThread.invoke(lavaAura::clear);
 		clientThread.invoke(daylightAura::clear);
 		clientThread.invoke(natureAura::clear);
+		clientThread.invoke(shameAura::clearShames);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
@@ -536,6 +542,7 @@ public class CorClanPlugin extends Plugin
 			clientThread.invoke(daylightAura::clear);
 			clientThread.invoke(natureAura::clear);
 			clientThread.invoke(holyAura::clear);
+			clientThread.invoke(shameAura::clear);
 		}
 		rebuildCosmetics();
 		clientThread.invokeLater(client::refreshChat);
@@ -769,6 +776,75 @@ public class CorClanPlugin extends Plugin
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + glow.shortName + (on ? " on" : " off"), null);
 	}
 
+	/**
+	 * ::shame &lt;name&gt; drops the Kephri dung on a clanmate's head for five minutes, for every plugin user with clan
+	 * sync on; ::unshame &lt;name&gt; takes it off. Only the shamers can, and the clan server checks it is really them.
+	 * For anyone else the command does nothing. Client thread.
+	 */
+	private void shame(String[] args, boolean clear)
+	{
+		String me = localPlayerName();
+		if (!ClanLeaders.isLeader(me))
+		{
+			return;
+		}
+		String command = clear ? "::unshame" : "::shame";
+		String target = displayName(String.join(" ", args));
+		if (target.isEmpty())
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Usage: " + command + " <player name>", null);
+			return;
+		}
+		if (!config.syncEnabled())
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + command + " needs Sync with clan server turned on", null);
+			return;
+		}
+		if (clanRankOf(target) == null)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: " + target + " is not in the clan", null);
+			return;
+		}
+		SyncModels.Reporter r = currentReporter();
+		if (r == null || r.equals(refusedReporter))
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: the clan server isn't taking anything from you right now", null);
+			return;
+		}
+		clanApi.sendShame(new SyncModels.ShamePayload(r, target, clear), outcome -> clientThread.invokeLater(() ->
+		{
+			if (!started || !config.syncEnabled())
+			{
+				return;
+			}
+			String done;
+			if (outcome == ClanApi.Outcome.OK)
+			{
+				// show it right away; the next refresh confirms it for everyone else
+				long now = System.currentTimeMillis();
+				shameAura.setShames(clear ? shameAura.getShames().without(target) : shameAura.getShames().with(target, now));
+				if (clear)
+				{
+					shameAura.clear();
+				}
+				done = clear ? "CoR: " + target + " is unshamed" : "CoR: " + target + " has been shamed";
+			}
+			else if (outcome == ClanApi.Outcome.RETRY)
+			{
+				done = "CoR: the clan server isn't answering, try " + command + " again";
+			}
+			else
+			{
+				done = "CoR: the clan server refused " + command;
+				if (outcome.blocksReporter())
+				{
+					onRefused(r, outcome);
+				}
+			}
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", done, null);
+		}));
+	}
+
 	/** True when you are logged in as a wearer of the founder aura (DAYLlGHT). Client thread. */
 	private boolean isFounder()
 	{
@@ -943,6 +1019,19 @@ public class CorClanPlugin extends Plugin
 		if (cmd.equals("myglow"))
 		{
 			myGlow(event.getArguments());
+			return;
+		}
+		if (cmd.equals("dungfx"))
+		{
+			// local preview of the Kephri dung on your own character, dropping like a real shame for 30 seconds
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", shameAura.preview()
+				? "CoR: dropping the Kephri dung on you for 30 seconds, like a shame. ::dungfx again stops it"
+				: "CoR: dung preview stopped", null);
+			return;
+		}
+		if (cmd.equals("shame") || cmd.equals("unshame"))
+		{
+			shame(event.getArguments(), cmd.equals("unshame"));
 			return;
 		}
 		if (glowPicks.gemPartCommand(cmd, event.getArguments()))
@@ -2357,10 +2446,42 @@ public class CorClanPlugin extends Plugin
 		return false;
 	}
 
+	/** Every 10 seconds while logged in: who wears the Kephri dung, so a ::shame shows up fast. */
+	@Schedule(period = 10, unit = ChronoUnit.SECONDS)
+	public void shameTimer()
+	{
+		if (config.syncEnabled())
+		{
+			clientThread.invokeLater(() ->
+			{
+				if (client.getGameState() == GameState.LOGGED_IN)
+				{
+					pullShames();
+				}
+			});
+		}
+	}
+
+	private void pullShames()
+	{
+		clanApi.fetchShames(response ->
+		{
+			Shames shames = Shames.of(response, System.currentTimeMillis());
+			clientThread.invokeLater(() ->
+			{
+				if (started && config.syncEnabled())
+				{
+					shameAura.setShames(shames);
+				}
+			});
+		});
+	}
+
 	/** Asks the clan server for everyone's data and its chat icons. The answers arrive on OkHttp threads. */
 	private void pullFromServer()
 	{
 		lastPull = System.currentTimeMillis();
+		pullShames();
 		pullRaids();
 		clanApi.fetchClan(this::onClanResponse);
 		clanApi.fetchIcons(response -> clientThread.invokeLater(() ->
@@ -2476,6 +2597,7 @@ public class CorClanPlugin extends Plugin
 			lavaAura.clearSharedPicks();
 			daylightAura.clearSharedPicks();
 			natureAura.clearSharedPicks();
+			shameAura.clearShames();
 			raidBoard = Collections.emptyList();
 			raidBoardSeen = false;
 			myRaid = null;
@@ -2666,6 +2788,7 @@ public class CorClanPlugin extends Plugin
 	public void onGameTick(GameTick event)
 	{
 		holyAura.onGameTick();
+		shameAura.onGameTick();
 		checkRaidEntry();
 		if (ownLoginPending && localPlayerName() != null)
 		{
