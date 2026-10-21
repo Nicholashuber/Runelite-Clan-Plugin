@@ -318,10 +318,14 @@ public final class SyncModels
 		private final String note;
 		/** we are inside the raid with our party */
 		private final boolean raiding;
+		/** the room we are in while raiding (TFA only), else null */
+		private final String room;
 
-		public RaidPayload(Reporter reporter, String raid, int filled, int size, Integer world, String note, boolean raiding)
+		public RaidPayload(Reporter reporter, String raid, int filled, int size, Integer world, String note, boolean raiding,
+			String room)
 		{
 			this.raiding = raiding;
+			this.room = room;
 			this.reporter = reporter;
 			this.raid = raid;
 			this.filled = filled;
@@ -357,10 +361,17 @@ public final class SyncModels
 		private String updatedAt;
 		/** the host is inside the raid with their party */
 		private boolean raiding;
+		/** the room the host is in while raiding; missing from older servers */
+		private String room;
 
 		public boolean isRaiding()
 		{
 			return raiding;
+		}
+
+		public String getRoom()
+		{
+			return room;
 		}
 
 		public String getRsn()

@@ -45,7 +45,8 @@ Two optional features, both off until you turn them on, talk to something outsid
 - **Raid finder** (with Clan sync on): a card in the CoR side panel lists clanmates looking for a CoX, ToB, ToA or TFA
   party, with how many slots are filled (for example ToB 3/5), their world and a short note. Put up your own group
   there, update it as people join and take it down when you're full. While you are inside the raid it shows as
-  raiding (and clanmates get a "party is raiding now" line; TFA groups don't, so take those down yourself); it comes down 30 minutes after you log out (others see
+  raiding (and clanmates get a "party is raiding now" line); in The Fractured Archive the card also shows which boss room the
+  party is in (for example Room 3/5: Moia, then Vault). It comes down 30 minutes after you log out (others see
   you as "away" meanwhile). **Ping Discord** posts your group in the
   clan Discord's looking-for-group channel (once every 10 minutes). Open groups are advertised as game messages when one goes up and every
   5 minutes (setting "Raid finder in chat"); while the chat is quiet the ad updates its one line instead of
@@ -84,7 +85,7 @@ the name of the player you defeated, and a clan leader's `::shame` names the cla
   bonus. The server checks it is a gm and does not keep the text,
 - your own clan rank and the glows you picked for yourself, on login and when they change,
 - only if you put up a raid finder group: the raid, slots filled, party size, your world and your note, sent again
-  every few minutes while it is up, whether you are inside the raid, and a "take it down" when you remove it. Ping Discord asks
+  every few minutes while it is up, whether you are inside the raid (in TFA also which boss room, sent as you move on), and a "take it down" when you remove it. Ping Discord asks
   the clan server to post that same group in the clan Discord,
 - your clan's rank names with their rank numbers (for example 126 "Owner", 5 "Captain"), once per login, so
   clan staff can pick a chat icon per rank. No player names are sent with them,
@@ -101,7 +102,7 @@ chat. Gz's and broadcasts go out in small batches about every 30 seconds.
 About every 2 minutes while you are logged in it downloads everyone's gz counts, clan ranks, icons, titles
 and glow picks (as their own clients reported them or clan staff set them), the past weekly podiums, the
 announcement banner, the latest promotions, and the chat icon images from the clan's admin page (small PNGs, at
-most 32x16 pixels). About every 30 seconds it downloads the raid finder board (the open groups: host, raid, slots,
+most 32x16 pixels). About every 30 seconds it downloads the raid finder board (the open groups: host, raid, slots, TFA room,
 world and note), and about every 10 seconds the short list of who is shamed with the Kephri dung right now.
 
 While the server's data is loaded, the leaderboards, podiums, GZ King, weekly trophies, streaks, `!rank` and

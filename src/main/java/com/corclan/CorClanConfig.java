@@ -71,7 +71,7 @@ public interface CorClanConfig extends Config
 		description = "Sends to the CoR clan server: the gz's you say in clan chat, clan broadcasts about you (a PvP kill"
 			+ " broadcast includes the name of the player you defeated), your first gm of the day, your clan rank, your glow"
 			+ " picks and your clan's rank names (no player names); your raid finder group (raid, slots, world, note, whether"
-			+ " you are inside) and Discord pings, only if you post one; whether you let leaders shame you; the announcement"
+			+ " you are inside and, in TFA, which boss room) and Discord pings, only if you post one; whether you let leaders shame you; the announcement"
 			+ " text and the clanmates you ::shame, only if you are a clan leader. Each comes with your character name, your clan's name and your RuneLite account hash. Loads the"
 			+ " clan-wide gz counts, chat icons, titles, glow picks, announcement, recent promotions and raid finder board"
 			+ " from it. Nothing else from chat is sent.",

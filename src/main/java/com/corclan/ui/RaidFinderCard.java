@@ -357,6 +357,14 @@ public final class RaidFinderCard extends JPanel
 		}
 		text.add(slots);
 
+		if (!l.room.isEmpty())
+		{
+			JLabel room = small(l.roomLabel(), PanelArt.mix(l.raid.color, Color.WHITE, 0.4f));
+			room.setAlignmentX(LEFT_ALIGNMENT);
+			room.setToolTipText("Where the party is in " + l.raid.fullName + " right now");
+			text.add(room);
+		}
+
 		if (!l.note.isEmpty())
 		{
 			WrapText note = new WrapText(FontManager.getRunescapeSmallFont(), ColorScheme.LIGHT_GRAY_COLOR);

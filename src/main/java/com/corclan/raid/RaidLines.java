@@ -34,7 +34,7 @@ public final class RaidLines
 		{
 			RaidListing l = board.get(i);
 			text.append(i > 0 ? ", " : "").append(l.raid.shortName).append(' ').append(l.slots())
-				.append(l.raiding ? " raiding" : "").append(" (").append(l.name).append(l.world > 0 ? ", W" + l.world : "").append(')');
+				.append(l.raiding ? " raiding" : "").append(l.room.isEmpty() ? "" : " at " + l.room).append(" (").append(l.name).append(l.world > 0 ? ", W" + l.world : "").append(')');
 		}
 		if (board.size() > listed)
 		{
