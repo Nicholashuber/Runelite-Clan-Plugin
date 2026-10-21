@@ -56,7 +56,8 @@ public final class RaidFinderCard extends JPanel
 	private final JPanel body = new JPanel();
 	private final JPanel listings = new JPanel();
 	private final WrapText hint = new WrapText(FontManager.getRunescapeSmallFont(), ColorScheme.LIGHT_GRAY_COLOR);
-	private final JLabel mine = new JLabel();
+	/** wraps, so a long raid name and the room never get cut off */
+	private final WrapText mine = new WrapText(FontManager.getRunescapeSmallFont(), ColorScheme.LIGHT_GRAY_COLOR);
 
 	private final JComboBox<Raid> raidBox = new JComboBox<>(Raid.values());
 	private final SpinnerNumberModel filledModel = new SpinnerNumberModel(1, 1, Raid.COX.defaultSize, 1);
@@ -121,9 +122,6 @@ public final class RaidFinderCard extends JPanel
 		JLabel yours = RankCard.heading("Your group");
 		yours.setAlignmentX(LEFT_ALIGNMENT);
 		body.add(yours);
-		mine.setFont(FontManager.getRunescapeSmallFont());
-		mine.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		mine.setAlignmentX(LEFT_ALIGNMENT);
 		body.add(mine);
 		body.add(Box.createVerticalStrut(4));
 		JPanel form = buildForm(actions);
@@ -279,7 +277,8 @@ public final class RaidFinderCard extends JPanel
 	}
 
 	/**
-	 * The "Your group" line: what we posted, or once the board shows us inside, "Raiding ... now" and the room.
+	 * The "Your group" text: what we posted, or once the board shows us inside, "Raiding ... now" with the room on the
+	 * line under it.
 	 * @param listed our own group as the board lists it, or null
 	 */
 	static String mineText(RaidAd myAd, RaidListing listed)
@@ -293,7 +292,7 @@ public final class RaidFinderCard extends JPanel
 			return "Looking for " + myAd.raid.fullName + ", " + myAd.slots() + " filled.";
 		}
 		String room = listed.roomLabel();
-		return "Raiding " + myAd.raid.fullName + " now (" + listed.slots() + ")" + (room.isEmpty() ? "" : ", " + room) + ".";
+		return "Raiding " + myAd.raid.fullName + " now (" + listed.slots() + ")" + (room.isEmpty() ? "" : "\n" + room);
 	}
 
 	/** "ToB 3/5, CoX 2/5 and 1 more" or a nudge when the board is empty */
@@ -360,6 +359,15 @@ public final class RaidFinderCard extends JPanel
 		}
 		text.add(top);
 
+		if (!l.room.isEmpty())
+		{
+			// wraps rather than cut off: "Room 2/5: Bork and the Smorks" is wide for the side panel
+			WrapText room = new WrapText(FontManager.getRunescapeSmallFont(), PanelArt.mix(l.raid.color, Color.WHITE, 0.4f));
+			room.setText(l.roomLabel());
+			room.setToolTipText("Where the party is in " + l.raid.fullName + " right now");
+			text.add(room);
+		}
+
 		JPanel slots = new JPanel(new BorderLayout(4, 0));
 		slots.setOpaque(false);
 		slots.setAlignmentX(LEFT_ALIGNMENT);
@@ -375,14 +383,6 @@ public final class RaidFinderCard extends JPanel
 			slots.add(small(PromotionsCard.ago(now - l.postedAt), ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
 		}
 		text.add(slots);
-
-		if (!l.room.isEmpty())
-		{
-			JLabel room = small(l.roomLabel(), PanelArt.mix(l.raid.color, Color.WHITE, 0.4f));
-			room.setAlignmentX(LEFT_ALIGNMENT);
-			room.setToolTipText("Where the party is in " + l.raid.fullName + " right now");
-			text.add(room);
-		}
 
 		if (!l.note.isEmpty())
 		{

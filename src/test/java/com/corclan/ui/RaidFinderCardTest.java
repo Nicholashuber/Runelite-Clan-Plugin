@@ -29,8 +29,8 @@ public class RaidFinderCardTest
 		RaidAd ad = new RaidAd(Raid.TFA, 1, 8, "");
 		assertEquals("Not looking right now.", RaidFinderCard.mineText(null, null));
 		assertEquals("Looking for The Fractured Archive, 1/8 filled.", RaidFinderCard.mineText(ad, null));
-		assertEquals("Raiding The Fractured Archive now (1/8).", RaidFinderCard.mineText(ad, listing("\"raiding\":true")));
-		assertEquals("Raiding The Fractured Archive now (1/8), Room 1/5: Archive Guardian.",
+		assertEquals("Raiding The Fractured Archive now (1/8)", RaidFinderCard.mineText(ad, listing("\"raiding\":true")));
+		assertEquals("Raiding The Fractured Archive now (1/8)\nRoom 1/5: Archive Guardian",
 			RaidFinderCard.mineText(ad, listing("\"raiding\":true,\"room\":\"Archive Guardian\"")));
 	}
 
