@@ -182,23 +182,6 @@ the game server; only you see the output.
 | CoR party | Share in Wilderness | Keep sharing inside the Wilderness. Off means you vanish from the clan map there |
 | Staff | Clan member icons, Clan rank icons | Icon lists kept on your client only, used while Clan sync is off. See [Local clan icon lists](#local-clan-icon-lists) |
 
-## Development
-
-Requires JDK 11 or newer.
-
-```
-./gradlew test      # unit tests
-./gradlew run       # launches a RuneLite development client with the plugin loaded
-```
-
-If you use a Jagex Account, do this once so the development client can log in:
-
-1. Open **RuneLite (configure)** from the Start menu.
-2. In *Client arguments* enter `--insecure-write-credentials` and save.
-3. Launch RuneLite through the Jagex Launcher, log in, then close it.
-   A `credentials.properties` file now exists in your `.runelite` folder. Never share it.
-4. Remove the client argument again, then run `./gradlew run`.
-
 ## License
 
 BSD 2-Clause. See [LICENSE](LICENSE).
