@@ -32,7 +32,7 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * The raid group finder, under the rank card: clanmates looking for a party for CoX, ToB or ToA, with how many slots
+ * The raid group finder, under the rank card: clanmates looking for a party for CoX, ToB, ToA or TFA, with how many slots
  * are filled, on the same art plaque as the banner. Anyone with clan sync on can put up one group of their own and
  * update or take it down. Click the title to open or close it.
  */
@@ -235,7 +235,8 @@ public final class RaidFinderCard extends JPanel
 		postButton.setText(myAd == null ? "Post group" : "Update");
 		stopButton.setEnabled(canPost && myAd != null);
 		pingButton.setEnabled(canPost && myAd != null);
-		mine.setText(myAd == null ? "Not looking right now." : "Looking for " + myAd.raid.fullName + ", " + myAd.slots() + " filled.");
+		mine.setText(mineText(myAd, board.stream().filter(l -> myAd != null && l.raid == myAd.raid && l.isHost(me))
+			.findFirst().orElse(null)));
 		if (myAd != null && !myAd.equals(shownAd))
 		{
 			// show what is posted (after a login the form starts fresh)
@@ -255,7 +256,7 @@ public final class RaidFinderCard extends JPanel
 		shownMe = me;
 		shownMinute = minute;
 		listings.removeAll();
-		JLabel open = RankCard.heading("Looking for a party");
+		JLabel open = RankCard.heading(!board.isEmpty() && board.stream().allMatch(l -> l.raiding) ? "Raiding now" : "Looking for a party");
 		open.setAlignmentX(LEFT_ALIGNMENT);
 		listings.add(open);
 		if (board.isEmpty())
@@ -275,6 +276,24 @@ public final class RaidFinderCard extends JPanel
 		}
 		listings.revalidate();
 		listings.repaint();
+	}
+
+	/**
+	 * The "Your group" line: what we posted, or once the board shows us inside, "Raiding ... now" and the room.
+	 * @param listed our own group as the board lists it, or null
+	 */
+	static String mineText(RaidAd myAd, RaidListing listed)
+	{
+		if (myAd == null)
+		{
+			return "Not looking right now.";
+		}
+		if (listed == null || !listed.raiding)
+		{
+			return "Looking for " + myAd.raid.fullName + ", " + myAd.slots() + " filled.";
+		}
+		String room = listed.roomLabel();
+		return "Raiding " + myAd.raid.fullName + " now (" + listed.slots() + ")" + (room.isEmpty() ? "" : ", " + room) + ".";
 	}
 
 	/** "ToB 3/5, CoX 2/5 and 1 more" or a nudge when the board is empty */
