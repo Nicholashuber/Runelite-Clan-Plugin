@@ -936,7 +936,7 @@ public class CorClanPanel extends PluginPanel
 	{
 		fillAnnouncement(data);
 		rankCard.fill(data);
-		raidFinderCard.fill(data.raidBoard, data.myName, data.myRaid, data.raidProblem);
+		raidFinderCard.fill(data.raidBoard, data.myName, data.myRaid, data.myRaidRoom, data.raidProblem);
 		promotionsCard.fill(data.promotions, data.recentPromotions, data.clanWide);
 		inCorParty = data.inCorParty;
 		partyButton.setText(data.inCorParty ? "Leave CoR party" : "Join CoR party");

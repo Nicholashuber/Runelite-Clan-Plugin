@@ -5,9 +5,11 @@ import com.corclan.clan.ClanLeaders;
 import com.corclan.clan.InfernoReminder;
 import com.corclan.clan.Legion;
 import com.corclan.clan.Promotions;
+import com.corclan.raid.Raid;
 import com.corclan.raid.RaidAd;
 import com.corclan.raid.RaidLines;
 import com.corclan.raid.RaidListing;
+import com.corclan.raid.TfaRooms;
 import com.corclan.fun.RaidSounds;
 import com.corclan.clan.ClanRoster;
 import com.corclan.glow.DaylightAura;
@@ -79,6 +81,7 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.MessageNode;
+import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.SoundEffectID;
 import java.util.TreeMap;
@@ -338,6 +341,10 @@ public class CorClanPlugin extends Plugin
 	private int raidSentWorld;
 	/** our group was last sent as raiding (we were inside the raid) */
 	private boolean raidSentRaiding;
+	/** the TFA room our group was last sent with, null for none */
+	private String raidSentRoom;
+	/** the TFA room we are in (the last boss seen), null outside the Archive. Client thread. */
+	private String tfaRoom;
 	/** groups already seen (so each new one is announced once), and whether this login has looked at the board yet */
 	private final Set<String> seenRaids = new HashSet<>();
 	/** groups seen raiding on their current trip, so each trip is announced once */
@@ -1491,7 +1498,8 @@ public class CorClanPlugin extends Plugin
 			me == null ? 0 : view.receivedOf(me), me == null ? 0 : session.getReceived().getOrDefault(me, 0),
 			panelShowsNature, GlowPicks.isStaff(glowPicks.localRank()), promotions(),
 			config.syncEnabled() && serverClan != null ? serverClan.getRecentPromotions() : Collections.emptyList(),
-			config.syncEnabled() ? raidBoard : Collections.emptyList(), myRaid, raidProblem());
+			config.syncEnabled() ? raidBoard : Collections.emptyList(), myRaid, myRaid != null && raidSentRaiding ? raidSentRoom : null,
+			raidProblem());
 	}
 
 	/**
@@ -2146,7 +2154,9 @@ public class CorClanPlugin extends Plugin
 		raidSentWorld = world;
 		boolean raiding = inRaid();
 		raidSentRaiding = raiding;
-		clanApi.sendRaid(new SyncModels.RaidPayload(r, ad.raid.id, ad.filled, ad.size, world > 0 ? world : null, ad.note, raiding),
+		raidSentRoom = roomFor(ad);
+		clanApi.sendRaid(new SyncModels.RaidPayload(r, ad.raid.id, ad.filled, ad.size, world > 0 ? world : null, ad.note, raiding,
+				raidSentRoom),
 			outcome -> clientThread.invokeLater(() ->
 			{
 				if (!started || !config.syncEnabled())
@@ -2239,9 +2249,8 @@ public class CorClanPlugin extends Plugin
 	}
 
 	/**
-	 * We are inside a raid: the Chambers (in the dungeon), or the Theatre / Tombs instance with a party. The parties
-	 * are formed outside the instances, so a group only shows as raiding once we are actually in. TFA has no check:
-	 * its host takes the group down by hand.
+	 * We are inside a raid: the Chambers (in the dungeon), or the Theatre / Tombs / Archive instance with a party. The
+	 * parties are formed outside the instances, so a group only shows as raiding once we are actually in.
 	 */
 	private boolean inRaid()
 	{
@@ -2250,23 +2259,63 @@ public class CorClanPlugin extends Plugin
 			return true;
 		}
 		return client.isInInstancedRegion() && (client.getVarbitValue(VarbitID.TOB_CLIENT_PARTYSTATUS) > 0
-			|| client.getVarbitValue(VarbitID.TOA_CLIENT_PARTYSTATUS) > 0);
+			|| client.getVarbitValue(VarbitID.TOA_CLIENT_PARTYSTATUS) > 0 || inTfa());
+	}
+
+	private boolean inTfa()
+	{
+		return client.isInInstancedRegion() && client.getVarbitValue(VarbitID.TFA_CLIENT_PARTYSTATUS) > 0;
 	}
 
 	/**
-	 * Every game tick while we have a raid group up: entering or leaving the raid sends it again at once, so the board
-	 * (and everyone's clan chat) shows the party as raiding while we are inside. The group stays listed either way.
+	 * Every game tick: inside the Archive, the room is the last boss (or the vault's Blade) we have seen; the choice
+	 * rooms in between keep the boss we just fought. Outside it there is no room.
+	 */
+	private void trackTfaRoom()
+	{
+		if (!inTfa())
+		{
+			tfaRoom = null;
+			return;
+		}
+		for (NPC npc : client.getTopLevelWorldView().npcs())
+		{
+			String room = TfaRooms.roomOf(npc.getId());
+			if (room != null)
+			{
+				tfaRoom = room;
+				return;
+			}
+		}
+	}
+
+	/** the room to send with our group: only for a TFA group while we are inside */
+	private String roomFor(RaidAd ad)
+	{
+		return ad.raid == Raid.TFA ? tfaRoom : null;
+	}
+
+	/**
+	 * Every game tick while we have a raid group up: entering or leaving the raid, or moving on to the next TFA room,
+	 * sends it again at once, so the board (and everyone's clan chat) shows the party as raiding while we are inside
+	 * and where they are. The group stays listed either way.
 	 */
 	private void checkRaidEntry()
 	{
+		trackTfaRoom();
 		SyncModels.Reporter r = myRaid == null || !config.syncEnabled() || client.getGameState() != GameState.LOGGED_IN
 			? null : currentReporter();
-		if (r == null || !r.equals(myRaidReporter) || r.equals(refusedReporter) || inRaid() == raidSentRaiding)
+		if (r == null || !r.equals(myRaidReporter) || r.equals(refusedReporter))
+		{
+			return;
+		}
+		boolean entered = inRaid() != raidSentRaiding;
+		if (!entered && Objects.equals(roomFor(myRaid), raidSentRoom))
 		{
 			return;
 		}
 		sendRaid(r, myRaid, false);
-		if (raidSentRaiding)
+		if (entered && raidSentRaiding)
 		{
 			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "CoR: good luck in there! Your " + myRaidName()
 				+ " group shows as raiding on the raid finder", null);

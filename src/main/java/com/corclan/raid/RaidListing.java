@@ -30,14 +30,17 @@ public final class RaidListing
 
 	/** the host is inside the raid with their party; the group stays listed */
 	public final boolean raiding;
+	/** the room the host is in while raiding (TFA), "" when unknown or not raiding */
+	public final String room;
 
 	/** a host who hasn't sent their group for this long has logged out (their plugin resends every 5 minutes) */
 	public static final long AWAY_MILLIS = 7 * 60_000L;
 
 	RaidListing(String name, Raid raid, int filled, int size, int world, String note, long postedAt, long updatedAt,
-		boolean raiding)
+		boolean raiding, String room)
 	{
 		this.raiding = raiding;
+		this.room = raiding ? room : "";
 		this.updatedAt = updatedAt;
 		this.name = name;
 		this.raid = raid;
@@ -67,7 +70,7 @@ public final class RaidListing
 			}
 			int world = d.getWorld() == null || d.getWorld() < 1 ? 0 : d.getWorld();
 			board.add(new RaidListing(name, raid, d.getFilled(), d.getSize(), world, clean(d.getNote(), RaidAd.MAX_NOTE),
-				parse(d.getPostedAt()), parse(d.getUpdatedAt()), d.isRaiding()));
+				parse(d.getPostedAt()), parse(d.getUpdatedAt()), d.isRaiding(), clean(d.getRoom(), TfaRooms.MAX_ROOM)));
 		}
 		return Collections.unmodifiableList(board);
 	}
@@ -87,6 +90,12 @@ public final class RaidListing
 	public boolean isAway(long now)
 	{
 		return updatedAt > 0 && now - updatedAt > AWAY_MILLIS;
+	}
+
+	/** "Room 3/5: Moia", "" when the board doesn't know */
+	public String roomLabel()
+	{
+		return TfaRooms.label(room);
 	}
 
 	/** "3/5" */
@@ -132,12 +141,13 @@ public final class RaidListing
 		}
 		RaidListing l = (RaidListing) o;
 		return raid == l.raid && filled == l.filled && size == l.size && world == l.world && postedAt == l.postedAt
-			&& updatedAt == l.updatedAt && raiding == l.raiding && name.equals(l.name) && note.equals(l.note);
+			&& updatedAt == l.updatedAt && raiding == l.raiding && name.equals(l.name) && note.equals(l.note)
+			&& room.equals(l.room);
 	}
 
 	@Override
 	public int hashCode()
 	{
-		return Objects.hash(name, raid, filled, size, world, note, postedAt, updatedAt, raiding);
+		return Objects.hash(name, raid, filled, size, world, note, postedAt, updatedAt, raiding, room);
 	}
 }
