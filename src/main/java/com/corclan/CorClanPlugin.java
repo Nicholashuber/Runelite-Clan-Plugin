@@ -1498,7 +1498,8 @@ public class CorClanPlugin extends Plugin
 			me == null ? 0 : view.receivedOf(me), me == null ? 0 : session.getReceived().getOrDefault(me, 0),
 			panelShowsNature, GlowPicks.isStaff(glowPicks.localRank()), promotions(),
 			config.syncEnabled() && serverClan != null ? serverClan.getRecentPromotions() : Collections.emptyList(),
-			config.syncEnabled() ? raidBoard : Collections.emptyList(), myRaid, raidProblem());
+			config.syncEnabled() ? raidBoard : Collections.emptyList(), myRaid, myRaid != null && raidSentRaiding ? raidSentRoom : null,
+			raidProblem());
 	}
 
 	/**

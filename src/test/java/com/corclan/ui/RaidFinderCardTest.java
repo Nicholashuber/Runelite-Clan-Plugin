@@ -27,11 +27,14 @@ public class RaidFinderCardTest
 	public void yourGroupFollowsTheBoardOnceInside()
 	{
 		RaidAd ad = new RaidAd(Raid.TFA, 1, 8, "");
-		assertEquals("Not looking right now.", RaidFinderCard.mineText(null, null));
-		assertEquals("Looking for The Fractured Archive, 1/8 filled.", RaidFinderCard.mineText(ad, null));
-		assertEquals("Raiding The Fractured Archive now (1/8)", RaidFinderCard.mineText(ad, listing("\"raiding\":true")));
+		assertEquals("Not looking right now.", RaidFinderCard.mineText(null, null, ""));
+		assertEquals("Looking for The Fractured Archive, 1/8 filled.", RaidFinderCard.mineText(ad, null, ""));
+		assertEquals("Raiding The Fractured Archive now (1/8)", RaidFinderCard.mineText(ad, listing("\"raiding\":true"), ""));
 		assertEquals("Raiding The Fractured Archive now (1/8)\nRoom 1/5: Archive Guardian",
-			RaidFinderCard.mineText(ad, listing("\"raiding\":true,\"room\":\"Archive Guardian\"")));
+			RaidFinderCard.mineText(ad, listing("\"raiding\":true,\"room\":\"Archive Guardian\""), ""));
+		// our own client knows the room before the board does
+		assertEquals("Raiding The Fractured Archive now (1/8)\nRoom 2/5: Ezekiel",
+			RaidFinderCard.mineText(ad, listing("\"raiding\":true"), "Room 2/5: Ezekiel"));
 	}
 
 	private static RaidListing listing(String extra)

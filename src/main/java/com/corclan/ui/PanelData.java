@@ -74,6 +74,8 @@ public final class PanelData
 	final List<RaidListing> raidBoard;
 	/** our own raid finder group as last posted, or null */
 	final RaidAd myRaid;
+	/** the TFA room we are raiding in (our own client knows it before the board does), or null */
+	final String myRaidRoom;
 	/** why we can't post a raid group right now (clan sync off, logged out), or null */
 	final String raidProblem;
 
@@ -85,10 +87,12 @@ public final class PanelData
 		Announcement announcement, String announcementHint, boolean canEditAnnouncement, String myName, String myRankTitle,
 		GemGlow myGem, int myGiven, int myGivenToday, int myReceived, int myReceivedToday,
 		boolean nature, boolean staff, Promotions.Result promotions,
-		List<RecentPromotion> recentPromotions, List<RaidListing> raidBoard, RaidAd myRaid, String raidProblem)
+		List<RecentPromotion> recentPromotions, List<RaidListing> raidBoard, RaidAd myRaid, String myRaidRoom,
+		String raidProblem)
 	{
 		this.raidBoard = raidBoard;
 		this.myRaid = myRaid;
+		this.myRaidRoom = myRaidRoom;
 		this.raidProblem = raidProblem;
 		this.recentPromotions = recentPromotions;
 		this.promotions = promotions;

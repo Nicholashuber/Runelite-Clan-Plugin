@@ -3,6 +3,7 @@ package com.corclan.ui;
 import com.corclan.raid.Raid;
 import com.corclan.raid.RaidAd;
 import com.corclan.raid.RaidListing;
+import com.corclan.raid.TfaRooms;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -69,6 +70,7 @@ public final class RaidFinderCard extends JPanel
 
 	private List<RaidListing> shown = Collections.emptyList();
 	private String shownMe;
+	private String shownRoom = "";
 	private RaidAd shownAd;
 	private long shownMinute = -1;
 
@@ -217,10 +219,12 @@ public final class RaidFinderCard extends JPanel
 	 * @param board every open group, newest first
 	 * @param me our character name, or null when logged out
 	 * @param myAd our own group as last posted, or null
+	 * @param myRoom the TFA room we are raiding in, or null; shown on our own row even before the board has it
 	 * @param problem why we can't post (clan sync off, logged out), or null
 	 */
-	void fill(List<RaidListing> board, String me, RaidAd myAd, String problem)
+	void fill(List<RaidListing> board, String me, RaidAd myAd, String myRoom, String problem)
 	{
+		String myRoomLabel = TfaRooms.label(myRoom);
 		badge.setText(board.size() + (board.stream().allMatch(l -> l.raiding) ? " raiding" : " open"));
 		badge.setVisible(!board.isEmpty());
 		summary.setText(summary(board));
@@ -234,7 +238,7 @@ public final class RaidFinderCard extends JPanel
 		stopButton.setEnabled(canPost && myAd != null);
 		pingButton.setEnabled(canPost && myAd != null);
 		mine.setText(mineText(myAd, board.stream().filter(l -> myAd != null && l.raid == myAd.raid && l.isHost(me))
-			.findFirst().orElse(null)));
+			.findFirst().orElse(null), myRoomLabel));
 		if (myAd != null && !myAd.equals(shownAd))
 		{
 			// show what is posted (after a login the form starts fresh)
@@ -246,12 +250,14 @@ public final class RaidFinderCard extends JPanel
 		shownAd = myAd;
 
 		long minute = System.currentTimeMillis() / 60_000L;
-		if (board.equals(shown) && Objects.equals(me, shownMe) && minute == shownMinute && listings.getComponentCount() > 0)
+		if (board.equals(shown) && Objects.equals(me, shownMe) && myRoomLabel.equals(shownRoom) && minute == shownMinute
+			&& listings.getComponentCount() > 0)
 		{
 			return;
 		}
 		shown = board;
 		shownMe = me;
+		shownRoom = myRoomLabel;
 		shownMinute = minute;
 		listings.removeAll();
 		JLabel open = RankCard.heading(!board.isEmpty() && board.stream().allMatch(l -> l.raiding) ? "Raiding now" : "Looking for a party");
@@ -268,7 +274,8 @@ public final class RaidFinderCard extends JPanel
 		for (RaidListing listing : board)
 		{
 			listings.add(Box.createVerticalStrut(4));
-			JPanel row = row(listing, listing.isHost(me), now);
+			boolean mine = listing.isHost(me);
+			JPanel row = row(listing, mine, mine && listing.raiding && !myRoomLabel.isEmpty() ? myRoomLabel : listing.roomLabel(), now);
 			row.setAlignmentX(LEFT_ALIGNMENT);
 			listings.add(row);
 		}
@@ -280,8 +287,9 @@ public final class RaidFinderCard extends JPanel
 	 * The "Your group" text: what we posted, or once the board shows us inside, "Raiding ... now" with the room on the
 	 * line under it.
 	 * @param listed our own group as the board lists it, or null
+	 * @param myRoom "Room 1/5: Archive Guardian" from our own client, or "" to use the board's
 	 */
-	static String mineText(RaidAd myAd, RaidListing listed)
+	static String mineText(RaidAd myAd, RaidListing listed, String myRoom)
 	{
 		if (myAd == null)
 		{
@@ -291,7 +299,7 @@ public final class RaidFinderCard extends JPanel
 		{
 			return "Looking for " + myAd.raid.fullName + ", " + myAd.slots() + " filled.";
 		}
-		String room = listed.roomLabel();
+		String room = myRoom.isEmpty() ? listed.roomLabel() : myRoom;
 		return "Raiding " + myAd.raid.fullName + " now (" + listed.slots() + ")" + (room.isEmpty() ? "" : "\n" + room);
 	}
 
@@ -317,8 +325,11 @@ public final class RaidFinderCard extends JPanel
 		return text.append('.').toString();
 	}
 
-	/** raid tag | host (you) and world, slots pips and age, the note */
-	private static JPanel row(RaidListing l, boolean mine, long now)
+	/**
+	 * raid tag | host and world, the room while raiding, slots pips (and age while looking), the note
+	 * @param room "Room 3/5: Moia", or "" for none
+	 */
+	private static JPanel row(RaidListing l, boolean mine, String room, long now)
 	{
 		InsetPanel row = new InsetPanel(new BorderLayout(6, 0));
 		row.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
@@ -343,8 +354,13 @@ public final class RaidFinderCard extends JPanel
 		top.setOpaque(false);
 		top.setAlignmentX(LEFT_ALIGNMENT);
 		boolean away = l.isAway(now);
-		JLabel name = new JLabel(mine ? l.name + " (you)" : away ? l.name + " (away)" : l.name);
-		if (away)
+		// our own name is told apart by its colour: a "(you)" tag got cut off next to the world
+		JLabel name = new JLabel(!mine && away ? l.name + " (away)" : l.name);
+		if (mine)
+		{
+			name.setToolTipText("Your group");
+		}
+		else if (away)
 		{
 			name.setToolTipText("Logged out; the group stays up for an hour");
 		}
@@ -359,26 +375,27 @@ public final class RaidFinderCard extends JPanel
 		}
 		text.add(top);
 
-		if (!l.room.isEmpty())
+		if (!room.isEmpty())
 		{
 			// wraps rather than cut off: "Room 2/5: Bork and the Smorks" is wide for the side panel
-			WrapText room = new WrapText(FontManager.getRunescapeSmallFont(), PanelArt.mix(l.raid.color, Color.WHITE, 0.4f));
-			room.setText(l.roomLabel());
-			room.setToolTipText("Where the party is in " + l.raid.fullName + " right now");
-			text.add(room);
+			WrapText roomText = new WrapText(FontManager.getRunescapeSmallFont(), PanelArt.mix(l.raid.color, Color.WHITE, 0.4f));
+			roomText.setText(room);
+			roomText.setToolTipText("Where the party is in " + l.raid.fullName + " right now");
+			text.add(roomText);
 		}
 
 		JPanel slots = new JPanel(new BorderLayout(4, 0));
 		slots.setOpaque(false);
 		slots.setAlignmentX(LEFT_ALIGNMENT);
-		JLabel filled = small(l.raiding ? l.slots() + " raiding now" : l.slots() + " filled", l.raid.color);
+		JLabel filled = small(l.raiding ? l.slots() + " raiding" : l.slots() + " filled", l.raid.color);
 		if (l.size <= PanelArt.MAX_PIPS)
 		{
 			filled.setIcon(new ImageIcon(PanelArt.pips(l.filled, l.size, l.raid.color)));
 			filled.setIconTextGap(5);
 		}
 		slots.add(filled, BorderLayout.CENTER);
-		if (l.postedAt > 0)
+		// while raiding the age gives way, so "1/8 raiding" fits next to eight pips
+		if (l.postedAt > 0 && !l.raiding)
 		{
 			slots.add(small(PromotionsCard.ago(now - l.postedAt), ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
 		}
